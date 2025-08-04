@@ -1,0 +1,6 @@
+[project]
+name = "ddtestopt"
+dynamic = ["version"]
+
+[project.entry-points.pytest11]
+ddtestopt = "ddtestopt.pytest.plugin"
