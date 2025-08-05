@@ -17,6 +17,7 @@ def install_global_trace_filter(writer):
     from .span_processor import TestOptSpanProcessor
 
     ddtrace.tracer.configure(trace_processors=[TestOptSpanProcessor(writer)])
+    ddtrace.patch(flask=True)
 
 
 def uninstall_global_trace_filter():

@@ -23,7 +23,7 @@ def nodeid_to_test_ref(nodeid: str) -> TestRef:
 
 class TestOptPlugin:
     def __init__(self):
-        self.enable_ddtrace = False
+        self.enable_ddtrace = True
 
     def pytest_sessionstart(self, session):
         self.writer = TestOptWriter()
