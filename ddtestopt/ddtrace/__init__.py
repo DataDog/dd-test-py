@@ -31,9 +31,11 @@ def uninstall_global_trace_filter():
     except ImportError:
         return None
 
-    from .span_processor import TestOptSpanProcessor
-
-    ddtrace.tracer.configure(trace_processors=[])
+    try:
+        ddtrace.tracer.configure(trace_processors=[])
+    except TypeError:
+        # ddtrace 2.x compatibility
+        ddtrace.tracer.configure(settings={'FILTERS': []})
 
 
 def trace_context(ddtrace_enabled: bool):
