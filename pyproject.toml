@@ -4,3 +4,38 @@ dynamic = ["version"]
 
 [project.entry-points.pytest11]
 ddtestopt = "ddtestopt.pytest.plugin"
+
+[tool.black]
+line-length = 120
+target_version = ['py37', 'py38', 'py39', 'py310', 'py311', 'py312']
+
+[tool.ruff]
+line-length = 120
+lint.select = [
+    "A",
+    "D",
+    "E",
+    "F",
+    "G",
+    "I",
+    "W",
+]
+lint.ignore = [
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D104",  #  Missing docstring in public package
+    "D107",  # Missing docstring in `__init__`
+    "D200",  #  One-line docstring should fit on one line
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.isort]
+force-single-line = true
+lines-after-imports = 2
+force-sort-within-sections = true
+known-first-party = [ "ddtestopt" ]
+relative-imports-order = "furthest-to-closest"

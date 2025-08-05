@@ -1,9 +1,10 @@
-import random
 from dataclasses import dataclass
+import random
 
 
 def _gen_item_id():
-    return random.randint(1, (1<<64) - 1)
+    return random.randint(1, (1 << 64) - 1)
+
 
 @dataclass
 class TestContext:

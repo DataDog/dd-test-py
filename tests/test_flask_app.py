@@ -1,7 +1,7 @@
-import pytest
-import time
 
-from flask import Flask, jsonify
+from flask import Flask
+from flask import jsonify
+import pytest
 
 
 app = Flask(__name__)

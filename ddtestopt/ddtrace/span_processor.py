@@ -1,13 +1,16 @@
 import typing as t
 
+
 try:
-    from ddtrace.trace import tracer, Span, TraceFilter
+    from ddtrace.trace import Span
+    from ddtrace.trace import TraceFilter
 except ImportError:
     # ddtrace 2.x compatibility
-    from ddtrace import tracer, Span
+    from ddtrace import Span
     from ddtrace.filters import TraceFilter
 
 from ddtestopt.recorder import Event
+
 
 class TestOptSpanProcessor(TraceFilter):
     def __init__(self, writer):
@@ -28,9 +31,9 @@ def span_to_event(span: Span) -> Event:
         version=1,
         type="span",
         content={
-            "trace_id": span.trace_id % (1<<64),
-            "parent_id": span.parent_id  % (1<<64),
-            "span_id": span.span_id % (1<<64),
+            "trace_id": span.trace_id % (1 << 64),
+            "parent_id": span.parent_id % (1 << 64),
+            "span_id": span.span_id % (1 << 64),
             "service": span.service,
             "resource": span.resource,
             "name": span.name,
