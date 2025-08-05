@@ -1,5 +1,12 @@
 import typing as t
-from ddtrace.trace import tracer, Span, TraceFilter
+
+try:
+    from ddtrace.trace import tracer, Span, TraceFilter
+except ImportError:
+    # ddtrace 2.x compatibility
+    from ddtrace import tracer, Span
+    from ddtrace.filters import TraceFilter
+
 from ddtestopt.recorder import Event
 
 class TestOptSpanProcessor(TraceFilter):

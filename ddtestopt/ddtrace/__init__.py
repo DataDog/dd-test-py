@@ -16,7 +16,12 @@ def install_global_trace_filter(writer):
 
     from .span_processor import TestOptSpanProcessor
 
-    ddtrace.tracer.configure(trace_processors=[TestOptSpanProcessor(writer)])
+    try:
+        ddtrace.tracer.configure(trace_processors=[TestOptSpanProcessor(writer)])
+    except TypeError:
+        # ddtrace 2.x compatibility
+        ddtrace.tracer.configure(settings={'FILTERS': [TestOptSpanProcessor(writer)]})
+
     ddtrace.patch(flask=True)
 
 
