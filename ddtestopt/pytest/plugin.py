@@ -1,3 +1,4 @@
+from pathlib import Path
 import os
 import re
 import typing as t
@@ -31,6 +32,16 @@ def nodeid_to_test_ref(nodeid: str) -> TestRef:
     return test_ref
 
 
+def _get_module_path_from_item(item: pytest.Item) -> Path:
+    try:
+        item_path = getattr(item, "path", None)
+        if item_path is not None:
+            return item.path.absolute().parent
+        return Path(item.module.__file__).absolute().parent
+    except Exception:  # noqa: E722
+        return Path.cwd()
+
+
 class TestOptPlugin:
     def __init__(self):
         self.enable_ddtrace = True
@@ -50,9 +61,20 @@ class TestOptPlugin:
     @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
     def pytest_runtest_protocol(self, item, nextitem):
         test_ref = nodeid_to_test_ref(item.nodeid)
-        test_module = self.session.get_or_create_child(test_ref.suite.module.name)
-        test_suite = test_module.get_or_create_child(test_ref.suite.name)
-        test = test_suite.get_or_create_child(test_ref.name)
+
+        test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
+        if created:
+            test_module.set_attributes(module_path=_get_module_path_from_item(item))
+
+        test_suite, created = test_module.get_or_create_child(test_ref.suite.name)
+        # if created:
+        #     test_suite.set_attributes(...)
+
+        test, created = test_suite.get_or_create_child(test_ref.name)
+        if created:
+            path, start_line, _test_name = item.reportinfo()
+            test.set_attributes(path=path, start_line=start_line)
+
         next_test_ref = nodeid_to_test_ref(nextitem.nodeid) if nextitem else None
 
         with trace_context(self.enable_ddtrace) as context:
