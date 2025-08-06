@@ -1,13 +1,24 @@
 import os
-import uuid
-import msgpack
 import re
+import typing as t
+import uuid
+
+import msgpack
 import pytest
 import requests
-import typing as t
-from ddtestopt.recorder import TestSession, TestModule, TestSuite, Test, ModuleRef, SuiteRef, TestRef, Event
-from ddtestopt.recorder import test_to_event, suite_to_event, module_to_event, session_to_event
-from ddtestopt.ddtrace import install_global_trace_filter, trace_context
+
+from ddtestopt.ddtrace import install_global_trace_filter
+from ddtestopt.ddtrace import trace_context
+from ddtestopt.recorder import Event
+from ddtestopt.recorder import ModuleRef
+from ddtestopt.recorder import SuiteRef
+from ddtestopt.recorder import TestRef
+from ddtestopt.recorder import TestSession
+from ddtestopt.recorder import module_to_event
+from ddtestopt.recorder import session_to_event
+from ddtestopt.recorder import suite_to_event
+from ddtestopt.recorder import test_to_event
+
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 
@@ -18,7 +29,6 @@ def nodeid_to_test_ref(nodeid: str) -> TestRef:
     suite_ref = SuiteRef(module_ref, matches.group("suite"))
     test_ref = TestRef(suite_ref, matches.group("name"))
     return test_ref
-
 
 
 class TestOptPlugin:
@@ -89,7 +99,7 @@ class TestOptWriter:
         breakpoint()
         pack = msgpack.packb(payload)
         url = "https://citestcycle-intake.datadoghq.com/api/v2/citestcycle"
-        #url = "https://citestcycle-intake.datad0g.com/api/v2/citestcycle"
+        # url = "https://citestcycle-intake.datad0g.com/api/v2/citestcycle"
         response = requests.post(
             url,
             data=pack,
