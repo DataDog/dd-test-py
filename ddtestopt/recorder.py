@@ -48,6 +48,8 @@ class TestItem(ABC):
         self.parent: t.Optional[TestItem] = None
         self.item_id = _gen_item_id()
         self.status: TestStatus = TestStatus.FAIL
+        self.tags: t.Dict[str, str] = {}
+        self.metrics: t.Dict[str, t.Union[int, float]] = {}
 
     def finish(self):
         self.duration = time.time_ns() - self.start
