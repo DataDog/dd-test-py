@@ -44,7 +44,7 @@ def _get_module_path_from_item(item: pytest.Item) -> Path:
 
 class TestOptPlugin:
     def __init__(self):
-        self.enable_ddtrace = True
+        self.enable_ddtrace = False
 
     def pytest_sessionstart(self, session):
         self.writer = TestOptWriter()

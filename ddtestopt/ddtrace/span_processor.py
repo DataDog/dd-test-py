@@ -27,6 +27,9 @@ class TestOptSpanProcessor(TraceFilter):
 
 
 def span_to_event(span: Span) -> Event:
+    metrics = span.get_metrics()
+    metrics.pop("_dd.top_level", None)
+
     return Event(
         version=1,
         type="span",
@@ -41,7 +44,7 @@ def span_to_event(span: Span) -> Event:
             "start": span.start_ns,
             "duration": span.duration_ns,
             "meta": span.get_tags(),
-            "metrics": span.get_metrics(),
+            "metrics": metrics,
             "type": span.get_tag("type") or span.span_type,
         },
     )
