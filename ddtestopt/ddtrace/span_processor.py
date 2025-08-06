@@ -10,6 +10,8 @@ except ImportError:
     from ddtrace.filters import TraceFilter
 
 from ddtestopt.recorder import Event
+from ddtestopt.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
+
 
 
 class TestOptSpanProcessor(TraceFilter):
@@ -19,6 +21,8 @@ class TestOptSpanProcessor(TraceFilter):
     def process_trace(self, trace: t.List[Span]) -> t.Optional[t.List[Span]]:
         for span in trace:
             if span.parent_id is None:
+                continue
+            if span.resource == DDTESTOPT_ROOT_SPAN_RESOURCE:
                 continue
 
             event = span_to_event(span)

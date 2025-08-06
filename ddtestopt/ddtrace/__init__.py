@@ -7,7 +7,7 @@ import logging
 
 from ddtestopt.utils import TestContext
 from ddtestopt.utils import _gen_item_id
-
+from ddtestopt.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
 
 log = logging.getLogger(__name__)
 
@@ -75,7 +75,12 @@ def trace_context(ddtrace_enabled: bool):
 def _ddtrace_context():
     import ddtrace
 
-    with ddtrace.tracer.trace("ddtestopt") as root_span:
+    # TODO: check if this breaks async tests.
+    # This seems to be necessary because buggy ddtrace integrations can leave spans
+    # unfinished, and spans for subsequent tests will have the wrong parent.
+    ddtrace.tracer.context_provider.activate(None)
+
+    with ddtrace.tracer.trace(DDTESTOPT_ROOT_SPAN_RESOURCE) as root_span:
         yield TestContext(trace_id=root_span.trace_id % (1 << 64), span_id=root_span.span_id % (1 << 64))
 
 
