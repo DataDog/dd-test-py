@@ -4,16 +4,14 @@ from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-import os
 import time
 import typing as t
 
+from ddtestopt.git import get_git_tags
 from ddtestopt.utils import TestContext
 from ddtestopt.utils import _gen_item_id
-
-
-class Event(dict):
-    pass
+from ddtestopt.writer import Event
+from ddtestopt.writer import TestOptWriter
 
 
 @dataclass
@@ -129,9 +127,16 @@ class TestSession(TestItem):
 
 
 class SessionManager:
-    def __init__(self):
-        self.service = os.getenv("DD_SERVICE", "test")
-        self.env = os.getenv("DD_ENV", "none")
+    def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None):
+        self.writer = writer or TestOptWriter()
+        self.session = session or TestSession(name="test")
+
+    def start(self):
+        self.writer.add_metadata("*", get_git_tags())
+
+    def finish(self):
+        pass
+
 
 def test_to_event(test: Test, context: TestContext) -> Event:
     return Event(
@@ -200,7 +205,6 @@ def suite_to_event(suite: TestSuite):
                 "_sampling_priority_v1": 1,
                 "test.itr.tests_skipping.count": 0,
                 **suite.metrics,
-
             },
             "type": "test_suite_end",
             "test_session_id": suite.session_id,
@@ -298,16 +302,6 @@ GENERIC_METADATA = {
     "ci.workspace_path": "/home/vitor.dearaujo/test-repos/some-repo",
     "component": "pytest",
     "env": "vitor-test-ddtestopt",
-    "git.branch": "master",
-    "git.commit.author.date": "2025-05-19T16:25:30+0000",
-    "git.commit.author.email": "vitor.dearaujo@datadoghq.com",
-    "git.commit.author.name": "Vítor De Araújo",
-    "git.commit.committer.date": "2025-05-19T16:25:30+0000",
-    "git.commit.committer.email": "vitor.dearaujo@datadoghq.com",
-    "git.commit.committer.name": "Vítor De Araújo",
-    "git.commit.message": "skippable",
-    "git.commit.sha": "f1f19359a53f53d783f019ea3d472b25cd292390",
-    "git.repository_url": "github.com:vitor-de-araujo/some-repo.git",
     "language": "python",
     "library_version": "3.12.0.dev22+g61670b7c4d.d20250723",
     "os.architecture": "x86_64",

@@ -13,7 +13,6 @@ from ddtestopt.recorder import Event
 from ddtestopt.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
 
 
-
 class TestOptSpanProcessor(TraceFilter):
     def __init__(self, writer):
         self.writer = writer

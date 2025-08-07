@@ -5,9 +5,10 @@ dd-trace-py interaction layer.
 import contextlib
 import logging
 
+from ddtestopt.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
 from ddtestopt.utils import TestContext
 from ddtestopt.utils import _gen_item_id
-from ddtestopt.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
+
 
 log = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import random
 
+
 DDTESTOPT_ROOT_SPAN_RESOURCE = "ddtestopt_root_span"
 
 
