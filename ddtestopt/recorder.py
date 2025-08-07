@@ -64,25 +64,31 @@ class TestItem(ABC):
 
     def _get_status_from_children(self) -> TestStatus:
         status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
+        total_count = 0
+
         for child in self.children.values():
             status = child.get_status()
-            status_counts[status] += 1
+            if status:
+                status_counts[status] += 1
+                total_count += 1
 
         if status_counts[TestStatus.FAIL] > 0:
             return TestStatus.FAIL
 
-        if status_counts[TestStatus.SKIP] == len(self.children):
+        if status_counts[TestStatus.SKIP] == total_count:
             return TestStatus.SKIP
 
         return TestStatus.PASS
 
     def get_or_create_child(self, name):
         created = False
+
         if name not in self.children:
             created = True
             child = self.ChildClass(name=name)
             child.parent = self
             self.children[name] = child
+
         return self.children[name], created
 
 
