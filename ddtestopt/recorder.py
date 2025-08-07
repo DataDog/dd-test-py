@@ -125,6 +125,18 @@ class TestSession(TestItem):
     def session_id(self):
         return self.item_id
 
+    def set_attributes(self, test_command: str, test_framework: str, test_framework_version: str) -> None:
+        self.command = test_command
+        self.test_command = test_command
+        self.test_framework = test_framework
+        self.test_framework_version = test_framework_version
+
+
+class TestTag:
+    TEST_COMMAND = "test.command"
+    TEST_FRAMEWORK = "test.framework"
+    TEST_FRAMEWORK_VERSION = "test.framework_version"
+
 
 class SessionManager:
     def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None):
@@ -133,6 +145,14 @@ class SessionManager:
 
     def start(self):
         self.writer.add_metadata("*", get_git_tags())
+        self.writer.add_metadata(
+            "*",
+            {
+                TestTag.TEST_COMMAND: self.session.test_command,
+                TestTag.TEST_FRAMEWORK: self.session.test_framework,
+                TestTag.TEST_FRAMEWORK_VERSION: self.session.test_framework_version,
+            },
+        )
 
     def finish(self):
         pass
@@ -312,7 +332,4 @@ GENERIC_METADATA = {
     "runtime.version": "3.10.14",
     "span.kind": "test",
     "test.codeowners": '["@DataDog/apm-core-python"]',
-    "test.command": "pytest --ddtrace tests/xdist/1/test_xdist_1.py",
-    "test.framework": "pytest",
-    "test.framework_version": "8.3.4",
 }

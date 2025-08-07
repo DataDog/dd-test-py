@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import re
 
@@ -41,8 +42,14 @@ class TestOptPlugin:
     def __init__(self):
         self.enable_ddtrace = True
 
-    def pytest_sessionstart(self, session):
+    def pytest_sessionstart(self, session: pytest.Session):
         self.session = TestSession(name="pytest")
+        self.session.set_attributes(
+            test_command=self._get_test_command(session),
+            test_framework="pytest",
+            test_framework_version=pytest.__version__,
+        )
+
         self.manager = SessionManager(session=self.session)
         self.manager.start()
 
@@ -54,6 +61,15 @@ class TestOptPlugin:
         self.manager.writer.append_event(session_to_event(self.session))
         self.manager.writer.send()
         self.manager.finish()
+
+    def _get_test_command(self, session: pytest.Session) -> str:
+        """Extract and re-create pytest session command from pytest config."""
+        command = "pytest"
+        if invocation_params := getattr(session.config, "invocation_params", None):
+            command += " {}".format(" ".join(invocation_params.args))
+        if addopts := os.environ.get("PYTEST_ADDOPTS"):
+            command += " {}".format(addopts)
+        return command
 
     @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
     def pytest_runtest_protocol(self, item, nextitem):
