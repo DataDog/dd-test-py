@@ -45,8 +45,8 @@ class TestItem(ABC):
     def __init__(self, name: str):
         self.name = name
         self.children: t.Dict[str, TestItem] = {}
-        self.start: t.Optional[int] = time.time_ns()
-        self.duration: t.Optional[int] = None
+        self.start_ns: t.Optional[int] = time.time_ns()
+        self.duration_ns: t.Optional[int] = None
         self.parent: t.Optional[TestItem] = None
         self.item_id = _gen_item_id()
         self.status: TestStatus = TestStatus.FAIL
@@ -54,7 +54,7 @@ class TestItem(ABC):
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
 
     def finish(self):
-        self.duration = time.time_ns() - self.start
+        self.duration_ns = time.time_ns() - self.start_ns
 
     def get_or_create_child(self, name):
         created = False
@@ -145,8 +145,8 @@ def test_to_event(test: Test, context: TestContext) -> Event:
             "resource": test.name,
             "name": "pytest.test",
             "error": 1 if test.status == TestStatus.FAIL else 0,
-            "start": test.start,
-            "duration": test.duration,
+            "start": test.start_ns,
+            "duration": test.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **test.tags,
@@ -186,8 +186,8 @@ def suite_to_event(suite: TestSuite):
             "resource": "pytest.test_suite",
             "name": "pytest.test_suite",
             "error": 0,
-            "start": suite.start,
-            "duration": suite.duration,
+            "start": suite.start_ns,
+            "duration": suite.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **suite.tags,
@@ -220,8 +220,8 @@ def module_to_event(module: TestModule):
             "resource": "pytest.test_module",
             "name": "pytest.test_module",
             "error": 0,
-            "start": module.start,
-            "duration": module.duration,
+            "start": module.start_ns,
+            "duration": module.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **module.tags,
@@ -260,8 +260,8 @@ def session_to_event(session: TestSession):
             "resource": "pytest.test_session",
             "name": "pytest.test_session",
             "error": 0,
-            "start": session.start,
-            "duration": session.duration,
+            "start": session.start_ns,
+            "duration": session.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **session.tags,
