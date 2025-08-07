@@ -16,9 +16,10 @@ class TestOptWriter:
         self.metadata: t.Dict[str, t.Dict[str, str]] = {
             "*": {
                 "language": "python",
-                "env": "vitor-test-ddtestopt",
                 "runtime-id": uuid.uuid4().hex,
                 "library_version": "0.0.0",
+                "_dd.origin": "ciapp-test",
+                "_dd.p.dm": "-0",  # what is this?
             },
         }
         self.api_key = os.environ["DD_API_KEY"]

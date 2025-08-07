@@ -3,11 +3,13 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
+import os
 from pathlib import Path
 import time
 import typing as t
 
 from ddtestopt.git import get_git_tags
+from ddtestopt.platform import get_platform_tags
 from ddtestopt.utils import TestContext
 from ddtestopt.utils import _gen_item_id
 from ddtestopt.writer import Event
@@ -133,9 +135,12 @@ class TestSession(TestItem):
 
 
 class TestTag:
+    COMPONENT = "component"
     TEST_COMMAND = "test.command"
     TEST_FRAMEWORK = "test.framework"
     TEST_FRAMEWORK_VERSION = "test.framework_version"
+
+    ENV = "env"
 
 
 class SessionManager:
@@ -145,12 +150,15 @@ class SessionManager:
 
     def start(self):
         self.writer.add_metadata("*", get_git_tags())
+        self.writer.add_metadata("*", get_platform_tags())
         self.writer.add_metadata(
             "*",
             {
                 TestTag.TEST_COMMAND: self.session.test_command,
                 TestTag.TEST_FRAMEWORK: self.session.test_framework,
                 TestTag.TEST_FRAMEWORK_VERSION: self.session.test_framework_version,
+                TestTag.COMPONENT: self.session.test_framework,
+                TestTag.ENV: os.environ.get("DD_ENV", "none"),
             },
         )
 
@@ -175,6 +183,7 @@ def test_to_event(test: Test, context: TestContext) -> Event:
             "meta": {
                 **GENERIC_METADATA,
                 **test.tags,
+                "span.kind": "test",
                 "test.itr.forced_run": "false",
                 "test.itr.unskippable": "false",
                 "test.module": test.parent.parent.name,
@@ -216,6 +225,7 @@ def suite_to_event(suite: TestSuite):
             "meta": {
                 **GENERIC_METADATA,
                 **suite.tags,
+                "span.kind": "test",
                 "test.suite": suite.name,
                 "type": "test_suite_end",
             },
@@ -249,6 +259,7 @@ def module_to_event(module: TestModule):
             "meta": {
                 **GENERIC_METADATA,
                 **module.tags,
+                "span.kind": "test",
                 "test.code_coverage.enabled": "true",
                 "test.itr.forced_run": "false",
                 "test.itr.tests_skipping.enabled": "true",
@@ -289,6 +300,7 @@ def session_to_event(session: TestSession):
             "meta": {
                 **GENERIC_METADATA,
                 **session.tags,
+                "span.kind": "test",
                 "test.code_coverage.enabled": "true",
                 "test.itr.forced_run": "false",
                 "test.itr.tests_skipping.enabled": "true",
@@ -316,20 +328,7 @@ def session_to_event(session: TestSession):
 
 
 GENERIC_METADATA = {
-    "_dd.origin": "ciapp-test",
-    "_dd.p.dm": "-0",
     "_dd.p.tid": "6887857000000000",  ###
     "ci.workspace_path": "/home/vitor.dearaujo/test-repos/some-repo",
-    "component": "pytest",
-    "env": "vitor-test-ddtestopt",
-    "language": "python",
-    "library_version": "3.12.0.dev22+g61670b7c4d.d20250723",
-    "os.architecture": "x86_64",
-    "os.platform": "Linux",
-    "os.version": "6.8.0-47-generic",
-    "runtime-id": "b73b8b7815a84b848e2238bbe3af4538",
-    "runtime.name": "CPython",
-    "runtime.version": "3.10.14",
-    "span.kind": "test",
     "test.codeowners": '["@DataDog/apm-core-python"]',
 }
