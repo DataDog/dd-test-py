@@ -3,17 +3,17 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 import os
+from pathlib import Path
 import time
 import typing as t
 
+from ddtestopt.git import get_git_tags
+from ddtestopt.platform import get_platform_tags
 from ddtestopt.utils import TestContext
 from ddtestopt.utils import _gen_item_id
-
-
-class Event(dict):
-    pass
+from ddtestopt.writer import Event
+from ddtestopt.writer import TestOptWriter
 
 
 @dataclass
@@ -45,8 +45,8 @@ class TestItem(ABC):
     def __init__(self, name: str):
         self.name = name
         self.children: t.Dict[str, TestItem] = {}
-        self.start: t.Optional[int] = time.time_ns()
-        self.duration: t.Optional[int] = None
+        self.start_ns: t.Optional[int] = time.time_ns()
+        self.duration_ns: t.Optional[int] = None
         self.parent: t.Optional[TestItem] = None
         self.item_id = _gen_item_id()
         self.status: TestStatus = TestStatus.FAIL
@@ -54,7 +54,7 @@ class TestItem(ABC):
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
 
     def finish(self):
-        self.duration = time.time_ns() - self.start
+        self.duration_ns = time.time_ns() - self.start_ns
 
     def get_or_create_child(self, name):
         created = False
@@ -127,11 +127,44 @@ class TestSession(TestItem):
     def session_id(self):
         return self.item_id
 
+    def set_attributes(self, test_command: str, test_framework: str, test_framework_version: str) -> None:
+        self.command = test_command
+        self.test_command = test_command
+        self.test_framework = test_framework
+        self.test_framework_version = test_framework_version
+
+
+class TestTag:
+    COMPONENT = "component"
+    TEST_COMMAND = "test.command"
+    TEST_FRAMEWORK = "test.framework"
+    TEST_FRAMEWORK_VERSION = "test.framework_version"
+
+    ENV = "env"
+
 
 class SessionManager:
-    def __init__(self):
-        self.service = os.getenv("DD_SERVICE", "test")
-        self.env = os.getenv("DD_ENV", "none")
+    def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None):
+        self.writer = writer or TestOptWriter()
+        self.session = session or TestSession(name="test")
+
+    def start(self):
+        self.writer.add_metadata("*", get_git_tags())
+        self.writer.add_metadata("*", get_platform_tags())
+        self.writer.add_metadata(
+            "*",
+            {
+                TestTag.TEST_COMMAND: self.session.test_command,
+                TestTag.TEST_FRAMEWORK: self.session.test_framework,
+                TestTag.TEST_FRAMEWORK_VERSION: self.session.test_framework_version,
+                TestTag.COMPONENT: self.session.test_framework,
+                TestTag.ENV: os.environ.get("DD_ENV", "none"),
+            },
+        )
+
+    def finish(self):
+        pass
+
 
 def test_to_event(test: Test, context: TestContext) -> Event:
     return Event(
@@ -145,11 +178,12 @@ def test_to_event(test: Test, context: TestContext) -> Event:
             "resource": test.name,
             "name": "pytest.test",
             "error": 1 if test.status == TestStatus.FAIL else 0,
-            "start": test.start,
-            "duration": test.duration,
+            "start": test.start_ns,
+            "duration": test.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **test.tags,
+                "span.kind": "test",
                 "test.itr.forced_run": "false",
                 "test.itr.unskippable": "false",
                 "test.module": test.parent.parent.name,
@@ -186,11 +220,12 @@ def suite_to_event(suite: TestSuite):
             "resource": "pytest.test_suite",
             "name": "pytest.test_suite",
             "error": 0,
-            "start": suite.start,
-            "duration": suite.duration,
+            "start": suite.start_ns,
+            "duration": suite.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **suite.tags,
+                "span.kind": "test",
                 "test.suite": suite.name,
                 "type": "test_suite_end",
             },
@@ -200,7 +235,6 @@ def suite_to_event(suite: TestSuite):
                 "_sampling_priority_v1": 1,
                 "test.itr.tests_skipping.count": 0,
                 **suite.metrics,
-
             },
             "type": "test_suite_end",
             "test_session_id": suite.session_id,
@@ -220,11 +254,12 @@ def module_to_event(module: TestModule):
             "resource": "pytest.test_module",
             "name": "pytest.test_module",
             "error": 0,
-            "start": module.start,
-            "duration": module.duration,
+            "start": module.start_ns,
+            "duration": module.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **module.tags,
+                "span.kind": "test",
                 "test.code_coverage.enabled": "true",
                 "test.itr.forced_run": "false",
                 "test.itr.tests_skipping.enabled": "true",
@@ -260,11 +295,12 @@ def session_to_event(session: TestSession):
             "resource": "pytest.test_session",
             "name": "pytest.test_session",
             "error": 0,
-            "start": session.start,
-            "duration": session.duration,
+            "start": session.start_ns,
+            "duration": session.duration_ns,
             "meta": {
                 **GENERIC_METADATA,
                 **session.tags,
+                "span.kind": "test",
                 "test.code_coverage.enabled": "true",
                 "test.itr.forced_run": "false",
                 "test.itr.tests_skipping.enabled": "true",
@@ -292,33 +328,7 @@ def session_to_event(session: TestSession):
 
 
 GENERIC_METADATA = {
-    "_dd.origin": "ciapp-test",
-    "_dd.p.dm": "-0",
     "_dd.p.tid": "6887857000000000",  ###
     "ci.workspace_path": "/home/vitor.dearaujo/test-repos/some-repo",
-    "component": "pytest",
-    "env": "vitor-test-ddtestopt",
-    "git.branch": "master",
-    "git.commit.author.date": "2025-05-19T16:25:30+0000",
-    "git.commit.author.email": "vitor.dearaujo@datadoghq.com",
-    "git.commit.author.name": "Vítor De Araújo",
-    "git.commit.committer.date": "2025-05-19T16:25:30+0000",
-    "git.commit.committer.email": "vitor.dearaujo@datadoghq.com",
-    "git.commit.committer.name": "Vítor De Araújo",
-    "git.commit.message": "skippable",
-    "git.commit.sha": "f1f19359a53f53d783f019ea3d472b25cd292390",
-    "git.repository_url": "github.com:vitor-de-araujo/some-repo.git",
-    "language": "python",
-    "library_version": "3.12.0.dev22+g61670b7c4d.d20250723",
-    "os.architecture": "x86_64",
-    "os.platform": "Linux",
-    "os.version": "6.8.0-47-generic",
-    "runtime-id": "b73b8b7815a84b848e2238bbe3af4538",
-    "runtime.name": "CPython",
-    "runtime.version": "3.10.14",
-    "span.kind": "test",
     "test.codeowners": '["@DataDog/apm-core-python"]',
-    "test.command": "pytest --ddtrace tests/xdist/1/test_xdist_1.py",
-    "test.framework": "pytest",
-    "test.framework_version": "8.3.4",
 }

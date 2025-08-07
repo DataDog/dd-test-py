@@ -1,17 +1,13 @@
-from pathlib import Path
 import os
+from pathlib import Path
 import re
-import typing as t
-import uuid
 
-import msgpack
 import pytest
-import requests
 
 from ddtestopt.ddtrace import install_global_trace_filter
 from ddtestopt.ddtrace import trace_context
-from ddtestopt.recorder import Event
 from ddtestopt.recorder import ModuleRef
+from ddtestopt.recorder import SessionManager
 from ddtestopt.recorder import SuiteRef
 from ddtestopt.recorder import TestRef
 from ddtestopt.recorder import TestSession
@@ -46,17 +42,34 @@ class TestOptPlugin:
     def __init__(self):
         self.enable_ddtrace = True
 
-    def pytest_sessionstart(self, session):
-        self.writer = TestOptWriter()
+    def pytest_sessionstart(self, session: pytest.Session):
         self.session = TestSession(name="pytest")
+        self.session.set_attributes(
+            test_command=self._get_test_command(session),
+            test_framework="pytest",
+            test_framework_version=pytest.__version__,
+        )
+
+        self.manager = SessionManager(session=self.session)
+        self.manager.start()
 
         if self.enable_ddtrace:
-            install_global_trace_filter(self.writer)
+            install_global_trace_filter(self.manager.writer)
 
     def pytest_sessionfinish(self, session):
         self.session.finish()
-        self.writer.append_event(session_to_event(self.session))
-        self.writer.send()
+        self.manager.writer.append_event(session_to_event(self.session))
+        self.manager.writer.send()
+        self.manager.finish()
+
+    def _get_test_command(self, session: pytest.Session) -> str:
+        """Extract and re-create pytest session command from pytest config."""
+        command = "pytest"
+        if invocation_params := getattr(session.config, "invocation_params", None):
+            command += " {}".format(" ".join(invocation_params.args))
+        if addopts := os.environ.get("PYTEST_ADDOPTS"):
+            command += " {}".format(addopts)
+        return command
 
     @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
     def pytest_runtest_protocol(self, item, nextitem):
@@ -82,52 +95,16 @@ class TestOptPlugin:
 
         test.finish()
 
-        self.writer.append_event(test_to_event(test, context))
+        self.manager.writer.append_event(test_to_event(test, context))
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
-            self.writer.append_event(suite_to_event(test_suite))
+            self.manager.writer.append_event(suite_to_event(test_suite))
 
         if not next_test_ref or test_ref.suite.module != next_test_ref.suite.module:
             test_module.finish()
-            self.writer.append_event(module_to_event(test_module))
+            self.manager.writer.append_event(module_to_event(test_module))
 
 
 def pytest_configure(config):
     config.pluginmanager.register(TestOptPlugin())
-
-
-class TestOptWriter:
-    def __init__(self):
-        self.events: t.List[Event] = []
-        self.api_key = os.environ["DD_API_KEY"]
-
-    def append_event(self, event: Event) -> None:
-        self.events.append(event)
-
-    def send(self):
-        payload = {
-            "version": 1,
-            "metadata": {
-                "*": {
-                    "language": "python",
-                    "env": "vitor-test-ddtestopt",
-                    "runtime-id": uuid.uuid4().hex,
-                    "library_version": "0.0.0",
-                },
-            },
-            "events": self.events,
-        }
-        breakpoint()
-        pack = msgpack.packb(payload)
-        url = "https://citestcycle-intake.datadoghq.com/api/v2/citestcycle"
-        # url = "https://citestcycle-intake.datad0g.com/api/v2/citestcycle"
-        response = requests.post(
-            url,
-            data=pack,
-            headers={
-                "content-type": "application/msgpack",
-                "dd-api-key": self.api_key,
-            },
-        )
-        print(response)
