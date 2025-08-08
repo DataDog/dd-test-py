@@ -111,7 +111,7 @@ class TestOptPlugin:
         return test_module, test_suite, test
 
     @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
-    def pytest_runtest_protocol(self, item, nextitem):
+    def pytest_runtest_protocol_wrapper(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
         test_ref = nodeid_to_test_ref(item.nodeid)
         next_test_ref = nodeid_to_test_ref(nextitem.nodeid) if nextitem else None
 
@@ -123,10 +123,11 @@ class TestOptPlugin:
         status, tags = self._get_test_outcome(item.nodeid)
         test.set_status(status)
         test.set_tags(tags)
+        test.set_context(context)
 
         test.finish()
 
-        self.manager.writer.append_event(test_to_event(test, context))
+        self.manager.writer.append_event(test_to_event(test))
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
