@@ -1,3 +1,4 @@
+from collections import defaultdict
 from io import StringIO
 import os
 from pathlib import Path
@@ -58,7 +59,7 @@ _ReportGroup = t.Dict[str, pytest.TestReport]
 class TestOptPlugin:
     def __init__(self):
         self.enable_ddtrace = True
-        self.reports_by_nodeid: t.Dict[str, _ReportGroup] = {}
+        self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
 
     def pytest_sessionstart(self, session: pytest.Session):
@@ -142,7 +143,7 @@ class TestOptPlugin:
         """
         outcome = yield
         report: pytest.TestReport = outcome.get_result()
-        self.reports_by_nodeid.setdefault(item.nodeid, {})[call.when] = report
+        self.reports_by_nodeid[item.nodeid][call.when] = report
         self.excinfo_by_report[report] = call.excinfo
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
