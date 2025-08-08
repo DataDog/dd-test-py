@@ -62,6 +62,9 @@ class TestItem(ABC):
             self.status = self._get_status_from_children()
         return self.status
 
+    def set_status(self, status: TestStatus) -> None:
+        self.status = status
+
     def _get_status_from_children(self) -> TestStatus:
         status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
         total_count = 0
@@ -90,6 +93,9 @@ class TestItem(ABC):
             self.children[name] = child
 
         return self.children[name], created
+
+    def set_tags(self, tags: t.Dict[str, str]) -> None:
+        self.tags.update(tags)
 
 
 class Test(TestItem):
@@ -167,6 +173,12 @@ class TestTag:
     TEST_FRAMEWORK_VERSION = "test.framework_version"
 
     ENV = "env"
+
+    ERROR_STACK = "error.stack"
+    ERROR_TYPE = "error.type"
+    ERROR_MESSAGE = "error.message"
+
+    SKIP_REASON = "test.skip_reason"
 
 
 class SessionManager:

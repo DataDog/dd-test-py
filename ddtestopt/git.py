@@ -58,7 +58,7 @@ class Git:
         self.git_command: str = git_command
         self.cwd = cwd
 
-    def _call_git(self, args: t.List[str], input: t.Optional[str] = None):
+    def _call_git(self, args: t.List[str], input_string: t.Optional[str] = None):
         git_cmd = [self.git_command, *args]
 
         process = subprocess.Popen(
@@ -70,7 +70,7 @@ class Git:
             encoding="utf-8",
             errors="surrogateescape",
         )
-        stdout, stderr = process.communicate(input=input)
+        stdout, stderr = process.communicate(input=input_string)
 
         return _GitSubprocessDetails(stdout=stdout.strip(), stderr=stderr.strip(), return_code=process.returncode)
 

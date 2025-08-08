@@ -1,6 +1,8 @@
+from io import StringIO
 import os
 from pathlib import Path
 import re
+import traceback
 import typing as t
 
 import pytest
@@ -10,9 +12,13 @@ from ddtestopt.ddtrace import trace_context
 from ddtestopt.recorder import ModuleRef
 from ddtestopt.recorder import SessionManager
 from ddtestopt.recorder import SuiteRef
+from ddtestopt.recorder import Test
+from ddtestopt.recorder import TestModule
 from ddtestopt.recorder import TestRef
 from ddtestopt.recorder import TestSession
 from ddtestopt.recorder import TestStatus
+from ddtestopt.recorder import TestSuite
+from ddtestopt.recorder import TestTag
 from ddtestopt.recorder import module_to_event
 from ddtestopt.recorder import session_to_event
 from ddtestopt.recorder import suite_to_event
@@ -84,17 +90,10 @@ class TestOptPlugin:
             command += " {}".format(addopts)
         return command
 
-    @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
-    def pytest_runtest_protocol(self, item, nextitem):
-        test_ref = nodeid_to_test_ref(item.nodeid)
-
-        # test_module = self.session.get_child(
-        #     name=test_ref.suite.module.name,
-        #     or_create=lambda: TestModule(
-        #         ...
-        #     )
-        # )
-
+    def _discover_test(self, item: pytest.Item, test_ref: TestRef) -> t.Tuple[TestModule, TestSuite, Test]:
+        """
+        Return the module, suite and test objects for a given test item, creating them if necessary.
+        """
         test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
         if created:
             test_module.set_attributes(module_path=_get_module_path_from_item(item))
@@ -108,12 +107,22 @@ class TestOptPlugin:
             path, start_line, _test_name = item.reportinfo()
             test.set_attributes(path=path, start_line=start_line)
 
+        return test_module, test_suite, test
+
+    @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
+    def pytest_runtest_protocol(self, item, nextitem):
+        test_ref = nodeid_to_test_ref(item.nodeid)
         next_test_ref = nodeid_to_test_ref(nextitem.nodeid) if nextitem else None
+
+        test_module, test_suite, test = self._discover_test(item, test_ref)
 
         with trace_context(self.enable_ddtrace) as context:
             yield
 
-        test.status = self._get_test_status(item.nodeid)
+        status, tags = self._get_test_outcome(item.nodeid)
+        test.set_status(status)
+        test.set_tags(tags)
+
         test.finish()
 
         self.manager.writer.append_event(test_to_event(test, context))
@@ -136,19 +145,41 @@ class TestOptPlugin:
         self.reports_by_nodeid.setdefault(item.nodeid, {})[call.when] = report
         self.excinfo_by_report[report] = call.excinfo
 
-    def _get_test_status(self, nodeid) -> TestStatus:
-        reports_dict = self.reports_by_nodeid.get(nodeid)
+    def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
+        """
+        Return test status and tags with exception/skip information for a given executed test.
+
+        This methods consumes the test reports and exception information for the specified test, and removes them from
+        the dictionaries.
+        """
+        reports_dict = self.reports_by_nodeid.pop(nodeid, {})
+
         for phase in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             report = reports_dict.get(phase)
             if not report:
                 continue
-            if report.failed:
-                return TestStatus.FAIL
-            if report.skipped:
-                return TestStatus.SKIP
 
-        return TestStatus.PASS
+            excinfo = self.excinfo_by_report.pop(report, None)
+            if report.failed:
+                return TestStatus.FAIL, _get_exception_tags(excinfo)
+            if report.skipped:
+                return TestStatus.SKIP, {TestTag.SKIP_REASON: str(excinfo.value)}
+
+        return TestStatus.PASS, {}
 
 
 def pytest_configure(config):
     config.pluginmanager.register(TestOptPlugin())
+
+
+def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:
+    max_entries = 30
+    buf = StringIO()
+    # TODO: handle MAX_SPAN_META_VALUE_LEN
+    traceback.print_exception(excinfo.type, excinfo.value, excinfo.tb, limit=-max_entries, file=buf)
+
+    return {
+        TestTag.ERROR_STACK: buf.getvalue(),
+        TestTag.ERROR_TYPE: "%s.%s" % (excinfo.type.__module__, excinfo.type.__name__),
+        TestTag.ERROR_MESSAGE: str(excinfo.value),
+    }
