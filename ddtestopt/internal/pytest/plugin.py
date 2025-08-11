@@ -8,22 +8,22 @@ import typing as t
 
 import pytest
 
-from ddtestopt.ddtrace import install_global_trace_filter
-from ddtestopt.ddtrace import trace_context
-from ddtestopt.recorder import ModuleRef
-from ddtestopt.recorder import SessionManager
-from ddtestopt.recorder import SuiteRef
-from ddtestopt.recorder import Test
-from ddtestopt.recorder import TestModule
-from ddtestopt.recorder import TestRef
-from ddtestopt.recorder import TestSession
-from ddtestopt.recorder import TestStatus
-from ddtestopt.recorder import TestSuite
-from ddtestopt.recorder import TestTag
-from ddtestopt.recorder import module_to_event
-from ddtestopt.recorder import session_to_event
-from ddtestopt.recorder import suite_to_event
-from ddtestopt.recorder import test_to_event
+from ddtestopt.internal.ddtrace import install_global_trace_filter
+from ddtestopt.internal.ddtrace import trace_context
+from ddtestopt.internal.recorder import ModuleRef
+from ddtestopt.internal.recorder import SessionManager
+from ddtestopt.internal.recorder import SuiteRef
+from ddtestopt.internal.recorder import Test
+from ddtestopt.internal.recorder import TestModule
+from ddtestopt.internal.recorder import TestRef
+from ddtestopt.internal.recorder import TestSession
+from ddtestopt.internal.recorder import TestStatus
+from ddtestopt.internal.recorder import TestSuite
+from ddtestopt.internal.recorder import TestTag
+from ddtestopt.internal.recorder import module_to_event
+from ddtestopt.internal.recorder import session_to_event
+from ddtestopt.internal.recorder import suite_to_event
+from ddtestopt.internal.recorder import test_to_event
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
