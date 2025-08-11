@@ -132,6 +132,8 @@ class Test(TestItem):
     def __init__(self, name: str) -> None:
         super().__init__(name)
 
+        self.test_runs = []
+
     def set_attributes(self, path: Path, start_line: int) -> None:
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
@@ -149,8 +151,11 @@ class Test(TestItem):
         return self.parent.parent.parent.item_id
 
     def make_test_run(self):
-        child, _ = self.get_or_create_child(name=str(len(self.children)))
-        return child
+        test_run = TestRun(name=self.name)
+        test_run.parent = self
+        self.test_runs.append(test_run)
+        return test_run
+
 
 class TestSuite(TestItem):
     ChildClass = Test
@@ -378,14 +383,16 @@ class RetryHandler:
 class AutoTestRetriesHandler():
     def should_apply(self, test: Test) -> bool:
         return (
-            test.get_status() == TestStatus.FAIL
+            test.test_runs[-1].get_status() == TestStatus.FAIL
             # and not test.is_new()
         )
 
     def should_retry(self, test: Test):
-        last_test_run = test.children[str(len(test.children) - 1)] # TODO: cursed
         return (
-            last_test_run.get_status() == TestStatus.FAIL
-            # and not test.is_new()
-            and len(test.children) < 6
+            test.test_runs[-1].get_status() == TestStatus.FAIL
+            and len(test.test_runs) < 6
         )
+
+    def get_final_status(self, test: Test):
+        last_test_run = test.test_runs[-1]
+        return last_test_run.get_status()

@@ -124,7 +124,7 @@ class TestOptPlugin:
         with trace_context(self.enable_ddtrace) as context:
             yield
 
-        if not test.children:
+        if not test.test_runs:
             # No test runs: our pytest_runtest_protocol did not run, some other plugin did it instead.
             # In this case, we create a test run now with the test results of the plugin run as a fallback.
             test_run = test.make_test_run()
@@ -165,8 +165,9 @@ class TestOptPlugin:
                 break
         else:
             # No handler applied, finish test normally.
-            for report in reports:
-                item.ihook.pytest_runtest_logreport(report=report)
+            for when in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
+                if report := reports.get(when):
+                    item.ihook.pytest_runtest_logreport(report=report)
 
 
         # if quarantined: set some tags and modify test reports
@@ -181,7 +182,6 @@ class TestOptPlugin:
 
     def _do_retries(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], test: Test, reports: _ReportGroup, handler: RetryHandler) -> None:
         item.ihook.pytest_runtest_logreport(report=reports[TestPhase.SETUP])
-
 
         while handler.should_retry(test):
             reports[TestPhase.CALL].outcome = "dd_retry"
@@ -199,11 +199,10 @@ class TestOptPlugin:
             test_run.finish() ## now?
             self.manager.writer.append_event(test_to_event(test_run))
 
-
         item.ihook.pytest_runtest_logreport(report=reports[TestPhase.CALL])
         item.ihook.pytest_runtest_logreport(report=reports[TestPhase.TEARDOWN])
 
-
+        test.set_status(handler.get_final_status(test))
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
@@ -229,7 +228,7 @@ class TestOptPlugin:
             if not report:
                 continue
 
-            excinfo = self.excinfo_by_report.pop(report, None)
+            excinfo = self.excinfo_by_report.get(report, None)
             if report.failed:
                 return TestStatus.FAIL, _get_exception_tags(excinfo)
             if report.skipped:
