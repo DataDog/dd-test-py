@@ -227,7 +227,7 @@ class SessionManager:
         self.writer = writer or TestOptWriter()
         self.session = session or TestSession(name="test")
 
-        self.retry_handlers = [AutoTestRetriesHandler()]
+        self.retry_handlers = [EarlyFlakeDetectionHandler(), AutoTestRetriesHandler()]
 
     def start(self) -> None:
         self.writer.add_metadata("*", get_git_tags())
@@ -408,4 +408,43 @@ class AutoTestRetriesHandler():
         return {
             "test.is_retry": "true",
             "test.retry_reason": "auto_test_retry",
+        }
+
+
+class EarlyFlakeDetectionHandler():
+    def should_apply(self, test: Test) -> bool:
+        return (
+            True
+            # and test.is_new()
+        )
+
+    def should_retry(self, test: Test):
+        return (
+            test.last_test_run.get_status() != TestStatus.SKIP and
+            len(test.test_runs) < 6  # should be based on total time and shenanigans
+        )
+
+    def get_final_status(self, test: Test):
+        status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
+        total_count = 0
+
+        for test_run in test.test_runs:
+            status_counts[test_run.get_status()] += 1
+            total_count += 1
+
+        if status_counts[TestStatus.PASS] > 0:
+            return TestStatus.PASS
+
+        if status_counts[TestStatus.FAIL] > 0:
+            return TestStatus.FAIL
+
+        return TestStatus.SKIP
+
+    def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
+        if test_run.attempt == 0:
+            return {}
+
+        return {
+            "test.is_retry": "true",
+            "test.retry_reason": "early_flake_detection",
         }

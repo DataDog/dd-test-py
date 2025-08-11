@@ -186,8 +186,9 @@ class TestOptPlugin:
 
 
         while handler.should_retry(test):
-            reports[TestPhase.CALL].outcome = "dd_retry"
-            item.ihook.pytest_runtest_logreport(report=reports[TestPhase.CALL])
+            if call_report := reports.get(TestPhase.CALL):
+                call_report.outcome = "dd_retry"
+                item.ihook.pytest_runtest_logreport(report=call_report)
 
             test_run = test.make_test_run()
 
@@ -202,7 +203,9 @@ class TestOptPlugin:
             test_run.finish() ## now?
             self.manager.writer.append_event(test_to_event(test_run))
 
-        item.ihook.pytest_runtest_logreport(report=reports[TestPhase.CALL])
+
+        if call_report := reports.get(TestPhase.CALL):
+            item.ihook.pytest_runtest_logreport(report=call_report)
         item.ihook.pytest_runtest_logreport(report=reports[TestPhase.TEARDOWN])
 
         test.set_status(handler.get_final_status(test))
