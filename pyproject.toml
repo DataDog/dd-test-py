@@ -3,7 +3,7 @@ name = "ddtestopt"
 dynamic = ["version"]
 
 [project.entry-points.pytest11]
-ddtestopt = "ddtestopt.pytest.plugin"
+ddtestopt = "ddtestopt.internal.pytest.plugin"
 
 [tool.black]
 line-length = 120

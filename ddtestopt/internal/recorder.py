@@ -9,12 +9,12 @@ from pathlib import Path
 import time
 import typing as t
 
-from ddtestopt.git import get_git_tags
-from ddtestopt.platform import get_platform_tags
-from ddtestopt.utils import TestContext
-from ddtestopt.utils import _gen_item_id
-from ddtestopt.writer import Event
-from ddtestopt.writer import TestOptWriter
+from ddtestopt.internal.git import get_git_tags
+from ddtestopt.internal.platform import get_platform_tags
+from ddtestopt.internal.utils import TestContext
+from ddtestopt.internal.utils import _gen_item_id
+from ddtestopt.internal.writer import Event
+from ddtestopt.internal.writer import TestOptWriter
 
 
 @dataclass
