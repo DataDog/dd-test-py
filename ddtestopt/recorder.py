@@ -57,7 +57,10 @@ class TestItem(ABC):
     def finish(self):
         self.duration_ns = time.time_ns() - self.start_ns
 
-    def get_status(self):
+    def is_finished(self) -> bool:
+        return self.duration_ns is not None
+
+    def get_status(self) -> TestStatus:
         if not self.status:
             self.status = self._get_status_from_children()
         return self.status
@@ -83,7 +86,7 @@ class TestItem(ABC):
 
         return TestStatus.PASS
 
-    def get_or_create_child(self, name):
+    def get_or_create_child(self, name: str) -> t.Tuple[TestItem, bool]:
         created = False
 
         if name not in self.children:
@@ -99,25 +102,29 @@ class TestItem(ABC):
 
 
 class Test(TestItem):
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         super().__init__(name)
-        self.span_id = self.item_id
-        self.trace_id = _gen_item_id()
+        self.span_id: t.Optional[int] = None
+        self.trace_id: t.Optional[int] = None
 
-    def set_attributes(self, path: Path, start_line: int):
+    def set_attributes(self, path: Path, start_line: int) -> None:
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
 
+    def set_context(self, context: TestContext) -> None:
+        self.span_id = context.span_id
+        self.trace_id = context.trace_id
+
     @property
-    def suite_id(self):
+    def suite_id(self) -> str:
         return self.parent.item_id
 
     @property
-    def module_id(self):
+    def module_id(self) -> str:
         return self.parent.parent.item_id
 
     @property
-    def session_id(self):
+    def session_id(self) -> str:
         return self.parent.parent.parent.item_id
 
 
@@ -125,15 +132,15 @@ class TestSuite(TestItem):
     ChildClass = Test
 
     @property
-    def suite_id(self):
+    def suite_id(self) -> str:
         return self.item_id
 
     @property
-    def module_id(self):
+    def module_id(self) -> str:
         return self.parent.item_id
 
     @property
-    def session_id(self):
+    def session_id(self) -> str:
         return self.parent.parent.item_id
 
 
@@ -141,14 +148,14 @@ class TestModule(TestItem):
     ChildClass = TestSuite
 
     @property
-    def module_id(self):
+    def module_id(self) -> str:
         return self.item_id
 
     @property
-    def session_id(self):
+    def session_id(self) -> str:
         return self.parent.item_id
 
-    def set_attributes(self, module_path: Path):
+    def set_attributes(self, module_path: Path) -> None:
         self.module_path = str(module_path)
 
 
@@ -156,7 +163,7 @@ class TestSession(TestItem):
     ChildClass = TestModule
 
     @property
-    def session_id(self):
+    def session_id(self) -> str:
         return self.item_id
 
     def set_attributes(self, test_command: str, test_framework: str, test_framework_version: str) -> None:
@@ -182,11 +189,11 @@ class TestTag:
 
 
 class SessionManager:
-    def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None):
+    def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None) -> None:
         self.writer = writer or TestOptWriter()
         self.session = session or TestSession(name="test")
 
-    def start(self):
+    def start(self) -> None:
         self.writer.add_metadata("*", get_git_tags())
         self.writer.add_metadata("*", get_platform_tags())
         self.writer.add_metadata(
@@ -200,18 +207,18 @@ class SessionManager:
             },
         )
 
-    def finish(self):
+    def finish(self) -> None:
         pass
 
 
-def test_to_event(test: Test, context: TestContext) -> Event:
+def test_to_event(test: Test) -> Event:
     return Event(
         version=2,
         type="test",
         content={
-            "trace_id": context.trace_id,
+            "trace_id": test.trace_id,
             "parent_id": 1,
-            "span_id": context.span_id,
+            "span_id": test.span_id,
             "service": "ddtestopt",
             "resource": test.name,
             "name": "pytest.test",
@@ -219,15 +226,11 @@ def test_to_event(test: Test, context: TestContext) -> Event:
             "start": test.start_ns,
             "duration": test.duration_ns,
             "meta": {
-                **GENERIC_METADATA,
                 **test.tags,
                 "span.kind": "test",
-                "test.itr.forced_run": "false",
-                "test.itr.unskippable": "false",
                 "test.module": test.parent.parent.name,
                 "test.module_path": test.parent.parent.module_path,
                 "test.name": test.name,
-                "test.skipped_by_itr": "false",
                 "test.status": test.get_status().value,
                 "test.suite": test.parent.name,
                 "test.type": "test",
@@ -238,7 +241,6 @@ def test_to_event(test: Test, context: TestContext) -> Event:
                 "_dd.top_level": 1,
                 "_dd.tracer_kr": 1.0,
                 "_sampling_priority_v1": 1,
-                "process_id": 8871,
                 **test.metrics,
             },
             "type": "test",
@@ -249,7 +251,7 @@ def test_to_event(test: Test, context: TestContext) -> Event:
     )
 
 
-def suite_to_event(suite: TestSuite):
+def suite_to_event(suite: TestSuite) -> Event:
     return Event(
         version=1,
         type="test_suite_end",
@@ -261,7 +263,6 @@ def suite_to_event(suite: TestSuite):
             "start": suite.start_ns,
             "duration": suite.duration_ns,
             "meta": {
-                **GENERIC_METADATA,
                 **suite.tags,
                 "span.kind": "test",
                 "test.suite": suite.name,
@@ -272,7 +273,6 @@ def suite_to_event(suite: TestSuite):
                 "_dd.py.partial_flush": 1,
                 "_dd.tracer_kr": 1.0,
                 "_sampling_priority_v1": 1,
-                "test.itr.tests_skipping.count": 0,
                 **suite.metrics,
             },
             "type": "test_suite_end",
@@ -284,7 +284,7 @@ def suite_to_event(suite: TestSuite):
     )
 
 
-def module_to_event(module: TestModule):
+def module_to_event(module: TestModule) -> Event:
     return Event(
         version=1,
         type="test_module_end",
@@ -296,18 +296,10 @@ def module_to_event(module: TestModule):
             "start": module.start_ns,
             "duration": module.duration_ns,
             "meta": {
-                **GENERIC_METADATA,
                 **module.tags,
                 "span.kind": "test",
-                "test.code_coverage.enabled": "true",
-                "test.itr.forced_run": "false",
-                "test.itr.tests_skipping.enabled": "true",
-                "test.itr.tests_skipping.tests_skipped": "false",
-                "test.itr.tests_skipping.type": "suite",
-                "test.itr.unskippable": "false",
                 "test.module": module.name,
                 "test.module_path": module.module_path,
-                "test.skipped_by_itr": "false",
                 "test.status": module.get_status().value,
                 "type": "test_module_end",
             },
@@ -315,7 +307,6 @@ def module_to_event(module: TestModule):
                 "_dd.py.partial_flush": 1,
                 "_dd.tracer_kr": 1.0,
                 "_sampling_priority_v1": 1,
-                "test.itr.tests_skipping.count": 0,
                 **module.metrics,
             },
             "type": "test_module_end",
@@ -325,7 +316,7 @@ def module_to_event(module: TestModule):
     )
 
 
-def session_to_event(session: TestSession):
+def session_to_event(session: TestSession) -> Event:
     return Event(
         version=1,
         type="test_session_end",
@@ -337,18 +328,9 @@ def session_to_event(session: TestSession):
             "start": session.start_ns,
             "duration": session.duration_ns,
             "meta": {
-                **GENERIC_METADATA,
                 **session.tags,
                 "span.kind": "test",
-                "test.code_coverage.enabled": "true",
-                "test.itr.forced_run": "false",
-                "test.itr.tests_skipping.enabled": "true",
-                "test.itr.tests_skipping.tests_skipped": "false",
-                "test.itr.tests_skipping.type": "suite",
-                "test.itr.unskippable": "false",
-                "test.skipped_by_itr": "false",
                 "test.status": session.get_status().value,
-                "test.test_management.enabled": "true",
                 "type": "test_session_end",
             },
             "metrics": {
@@ -356,18 +338,9 @@ def session_to_event(session: TestSession):
                 "_dd.top_level": 1,
                 "_dd.tracer_kr": 1.0,
                 "_sampling_priority_v1": 1,
-                "process_id": 8871,
-                "test.itr.tests_skipping.count": 0,
                 **session.metrics,
             },
             "type": "test_session_end",
             "test_session_id": session.session_id,
         },
     )
-
-
-GENERIC_METADATA = {
-    "_dd.p.tid": "6887857000000000",  ###
-    "ci.workspace_path": "/home/vitor.dearaujo/test-repos/some-repo",
-    "test.codeowners": '["@DataDog/apm-core-python"]',
-}

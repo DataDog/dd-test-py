@@ -1,3 +1,4 @@
+from collections import defaultdict
 from io import StringIO
 import os
 from pathlib import Path
@@ -58,7 +59,7 @@ _ReportGroup = t.Dict[str, pytest.TestReport]
 class TestOptPlugin:
     def __init__(self):
         self.enable_ddtrace = True
-        self.reports_by_nodeid: t.Dict[str, _ReportGroup] = {}
+        self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
 
     def pytest_sessionstart(self, session: pytest.Session):
@@ -110,7 +111,7 @@ class TestOptPlugin:
         return test_module, test_suite, test
 
     @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
-    def pytest_runtest_protocol(self, item, nextitem):
+    def pytest_runtest_protocol_wrapper(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
         test_ref = nodeid_to_test_ref(item.nodeid)
         next_test_ref = nodeid_to_test_ref(nextitem.nodeid) if nextitem else None
 
@@ -122,10 +123,11 @@ class TestOptPlugin:
         status, tags = self._get_test_outcome(item.nodeid)
         test.set_status(status)
         test.set_tags(tags)
+        test.set_context(context)
 
         test.finish()
 
-        self.manager.writer.append_event(test_to_event(test, context))
+        self.manager.writer.append_event(test_to_event(test))
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
@@ -142,7 +144,7 @@ class TestOptPlugin:
         """
         outcome = yield
         report: pytest.TestReport = outcome.get_result()
-        self.reports_by_nodeid.setdefault(item.nodeid, {})[call.when] = report
+        self.reports_by_nodeid[item.nodeid][call.when] = report
         self.excinfo_by_report[report] = call.excinfo
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
