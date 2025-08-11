@@ -132,7 +132,7 @@ class TestOptPlugin:
             test_run.set_status(status)
             test_run.set_tags(tags)
             test_run.set_context(context)
-            test_run.finish()
+            test_run.finish()  ## now?
             self.manager.writer.append_event(test_to_event(test_run))
 
         test.finish()
@@ -161,6 +161,7 @@ class TestOptPlugin:
 
         for handler in self.manager.retry_handlers:
             if handler.should_apply(test):
+                test_run.set_tags(handler.get_tags_for_test_run(test_run))
                 self._do_retries(item, nextitem, test, reports, handler)
                 break
         else:
@@ -183,6 +184,7 @@ class TestOptPlugin:
     def _do_retries(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], test: Test, reports: _ReportGroup, handler: RetryHandler) -> None:
         item.ihook.pytest_runtest_logreport(report=reports[TestPhase.SETUP])
 
+
         while handler.should_retry(test):
             reports[TestPhase.CALL].outcome = "dd_retry"
             item.ihook.pytest_runtest_logreport(report=reports[TestPhase.CALL])
@@ -195,6 +197,7 @@ class TestOptPlugin:
             status, tags = self._get_test_outcome(item.nodeid)
             test_run.set_status(status)
             test_run.set_tags(tags)
+            test_run.set_tags(handler.get_tags_for_test_run(test_run))
             test_run.set_context(context)
             test_run.finish() ## now?
             self.manager.writer.append_event(test_to_event(test_run))

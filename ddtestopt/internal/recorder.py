@@ -153,8 +153,13 @@ class Test(TestItem):
     def make_test_run(self):
         test_run = TestRun(name=self.name)
         test_run.parent = self
+        test_run.attempt = len(self.test_runs)
         self.test_runs.append(test_run)
         return test_run
+
+    @property
+    def last_test_run(self):
+        return self.test_runs[-1]
 
 
 class TestSuite(TestItem):
@@ -383,16 +388,24 @@ class RetryHandler:
 class AutoTestRetriesHandler():
     def should_apply(self, test: Test) -> bool:
         return (
-            test.test_runs[-1].get_status() == TestStatus.FAIL
+            test.last_test_run.get_status() == TestStatus.FAIL
             # and not test.is_new()
         )
 
     def should_retry(self, test: Test):
         return (
-            test.test_runs[-1].get_status() == TestStatus.FAIL
+            test.last_test_run.get_status() == TestStatus.FAIL
             and len(test.test_runs) < 6
         )
 
     def get_final_status(self, test: Test):
-        last_test_run = test.test_runs[-1]
-        return last_test_run.get_status()
+        return test.last_test_run.get_status()
+
+    def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
+        if test_run.attempt == 0:
+            return {}
+
+        return {
+            "test.is_retry": "true",
+            "test.retry_reason": "auto_test_retry",
+        }
