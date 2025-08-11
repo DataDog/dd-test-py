@@ -61,7 +61,7 @@ class TestItem(ABC):
         return self.duration_ns is not None
 
     def get_status(self) -> TestStatus:
-        if not self.status:
+        if self.children: # ꙮ
             self.status = self._get_status_from_children()
         return self.status
 
@@ -101,19 +101,40 @@ class TestItem(ABC):
         self.tags.update(tags)
 
 
-class Test(TestItem):
+
+
+class TestRun(TestItem):
     def __init__(self, name: str) -> None:
         super().__init__(name)
         self.span_id: t.Optional[int] = None
         self.trace_id: t.Optional[int] = None
 
-    def set_attributes(self, path: Path, start_line: int) -> None:
-        self.tags["test.source.file"] = str(path)
-        self.metrics["test.source.start"] = start_line
-
     def set_context(self, context: TestContext) -> None:
         self.span_id = context.span_id
         self.trace_id = context.trace_id
+
+    @property
+    def suite_id(self) -> str:
+        return self.parent.parent.item_id
+
+    @property
+    def module_id(self) -> str:
+        return self.parent.parent.parent.item_id
+
+    @property
+    def session_id(self) -> str:
+        return self.parent.parent.parent.parent.item_id
+
+
+class Test(TestItem):
+    ChildClass = TestRun
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+    def set_attributes(self, path: Path, start_line: int) -> None:
+        self.tags["test.source.file"] = str(path)
+        self.metrics["test.source.start"] = start_line
 
     @property
     def suite_id(self) -> str:
@@ -127,6 +148,9 @@ class Test(TestItem):
     def session_id(self) -> str:
         return self.parent.parent.parent.item_id
 
+    def make_test_run(self):
+        child, _ = self.get_or_create_child(name=str(len(self.children)))
+        return child
 
 class TestSuite(TestItem):
     ChildClass = Test
@@ -193,6 +217,8 @@ class SessionManager:
         self.writer = writer or TestOptWriter()
         self.session = session or TestSession(name="test")
 
+        self.retry_handlers = [AutoTestRetriesHandler()]
+
     def start(self) -> None:
         self.writer.add_metadata("*", get_git_tags())
         self.writer.add_metadata("*", get_platform_tags())
@@ -228,11 +254,11 @@ def test_to_event(test: Test) -> Event:
             "meta": {
                 **test.tags,
                 "span.kind": "test",
-                "test.module": test.parent.parent.name,
-                "test.module_path": test.parent.parent.module_path,
+                "test.module": test.parent.parent.parent.name,
+                "test.module_path": test.parent.parent.parent.module_path,
                 "test.name": test.name,
                 "test.status": test.get_status().value,
-                "test.suite": test.parent.name,
+                "test.suite": test.parent.parent.name,
                 "test.type": "test",
                 "type": "test",
             },
@@ -344,3 +370,22 @@ def session_to_event(session: TestSession) -> Event:
             "test_session_id": session.session_id,
         },
     )
+
+
+class RetryHandler:
+    pass
+
+class AutoTestRetriesHandler():
+    def should_apply(self, test: Test) -> bool:
+        return (
+            test.get_status() == TestStatus.FAIL
+            # and not test.is_new()
+        )
+
+    def should_retry(self, test: Test):
+        last_test_run = test.children[str(len(test.children) - 1)] # TODO: cursed
+        return (
+            last_test_run.get_status() == TestStatus.FAIL
+            # and not test.is_new()
+            and len(test.children) < 6
+        )

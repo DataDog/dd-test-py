@@ -1,8 +1,12 @@
 import pytest
 
+class Flakiness:
+    x = 0
+
 
 def test_hello():
-    assert True
+    Flakiness.x += 1
+    assert Flakiness.x > 2
 
 
 def test_bye():

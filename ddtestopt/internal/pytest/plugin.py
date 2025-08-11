@@ -7,6 +7,7 @@ import traceback
 import typing as t
 
 import pytest
+from _pytest.runner import runtestprotocol
 
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
@@ -24,6 +25,7 @@ from ddtestopt.internal.recorder import module_to_event
 from ddtestopt.internal.recorder import session_to_event
 from ddtestopt.internal.recorder import suite_to_event
 from ddtestopt.internal.recorder import test_to_event
+from ddtestopt.internal.recorder import RetryHandler
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
@@ -61,6 +63,7 @@ class TestOptPlugin:
         self.enable_ddtrace = True
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
+        self.tests_by_nodeid: t.Dict[str, Test] = {}
 
     def pytest_sessionstart(self, session: pytest.Session):
         self.session = TestSession(name="pytest")
@@ -116,18 +119,23 @@ class TestOptPlugin:
         next_test_ref = nodeid_to_test_ref(nextitem.nodeid) if nextitem else None
 
         test_module, test_suite, test = self._discover_test(item, test_ref)
+        self.tests_by_nodeid[item.nodeid] = test
 
         with trace_context(self.enable_ddtrace) as context:
             yield
 
-        status, tags = self._get_test_outcome(item.nodeid)
-        test.set_status(status)
-        test.set_tags(tags)
-        test.set_context(context)
+        if not test.children:
+            # No test runs: our pytest_runtest_protocol did not run, some other plugin did it instead.
+            # In this case, we create a test run now with the test results of the plugin run as a fallback.
+            test_run = test.make_test_run()
+            status, tags = self._get_test_outcome(item.nodeid)
+            test_run.set_status(status)
+            test_run.set_tags(tags)
+            test_run.set_context(context)
+            test_run.finish()
+            self.manager.writer.append_event(test_to_event(test_run))
 
         test.finish()
-
-        self.manager.writer.append_event(test_to_event(test))
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
@@ -136,6 +144,66 @@ class TestOptPlugin:
         if not next_test_ref or test_ref.suite.module != next_test_ref.suite.module:
             test_module.finish()
             self.manager.writer.append_event(module_to_event(test_module))
+
+    def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
+        test = self.tests_by_nodeid[item.nodeid]
+        test_run = test.make_test_run()
+
+        with trace_context(self.enable_ddtrace) as context:
+            reports = _make_reports_dict(runtestprotocol(item, nextitem=nextitem, log=False))
+
+        status, tags = self._get_test_outcome(item.nodeid)
+        test_run.set_status(status)
+        test_run.set_tags(tags)
+        test_run.set_context(context)
+        test_run.finish() ## now?
+        self.manager.writer.append_event(test_to_event(test_run))
+
+        for handler in self.manager.retry_handlers:
+            if handler.should_apply(test):
+                self._do_retries(item, nextitem, test, reports, handler)
+                break
+        else:
+            # No handler applied, finish test normally.
+            for report in reports:
+                item.ihook.pytest_runtest_logreport(report=report)
+
+
+        # if quarantined: set some tags and modify test reports
+
+        # try one of:
+        #   - Attempt-to-Fix  (if ...)
+        #   - EFD             (if is_new)  ~ should never happen with quarantine
+        #   - ATR             (if not is_now and status == FAIL)
+
+
+        return True
+
+    def _do_retries(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], test: Test, reports: _ReportGroup, handler: RetryHandler) -> None:
+        item.ihook.pytest_runtest_logreport(report=reports[TestPhase.SETUP])
+
+
+        while handler.should_retry(test):
+            reports[TestPhase.CALL].outcome = "dd_retry"
+            item.ihook.pytest_runtest_logreport(report=reports[TestPhase.CALL])
+
+            test_run = test.make_test_run()
+
+            with trace_context(self.enable_ddtrace) as context:
+                reports = _make_reports_dict(runtestprotocol(item, nextitem=nextitem, log=False))
+
+            status, tags = self._get_test_outcome(item.nodeid)
+            test_run.set_status(status)
+            test_run.set_tags(tags)
+            test_run.set_context(context)
+            test_run.finish() ## now?
+            self.manager.writer.append_event(test_to_event(test_run))
+
+
+        item.ihook.pytest_runtest_logreport(report=reports[TestPhase.CALL])
+        item.ihook.pytest_runtest_logreport(report=reports[TestPhase.TEARDOWN])
+
+
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
@@ -152,9 +220,9 @@ class TestOptPlugin:
         Return test status and tags with exception/skip information for a given executed test.
 
         This methods consumes the test reports and exception information for the specified test, and removes them from
-        the dictionaries.
+        the dictionaries. XXX
         """
-        reports_dict = self.reports_by_nodeid.pop(nodeid, {})
+        reports_dict = self.reports_by_nodeid[nodeid] # , {})
 
         for phase in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             report = reports_dict.get(phase)
@@ -169,6 +237,9 @@ class TestOptPlugin:
 
         return TestStatus.PASS, {}
 
+
+def _make_reports_dict(reports) -> _ReportGroup:
+    return {report.when: report for report in reports}
 
 def pytest_configure(config):
     config.pluginmanager.register(TestOptPlugin())
