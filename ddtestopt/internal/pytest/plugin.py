@@ -182,7 +182,20 @@ class TestOptPlugin:
         return True
 
     def _do_retries(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], test: Test, reports: _ReportGroup, handler: RetryHandler) -> None:
-        item.ihook.pytest_runtest_logreport(report=reports[TestPhase.SETUP])
+        setup_report = reports.get(TestPhase.SETUP)
+        call_report = reports.get(TestPhase.CALL)
+        teardown_report = reports.get(TestPhase.TEARDOWN)
+
+        if call_report:
+            call_report.outcome = "dd_retry"
+        elif setup_report:
+            setup_report.outcome = "dd_retry"
+
+        if setup_report:
+            item.ihook.pytest_runtest_logreport(report=setup_report)
+
+        if call_report:
+            item.ihook.pytest_runtest_logreport(report=call_report)
 
 
         while handler.should_retry(test):
@@ -206,7 +219,10 @@ class TestOptPlugin:
 
         if call_report := reports.get(TestPhase.CALL):
             item.ihook.pytest_runtest_logreport(report=call_report)
-        item.ihook.pytest_runtest_logreport(report=reports[TestPhase.TEARDOWN])
+
+        # We only log one teardown for the whole test, not one per test run. pytest's junitxml plugin closes the XML
+        # test element on the teardown pytest_runtest_logreport.
+        item.ihook.pytest_runtest_logreport(report=teardown_report)
 
         test.set_status(handler.get_final_status(test))
 
