@@ -26,6 +26,7 @@ from ddtestopt.internal.recorder import session_to_event
 from ddtestopt.internal.recorder import suite_to_event
 from ddtestopt.internal.recorder import test_to_event
 from ddtestopt.internal.recorder import RetryHandler
+from ddtestopt.internal.utils import TestContext
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
@@ -132,7 +133,7 @@ class TestOptPlugin:
             test_run.set_status(status)
             test_run.set_tags(tags)
             test_run.set_context(context)
-            test_run.finish()  ## now?
+            test_run.finish()
             self.manager.writer.append_event(test_to_event(test_run))
 
         test.finish()
@@ -145,86 +146,80 @@ class TestOptPlugin:
             test_module.finish()
             self.manager.writer.append_event(module_to_event(test_module))
 
-    def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
+    def _do_one_test_run(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], context: TestContext) -> None:
         test = self.tests_by_nodeid[item.nodeid]
         test_run = test.make_test_run()
-
-        with trace_context(self.enable_ddtrace) as context:
-            reports = _make_reports_dict(runtestprotocol(item, nextitem=nextitem, log=False))
-
+        reports = _make_reports_dict(runtestprotocol(item, nextitem=nextitem, log=False))
         status, tags = self._get_test_outcome(item.nodeid)
         test_run.set_status(status)
         test_run.set_tags(tags)
         test_run.set_context(context)
-        test_run.finish() ## now?
+
+        return test_run, reports
+
+    def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
+        self._do_test_runs(item, nextitem)
+        return True  # Do not run other pytest_runtest_protocol hooks after this one.
+
+    def _do_test_runs(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
+        test = self.tests_by_nodeid[item.nodeid]
+
+        with trace_context(self.enable_ddtrace) as context:
+            test_run, reports = self._do_one_test_run(item, nextitem, context)
+
+        retry_handler = self._check_applicable_retry_handlers(test)
+
+        if retry_handler:
+            test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
+
+        test_run.finish()
         self.manager.writer.append_event(test_to_event(test_run))
 
-        for handler in self.manager.retry_handlers:
-            if handler.should_apply(test):
-                test_run.set_tags(handler.get_tags_for_test_run(test_run))
-                self._do_retries(item, nextitem, test, reports, handler)
-                break
+        if retry_handler:
+            # If retrying, it is the retry handler's responsibility to log the test.
+            self._do_retries(item, nextitem, test, reports, retry_handler)
         else:
-            # No handler applied, finish test normally.
+            # Otherwise, we log the test ourselves.
             for when in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
                 if report := reports.get(when):
                     item.ihook.pytest_runtest_logreport(report=report)
 
+    def _check_applicable_retry_handlers(self, test: Test):
+        for handler in self.manager.retry_handlers:
+            if handler.should_apply(test):
+                return handler
 
-        # if quarantined: set some tags and modify test reports
-
-        # try one of:
-        #   - Attempt-to-Fix  (if ...)
-        #   - EFD             (if is_new)  ~ should never happen with quarantine
-        #   - ATR             (if not is_now and status == FAIL)
-
-
-        return True
+        return None
 
     def _do_retries(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], test: Test, reports: _ReportGroup, handler: RetryHandler) -> None:
-        setup_report = reports.get(TestPhase.SETUP)
-        call_report = reports.get(TestPhase.CALL)
-        teardown_report = reports.get(TestPhase.TEARDOWN)
+        while handler.should_retry(test):
+            # Log previous attempt as a retry...
+            self._mark_test_reports_as_retry(reports)
+            self._log_test_reports(item, reports)
 
-        if call_report:
+            # ...and run the new one.
+            with trace_context(self.enable_ddtrace) as context:
+                test_run, reports = self._do_one_test_run(item, nextitem, context)
+                test_run.set_tags(handler.get_tags_for_test_run(test_run))
+                test_run.finish()
+                self.manager.writer.append_event(test_to_event(test_run))
+
+        # Log last retry.
+        self._log_test_reports(item, reports)
+
+        # Set final status of the test as a whole to propagate success/failure to suite.
+        test.set_status(handler.get_final_status(test))
+
+    def _mark_test_reports_as_retry(self, reports: _ReportGroup):
+        if call_report := reports.get(TestPhase.CALL):
             call_report.outcome = "dd_retry"
-        elif setup_report:
+        elif setup_report := reports.get(TestPhase.SETUP):
             setup_report.outcome = "dd_retry"
 
-        if setup_report:
-            item.ihook.pytest_runtest_logreport(report=setup_report)
-
-        if call_report:
-            item.ihook.pytest_runtest_logreport(report=call_report)
-
-
-        while handler.should_retry(test):
-            if call_report := reports.get(TestPhase.CALL):
-                call_report.outcome = "dd_retry"
-                item.ihook.pytest_runtest_logreport(report=call_report)
-
-            test_run = test.make_test_run()
-
-            with trace_context(self.enable_ddtrace) as context:
-                reports = _make_reports_dict(runtestprotocol(item, nextitem=nextitem, log=False))
-
-            status, tags = self._get_test_outcome(item.nodeid)
-            test_run.set_status(status)
-            test_run.set_tags(tags)
-            test_run.set_tags(handler.get_tags_for_test_run(test_run))
-            test_run.set_context(context)
-            test_run.finish() ## now?
-            self.manager.writer.append_event(test_to_event(test_run))
-
-
-        if call_report := reports.get(TestPhase.CALL):
-            item.ihook.pytest_runtest_logreport(report=call_report)
-
-        # We only log one teardown for the whole test, not one per test run. pytest's junitxml plugin closes the XML
-        # test element on the teardown pytest_runtest_logreport.
-        item.ihook.pytest_runtest_logreport(report=teardown_report)
-
-        test.set_status(handler.get_final_status(test))
+    def _log_test_reports(self, item: pytest.Item, reports: _ReportGroup):
+        for when in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
+            if report := reports.get(when):
+                item.ihook.pytest_runtest_logreport(report=report)
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
