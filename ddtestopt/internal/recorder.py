@@ -388,7 +388,8 @@ class RetryHandler:
 class AutoTestRetriesHandler():
     def should_apply(self, test: Test) -> bool:
         return (
-            test.last_test_run.get_status() == TestStatus.FAIL
+            False
+            # test.last_test_run.get_status() == TestStatus.FAIL
             # and not test.is_new()
         )
 

@@ -163,26 +163,27 @@ class TestOptPlugin:
 
     def _do_test_runs(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
         test = self.tests_by_nodeid[item.nodeid]
-
-        with trace_context(self.enable_ddtrace) as context:
-            test_run, reports = self._do_one_test_run(item, nextitem, context)
-
         retry_handler = self._check_applicable_retry_handlers(test)
+        should_retry = True  # run at least once.
+
+        while should_retry:
+            with trace_context(self.enable_ddtrace) as context:
+                test_run, reports = self._do_one_test_run(item, nextitem, context)
+
+            should_retry = retry_handler is not None and retry_handler.should_retry(test)
+
+            if retry_handler:
+                test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
+
+            if should_retry:
+                self._mark_test_reports_as_retry(reports)
+
+            self._log_test_reports(item, reports)
+            test_run.finish()
+            self.manager.writer.append_event(test_to_event(test_run))
 
         if retry_handler:
-            test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
-
-        test_run.finish()
-        self.manager.writer.append_event(test_to_event(test_run))
-
-        if retry_handler:
-            # If retrying, it is the retry handler's responsibility to log the test.
-            self._do_retries(item, nextitem, test, reports, retry_handler)
-        else:
-            # Otherwise, we log the test ourselves.
-            for when in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
-                if report := reports.get(when):
-                    item.ihook.pytest_runtest_logreport(report=report)
+            test.set_status(retry_handler.get_final_status(test))
 
     def _check_applicable_retry_handlers(self, test: Test):
         for handler in self.manager.retry_handlers:
@@ -190,25 +191,6 @@ class TestOptPlugin:
                 return handler
 
         return None
-
-    def _do_retries(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], test: Test, reports: _ReportGroup, handler: RetryHandler) -> None:
-        while handler.should_retry(test):
-            # Log previous attempt as a retry...
-            self._mark_test_reports_as_retry(reports)
-            self._log_test_reports(item, reports)
-
-            # ...and run the new one.
-            with trace_context(self.enable_ddtrace) as context:
-                test_run, reports = self._do_one_test_run(item, nextitem, context)
-                test_run.set_tags(handler.get_tags_for_test_run(test_run))
-                test_run.finish()
-                self.manager.writer.append_event(test_to_event(test_run))
-
-        # Log last retry.
-        self._log_test_reports(item, reports)
-
-        # Set final status of the test as a whole to propagate success/failure to suite.
-        test.set_status(handler.get_final_status(test))
 
     def _mark_test_reports_as_retry(self, reports: _ReportGroup):
         if call_report := reports.get(TestPhase.CALL):
@@ -236,16 +218,16 @@ class TestOptPlugin:
         Return test status and tags with exception/skip information for a given executed test.
 
         This methods consumes the test reports and exception information for the specified test, and removes them from
-        the dictionaries. XXX
+        the dictionaries.
         """
-        reports_dict = self.reports_by_nodeid[nodeid] # , {})
+        reports_dict = self.reports_by_nodeid.pop(nodeid, None)
 
         for phase in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             report = reports_dict.get(phase)
             if not report:
                 continue
 
-            excinfo = self.excinfo_by_report.get(report, None)
+            excinfo = self.excinfo_by_report.pop(report, None)
             if report.failed:
                 return TestStatus.FAIL, _get_exception_tags(excinfo)
             if report.skipped:
