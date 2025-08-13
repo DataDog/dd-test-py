@@ -164,26 +164,50 @@ class TestOptPlugin:
     def _do_test_runs(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
         test = self.tests_by_nodeid[item.nodeid]
         retry_handler = self._check_applicable_retry_handlers(test)
-        should_retry = True  # run at least once.
+
+        with trace_context(self.enable_ddtrace) as context:
+            test_run, reports = self._do_one_test_run(item, nextitem, context)
+
+        if retry_handler.should_retry(test):
+            self._do_retries(item, nextitem, test, retry_handler, reports)
+        else:
+            self._log_test_reports(item, reports)
+            test_run.finish()
+            self.manager.writer.append_event(test_to_event(test_run))
+
+    def _do_retries(self, item, nextitem, test, retry_handler, reports):
+        # Log initial attempt.
+        self._mark_test_reports_as_retry(reports)
+        self._log_test_report(item, reports, TestPhase.SETUP)
+        self._log_test_report(item, reports, TestPhase.CALL)
+
+        test_run = test.last_test_run
+        test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
+        test_run.finish()
+        self.manager.writer.append_event(test_to_event(test_run))
+
+        should_retry = True
 
         while should_retry:
             with trace_context(self.enable_ddtrace) as context:
                 test_run, reports = self._do_one_test_run(item, nextitem, context)
 
-            should_retry = retry_handler is not None and retry_handler.should_retry(test)
-
-            if retry_handler:
-                test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
-
-            if should_retry:
-                self._mark_test_reports_as_retry(reports)
-
-            self._log_test_reports(item, reports)
+            should_retry = retry_handler.should_retry(test)
+            test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
+            self._mark_test_reports_as_retry(reports)
+            self._log_test_report(item, reports, TestPhase.CALL) or self._log_test_report(item, reports, TestPhase.SETUP)
             test_run.finish()
             self.manager.writer.append_event(test_to_event(test_run))
 
-        if retry_handler:
-            test.set_status(retry_handler.get_final_status(test))
+        final_status = retry_handler.get_final_status(test)
+        test.set_status(final_status)
+
+        # Log final status.
+        final_report = self._make_final_report(item, final_status)
+        item.ihook.pytest_runtest_logreport(report=final_report)
+
+        # Log teardown.
+        self._log_test_report(item, reports, TestPhase.TEARDOWN)
 
     def _check_applicable_retry_handlers(self, test: Test):
         for handler in self.manager.retry_handlers:
@@ -201,10 +225,38 @@ class TestOptPlugin:
             setup_report.user_properties += [("dd_retry_outcome", setup_report.outcome)]
             setup_report.outcome = "dd_retry"
 
+    def _log_test_report(self, item: pytest.Item, reports: _ReportGroup, when: str):
+        if report := reports.get(when):
+            item.ihook.pytest_runtest_logreport(report=report)
+            return True
+
+        return False
+
     def _log_test_reports(self, item: pytest.Item, reports: _ReportGroup):
         for when in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             if report := reports.get(when):
                 item.ihook.pytest_runtest_logreport(report=report)
+
+    def _make_final_report(self, item, final_status):
+        longrepr = ("fooo", 1, "foo") ## ???
+
+        outcomes = {
+            TestStatus.PASS: "passed",
+            TestStatus.FAIL: "failed",
+            TestStatus.SKIP: "skipped",
+        }
+
+        final_report = pytest.TestReport(
+            nodeid=item.nodeid,
+            location=item.location,
+            keywords={k: 1 for k in item.keywords},
+            when=TestPhase.CALL,
+            longrepr=longrepr,
+            outcome=outcomes.get(final_status, "???"),
+        )
+
+        return final_report
+
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:

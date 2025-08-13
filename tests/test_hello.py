@@ -11,7 +11,6 @@ def test_hello():
     assert Flakiness.x > 0
 
 
-@pytest.mark.skip
 def test_bye():
     time.sleep(0.1)
     assert False
