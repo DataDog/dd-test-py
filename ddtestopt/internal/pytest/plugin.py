@@ -194,8 +194,11 @@ class TestOptPlugin:
 
     def _mark_test_reports_as_retry(self, reports: _ReportGroup):
         if call_report := reports.get(TestPhase.CALL):
+            call_report.user_properties += [("dd_retry_outcome", call_report.outcome)]
             call_report.outcome = "dd_retry"
+
         elif setup_report := reports.get(TestPhase.SETUP):
+            setup_report.user_properties += [("dd_retry_outcome", setup_report.outcome)]
             setup_report.outcome = "dd_retry"
 
     def _log_test_reports(self, item: pytest.Item, reports: _ReportGroup):
@@ -212,6 +215,11 @@ class TestOptPlugin:
         report: pytest.TestReport = outcome.get_result()
         self.reports_by_nodeid[item.nodeid][call.when] = report
         self.excinfo_by_report[report] = call.excinfo
+
+    def pytest_report_teststatus(self, report: pytest.TestReport):
+        if retry_outcome := _get_user_property(report, "dd_retry_outcome"):
+            return ("dd_retry", "r", f"retry: {retry_outcome}")
+
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         """
@@ -254,3 +262,10 @@ def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:
         TestTag.ERROR_TYPE: "%s.%s" % (excinfo.type.__module__, excinfo.type.__name__),
         TestTag.ERROR_MESSAGE: str(excinfo.value),
     }
+
+def _get_user_property(report: pytest.TestReport, user_property: str):
+    for (key, value) in report.user_properties:
+        if key == user_property:
+            return value
+
+    return None

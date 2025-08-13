@@ -421,7 +421,7 @@ class EarlyFlakeDetectionHandler():
 
     def should_retry(self, test: Test):
         return (
-            test.last_test_run.get_status() != TestStatus.SKIP and
+            # test.last_test_run.get_status() != TestStatus.SKIP and
             len(test.test_runs) < 6  # should be based on total time and shenanigans
         )
 
