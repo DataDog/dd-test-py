@@ -61,7 +61,7 @@ class TestItem(ABC):
         return self.duration_ns is not None
 
     def get_status(self) -> TestStatus:
-        if not self.status:
+        if self.children:  # ꙮ
             self.status = self._get_status_from_children()
         return self.status
 
@@ -101,19 +101,40 @@ class TestItem(ABC):
         self.tags.update(tags)
 
 
-class Test(TestItem):
+class TestRun(TestItem):
     def __init__(self, name: str) -> None:
         super().__init__(name)
         self.span_id: t.Optional[int] = None
         self.trace_id: t.Optional[int] = None
 
-    def set_attributes(self, path: Path, start_line: int) -> None:
-        self.tags["test.source.file"] = str(path)
-        self.metrics["test.source.start"] = start_line
-
     def set_context(self, context: TestContext) -> None:
         self.span_id = context.span_id
         self.trace_id = context.trace_id
+
+    @property
+    def suite_id(self) -> str:
+        return self.parent.parent.item_id
+
+    @property
+    def module_id(self) -> str:
+        return self.parent.parent.parent.item_id
+
+    @property
+    def session_id(self) -> str:
+        return self.parent.parent.parent.parent.item_id
+
+
+class Test(TestItem):
+    ChildClass = TestRun
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+        self.test_runs = []
+
+    def set_attributes(self, path: Path, start_line: int) -> None:
+        self.tags["test.source.file"] = str(path)
+        self.metrics["test.source.start"] = start_line
 
     @property
     def suite_id(self) -> str:
@@ -126,6 +147,17 @@ class Test(TestItem):
     @property
     def session_id(self) -> str:
         return self.parent.parent.parent.item_id
+
+    def make_test_run(self):
+        test_run = TestRun(name=self.name)
+        test_run.parent = self
+        test_run.attempt_number = len(self.test_runs)
+        self.test_runs.append(test_run)
+        return test_run
+
+    @property
+    def last_test_run(self):
+        return self.test_runs[-1]
 
 
 class TestSuite(TestItem):
@@ -193,6 +225,8 @@ class SessionManager:
         self.writer = writer or TestOptWriter()
         self.session = session or TestSession(name="test")
 
+        self.retry_handlers = [EarlyFlakeDetectionHandler(), AutoTestRetriesHandler()]
+
     def start(self) -> None:
         self.writer.add_metadata("*", get_git_tags())
         self.writer.add_metadata("*", get_platform_tags())
@@ -228,11 +262,11 @@ def test_to_event(test: Test) -> Event:
             "meta": {
                 **test.tags,
                 "span.kind": "test",
-                "test.module": test.parent.parent.name,
-                "test.module_path": test.parent.parent.module_path,
+                "test.module": test.parent.parent.parent.name,
+                "test.module_path": test.parent.parent.parent.module_path,
                 "test.name": test.name,
                 "test.status": test.get_status().value,
-                "test.suite": test.parent.name,
+                "test.suite": test.parent.parent.name,
                 "test.type": "test",
                 "type": "test",
             },
@@ -344,3 +378,71 @@ def session_to_event(session: TestSession) -> Event:
             "test_session_id": session.session_id,
         },
     )
+
+
+class RetryHandler:
+    pass
+
+
+class AutoTestRetriesHandler:
+    def should_apply(self, test: Test) -> bool:
+        return (
+            False
+            # test.last_test_run.get_status() == TestStatus.FAIL
+            # and not test.is_new()
+        )
+
+    def should_retry(self, test: Test):
+        return test.last_test_run.get_status() == TestStatus.FAIL and len(test.test_runs) < 6
+
+    def get_final_status(self, test: Test):
+        return test.last_test_run.get_status()
+
+    def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
+        if test_run.attempt_number == 0:
+            return {}
+
+        return {
+            "test.is_retry": "true",
+            "test.retry_reason": "auto_test_retry",
+        }
+
+
+class EarlyFlakeDetectionHandler:
+    def should_apply(self, test: Test) -> bool:
+        return (
+            False
+            # and test.is_new()
+        )
+
+    def should_retry(self, test: Test):
+        return (
+            # test.last_test_run.get_status() != TestStatus.SKIP and
+            len(test.test_runs)
+            < 6  # should be based on total time and shenanigans
+        )
+
+    def get_final_status(self, test: Test):
+        status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
+        total_count = 0
+
+        for test_run in test.test_runs:
+            status_counts[test_run.get_status()] += 1
+            total_count += 1
+
+        if status_counts[TestStatus.PASS] > 0:
+            return TestStatus.PASS
+
+        if status_counts[TestStatus.FAIL] > 0:
+            return TestStatus.FAIL
+
+        return TestStatus.SKIP
+
+    def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
+        if test_run.attempt_number == 0:
+            return {}
+
+        return {
+            "test.is_retry": "true",
+            "test.retry_reason": "early_flake_detection",
+        }
