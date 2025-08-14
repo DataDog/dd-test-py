@@ -41,11 +41,11 @@ class TestItem(ABC):
     def __init__(self, name: str):
         self.name = name
         self.children: t.Dict[str, TestItem] = {}
-        self.start_ns: t.Optional[int] = time.time_ns()
+        self.start_ns: int = time.time_ns()
         self.duration_ns: t.Optional[int] = None
         self.parent: t.Optional[TestItem] = None
         self.item_id = _gen_item_id()
-        self.status: t.Optional[TestStatus] = None
+        self.status: TestStatus = TestStatus.FAIL
         self.tags: t.Dict[str, str] = {}
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
 
@@ -101,6 +101,7 @@ class TestRun(TestItem):
         super().__init__(name)
         self.span_id: t.Optional[int] = None
         self.trace_id: t.Optional[int] = None
+        self.attempt_number: int = 0
 
     def set_context(self, context: TestContext) -> None:
         self.span_id = context.span_id
@@ -125,7 +126,7 @@ class Test(TestItem):
     def __init__(self, name: str) -> None:
         super().__init__(name)
 
-        self.test_runs = []
+        self.test_runs: t.List[TestRun] = []
 
     def set_attributes(self, path: Path, start_line: int) -> None:
         self.tags["test.source.file"] = str(path)
@@ -246,7 +247,7 @@ class AutoTestRetriesHandler:
 class EarlyFlakeDetectionHandler:
     def should_apply(self, test: Test) -> bool:
         return (
-            False
+            True
             # and test.is_new()
         )
 

@@ -17,7 +17,7 @@ class Event(dict):
     pass
 
 
-EventSerializer = t.Callable[[t.Type[TestItem]], Event]
+EventSerializer = t.Callable[[TestItem], Event]
 
 
 class TestOptWriter:
@@ -88,7 +88,7 @@ def test_run_to_event(test: TestRun) -> Event:
             "service": "ddtestopt",
             "resource": test.name,
             "name": "pytest.test",
-            "error": 1 if test.status == TestStatus.FAIL else 0,
+            "error": 1 if test.get_status() == TestStatus.FAIL else 0,
             "start": test.start_ns,
             "duration": test.duration_ns,
             "meta": {

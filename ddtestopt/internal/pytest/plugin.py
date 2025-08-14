@@ -16,6 +16,7 @@ from ddtestopt.internal.recorder import SuiteRef
 from ddtestopt.internal.recorder import Test
 from ddtestopt.internal.recorder import TestModule
 from ddtestopt.internal.recorder import TestRef
+from ddtestopt.internal.recorder import TestRun
 from ddtestopt.internal.recorder import TestSession
 from ddtestopt.internal.recorder import TestStatus
 from ddtestopt.internal.recorder import TestSuite
@@ -141,7 +142,9 @@ class TestOptPlugin:
             test_module.finish()
             self.manager.writer.append_event(test_module)
 
-    def _do_one_test_run(self, item: pytest.Item, nextitem: t.Optional[pytest.Item], context: TestContext) -> None:
+    def _do_one_test_run(
+        self, item: pytest.Item, nextitem: t.Optional[pytest.Item], context: TestContext
+    ) -> t.Tuple[TestRun, _ReportGroup]:
         test = self.tests_by_nodeid[item.nodeid]
         test_run = test.make_test_run()
         reports = _make_reports_dict(runtestprotocol(item, nextitem=nextitem, log=False))
