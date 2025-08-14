@@ -9,8 +9,8 @@ except ImportError:
     from ddtrace import Span
     from ddtrace.filters import TraceFilter
 
-from ddtestopt.internal.writer import Event
 from ddtestopt.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
+from ddtestopt.internal.writer import Event
 
 
 class TestOptSpanProcessor(TraceFilter):

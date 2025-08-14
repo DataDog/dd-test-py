@@ -4,12 +4,13 @@ import uuid
 
 import msgpack
 import requests
+
+from ddtestopt.internal.recorder import TestItem
 from ddtestopt.internal.recorder import TestModule
 from ddtestopt.internal.recorder import TestRun
 from ddtestopt.internal.recorder import TestSession
 from ddtestopt.internal.recorder import TestStatus
 from ddtestopt.internal.recorder import TestSuite
-from ddtestopt.internal.recorder import TestItem
 
 
 class Event(dict):
@@ -76,45 +77,44 @@ class TestOptWriter:
         return decorator
 
 
-
 def test_run_to_event(test: TestRun) -> Event:
-   return Event(
-       version=2,
-       type="test",
-       content={
-           "trace_id": test.trace_id,
-           "parent_id": 1,
-           "span_id": test.span_id,
-           "service": "ddtestopt",
-           "resource": test.name,
-           "name": "pytest.test",
-           "error": 1 if test.status == TestStatus.FAIL else 0,
-           "start": test.start_ns,
-           "duration": test.duration_ns,
-           "meta": {
-               **test.tags,
-               "span.kind": "test",
-               "test.module": test.parent.parent.parent.name,
-               "test.module_path": test.parent.parent.parent.module_path,
-               "test.name": test.name,
-               "test.status": test.get_status().value,
-               "test.suite": test.parent.parent.name,
-               "test.type": "test",
-               "type": "test",
-           },
-           "metrics": {
-               "_dd.py.partial_flush": 1,
-               "_dd.top_level": 1,
-               "_dd.tracer_kr": 1.0,
-               "_sampling_priority_v1": 1,
-               **test.metrics,
-           },
-           "type": "test",
-           "test_session_id": test.session_id,
-           "test_module_id": test.module_id,
-           "test_suite_id": test.suite_id,
-       },
-   )
+    return Event(
+        version=2,
+        type="test",
+        content={
+            "trace_id": test.trace_id,
+            "parent_id": 1,
+            "span_id": test.span_id,
+            "service": "ddtestopt",
+            "resource": test.name,
+            "name": "pytest.test",
+            "error": 1 if test.status == TestStatus.FAIL else 0,
+            "start": test.start_ns,
+            "duration": test.duration_ns,
+            "meta": {
+                **test.tags,
+                "span.kind": "test",
+                "test.module": test.parent.parent.parent.name,
+                "test.module_path": test.parent.parent.parent.module_path,
+                "test.name": test.name,
+                "test.status": test.get_status().value,
+                "test.suite": test.parent.parent.name,
+                "test.type": "test",
+                "type": "test",
+            },
+            "metrics": {
+                "_dd.py.partial_flush": 1,
+                "_dd.top_level": 1,
+                "_dd.tracer_kr": 1.0,
+                "_sampling_priority_v1": 1,
+                **test.metrics,
+            },
+            "type": "test",
+            "test_session_id": test.session_id,
+            "test_module_id": test.module_id,
+            "test_suite_id": test.suite_id,
+        },
+    )
 
 
 def suite_to_event(suite: TestSuite) -> Event:

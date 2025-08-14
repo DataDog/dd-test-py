@@ -12,7 +12,6 @@ import pytest
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.recorder import ModuleRef
-from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.recorder import SuiteRef
 from ddtestopt.internal.recorder import Test
 from ddtestopt.internal.recorder import TestModule
@@ -21,6 +20,7 @@ from ddtestopt.internal.recorder import TestSession
 from ddtestopt.internal.recorder import TestStatus
 from ddtestopt.internal.recorder import TestSuite
 from ddtestopt.internal.recorder import TestTag
+from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.utils import TestContext
 
 

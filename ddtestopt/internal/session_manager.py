@@ -1,13 +1,13 @@
-import typing as t
 import os
-from ddtestopt.internal.writer import TestOptWriter
-from ddtestopt.internal.recorder import TestSession
-from ddtestopt.internal.recorder import EarlyFlakeDetectionHandler
-from ddtestopt.internal.recorder import AutoTestRetriesHandler
-from ddtestopt.internal.recorder import TestTag
+import typing as t
+
 from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
-
+from ddtestopt.internal.recorder import AutoTestRetriesHandler
+from ddtestopt.internal.recorder import EarlyFlakeDetectionHandler
+from ddtestopt.internal.recorder import TestSession
+from ddtestopt.internal.recorder import TestTag
+from ddtestopt.internal.writer import TestOptWriter
 
 
 class SessionManager:

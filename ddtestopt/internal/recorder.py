@@ -4,7 +4,6 @@ from abc import ABC
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-import os
 from pathlib import Path
 import time
 import typing as t
@@ -214,7 +213,6 @@ class TestTag:
     ERROR_MESSAGE = "error.message"
 
     SKIP_REASON = "test.skip_reason"
-
 
 
 class RetryHandler:
