@@ -263,7 +263,7 @@ class TestOptPlugin:
             keywords={k: 1 for k in item.keywords},
             when=TestPhase.CALL,
             longrepr=longrepr,
-            outcome=outcomes.get(final_status, "???"),
+            outcome=outcomes.get(final_status, str(final_status)),
         )
 
         return final_report
