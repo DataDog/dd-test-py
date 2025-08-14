@@ -1,0 +1,35 @@
+import typing as t
+import os
+from ddtestopt.internal.writer import TestOptWriter
+from ddtestopt.internal.recorder import TestSession
+from ddtestopt.internal.recorder import EarlyFlakeDetectionHandler
+from ddtestopt.internal.recorder import AutoTestRetriesHandler
+from ddtestopt.internal.recorder import TestTag
+from ddtestopt.internal.git import get_git_tags
+from ddtestopt.internal.platform import get_platform_tags
+
+
+
+class SessionManager:
+    def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None) -> None:
+        self.writer = writer or TestOptWriter()
+        self.session = session or TestSession(name="test")
+
+        self.retry_handlers = [EarlyFlakeDetectionHandler(), AutoTestRetriesHandler()]
+
+    def start(self) -> None:
+        self.writer.add_metadata("*", get_git_tags())
+        self.writer.add_metadata("*", get_platform_tags())
+        self.writer.add_metadata(
+            "*",
+            {
+                TestTag.TEST_COMMAND: self.session.test_command,
+                TestTag.TEST_FRAMEWORK: self.session.test_framework,
+                TestTag.TEST_FRAMEWORK_VERSION: self.session.test_framework_version,
+                TestTag.COMPONENT: self.session.test_framework,
+                TestTag.ENV: os.environ.get("DD_ENV", "none"),
+            },
+        )
+
+    def finish(self) -> None:
+        pass
