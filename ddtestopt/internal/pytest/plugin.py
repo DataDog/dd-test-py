@@ -6,8 +6,8 @@ import re
 import traceback
 import typing as t
 
-import pytest
 from _pytest.runner import runtestprotocol
+import pytest
 
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
@@ -25,7 +25,6 @@ from ddtestopt.internal.recorder import module_to_event
 from ddtestopt.internal.recorder import session_to_event
 from ddtestopt.internal.recorder import suite_to_event
 from ddtestopt.internal.recorder import test_to_event
-from ddtestopt.internal.recorder import RetryHandler
 from ddtestopt.internal.utils import TestContext
 
 
@@ -168,7 +167,7 @@ class TestOptPlugin:
         with trace_context(self.enable_ddtrace) as context:
             test_run, reports = self._do_one_test_run(item, nextitem, context)
 
-        if retry_handler.should_retry(test):
+        if retry_handler and retry_handler.should_retry(test):
             self._do_retries(item, nextitem, test, retry_handler, reports)
         else:
             self._log_test_reports(item, reports)
@@ -176,6 +175,10 @@ class TestOptPlugin:
             self.manager.writer.append_event(test_to_event(test_run))
 
     def _do_retries(self, item, nextitem, test, retry_handler, reports):
+        # Save failure/skip representation to put into the final report.
+        # TODO: for flaky tests, we currently don't show the longrepr (because the final report has `passed` status).
+        longrepr = self._extract_longrepr(reports)
+
         # Log initial attempt.
         self._mark_test_reports_as_retry(reports)
         self._log_test_report(item, reports, TestPhase.SETUP)
@@ -195,7 +198,8 @@ class TestOptPlugin:
             should_retry = retry_handler.should_retry(test)
             test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
             self._mark_test_reports_as_retry(reports)
-            self._log_test_report(item, reports, TestPhase.CALL) or self._log_test_report(item, reports, TestPhase.SETUP)
+            if not self._log_test_report(item, reports, TestPhase.CALL):
+                self._log_test_report(item, reports, TestPhase.SETUP)
             test_run.finish()
             self.manager.writer.append_event(test_to_event(test_run))
 
@@ -203,7 +207,7 @@ class TestOptPlugin:
         test.set_status(final_status)
 
         # Log final status.
-        final_report = self._make_final_report(item, final_status)
+        final_report = self._make_final_report(item, final_status, longrepr)
         item.ihook.pytest_runtest_logreport(report=final_report)
 
         # Log teardown.
@@ -213,6 +217,15 @@ class TestOptPlugin:
         for handler in self.manager.retry_handlers:
             if handler.should_apply(test):
                 return handler
+
+        return None
+
+    def _extract_longrepr(self, reports: _ReportGroup):
+        # The call longrepr is more interesting for us, if available.
+        for when in (TestPhase.CALL, TestPhase.SETUP, TestPhase.TEARDOWN):
+            if report := reports.get(when):
+                if report.longrepr:
+                    return report.longrepr
 
         return None
 
@@ -237,9 +250,7 @@ class TestOptPlugin:
             if report := reports.get(when):
                 item.ihook.pytest_runtest_logreport(report=report)
 
-    def _make_final_report(self, item, final_status):
-        longrepr = ("fooo", 1, "foo") ## ???
-
+    def _make_final_report(self, item, final_status, longrepr):
         outcomes = {
             TestStatus.PASS: "passed",
             TestStatus.FAIL: "failed",
@@ -257,7 +268,6 @@ class TestOptPlugin:
 
         return final_report
 
-
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
         """
@@ -271,7 +281,6 @@ class TestOptPlugin:
     def pytest_report_teststatus(self, report: pytest.TestReport):
         if retry_outcome := _get_user_property(report, "dd_retry_outcome"):
             return ("dd_retry", "r", f"retry: {retry_outcome}")
-
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         """
@@ -299,6 +308,7 @@ class TestOptPlugin:
 def _make_reports_dict(reports) -> _ReportGroup:
     return {report.when: report for report in reports}
 
+
 def pytest_configure(config):
     config.pluginmanager.register(TestOptPlugin())
 
@@ -315,8 +325,9 @@ def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:
         TestTag.ERROR_MESSAGE: str(excinfo.value),
     }
 
+
 def _get_user_property(report: pytest.TestReport, user_property: str):
-    for (key, value) in report.user_properties:
+    for key, value in report.user_properties:
         if key == user_property:
             return value
 

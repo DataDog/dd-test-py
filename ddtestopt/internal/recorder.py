@@ -61,7 +61,7 @@ class TestItem(ABC):
         return self.duration_ns is not None
 
     def get_status(self) -> TestStatus:
-        if self.children: # ꙮ
+        if self.children:  # ꙮ
             self.status = self._get_status_from_children()
         return self.status
 
@@ -99,8 +99,6 @@ class TestItem(ABC):
 
     def set_tags(self, tags: t.Dict[str, str]) -> None:
         self.tags.update(tags)
-
-
 
 
 class TestRun(TestItem):
@@ -385,7 +383,8 @@ def session_to_event(session: TestSession) -> Event:
 class RetryHandler:
     pass
 
-class AutoTestRetriesHandler():
+
+class AutoTestRetriesHandler:
     def should_apply(self, test: Test) -> bool:
         return (
             False
@@ -394,10 +393,7 @@ class AutoTestRetriesHandler():
         )
 
     def should_retry(self, test: Test):
-        return (
-            test.last_test_run.get_status() == TestStatus.FAIL
-            and len(test.test_runs) < 6
-        )
+        return test.last_test_run.get_status() == TestStatus.FAIL and len(test.test_runs) < 6
 
     def get_final_status(self, test: Test):
         return test.last_test_run.get_status()
@@ -412,17 +408,18 @@ class AutoTestRetriesHandler():
         }
 
 
-class EarlyFlakeDetectionHandler():
+class EarlyFlakeDetectionHandler:
     def should_apply(self, test: Test) -> bool:
         return (
-            True
+            False
             # and test.is_new()
         )
 
     def should_retry(self, test: Test):
         return (
             # test.last_test_run.get_status() != TestStatus.SKIP and
-            len(test.test_runs) < 6  # should be based on total time and shenanigans
+            len(test.test_runs)
+            < 6  # should be based on total time and shenanigans
         )
 
     def get_final_status(self, test: Test):

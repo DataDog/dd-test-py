@@ -1,5 +1,7 @@
 import time
+
 import pytest
+
 
 class Flakiness:
     x = 0
@@ -8,7 +10,7 @@ class Flakiness:
 def test_hello():
     time.sleep(0.1)
     Flakiness.x += 1
-    assert Flakiness.x > 0
+    assert Flakiness.x > 2
 
 
 def test_bye():
