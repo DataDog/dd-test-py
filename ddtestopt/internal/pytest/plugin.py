@@ -262,7 +262,7 @@ class TestOptPlugin:
             if report := reports.get(when):
                 item.ihook.pytest_runtest_logreport(report=report)
 
-    def _make_final_report(self, item, final_status, longrepr):
+    def _make_final_report(self, item: pytest.Item, final_status: TestStatus, longrepr: t.Any) -> pytest.TestReport:
         outcomes = {
             TestStatus.PASS: "passed",
             TestStatus.FAIL: "failed",
@@ -275,7 +275,8 @@ class TestOptPlugin:
             keywords={k: 1 for k in item.keywords},
             when=TestPhase.CALL,
             longrepr=longrepr,
-            outcome=outcomes.get(final_status, str(final_status)),
+            outcome=outcomes.get(final_status, str(final_status)),  # type: ignore
+            user_properties=item.user_properties,
         )
 
         return final_report
