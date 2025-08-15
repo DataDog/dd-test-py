@@ -57,7 +57,7 @@ _ReportGroup = t.Dict[str, pytest.TestReport]
 
 
 class TestOptPlugin:
-    def __init__(self):
+    def __init__(self) -> None:
         self.enable_ddtrace = True
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
