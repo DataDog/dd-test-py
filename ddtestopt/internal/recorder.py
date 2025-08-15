@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -35,15 +34,19 @@ class TestStatus(Enum):
     SKIP = "skip"
 
 
-class TestItem(ABC):
-    ChildClass: t.Type[TestItem]
+TParentClass = t.TypeVar("TParentClass", bound="TestItem")
+TChildClass = t.TypeVar("TChildClass", bound="TestItem")
 
-    def __init__(self, name: str):
+
+class TestItem(t.Generic[TParentClass, TChildClass]):
+    ChildClass: t.Type[TChildClass]
+
+    def __init__(self, name: str, parent: TParentClass):
         self.name = name
-        self.children: t.Dict[str, TestItem] = {}
+        self.children: t.Dict[str, TChildClass] = {}
         self.start_ns: int = time.time_ns()
         self.duration_ns: t.Optional[int] = None
-        self.parent: t.Optional[TestItem] = None
+        self.parent: TParentClass = parent
         self.item_id = _gen_item_id()
         self.status: TestStatus = TestStatus.FAIL
         self.tags: t.Dict[str, str] = {}
@@ -81,13 +84,12 @@ class TestItem(ABC):
 
         return TestStatus.PASS
 
-    def get_or_create_child(self, name: str) -> t.Tuple[TestItem, bool]:
+    def get_or_create_child(self, name: str) -> t.Tuple[TChildClass, bool]:
         created = False
 
         if name not in self.children:
             created = True
-            child = self.ChildClass(name=name)
-            child.parent = self
+            child = self.ChildClass(name=name, parent=self)
             self.children[name] = child
 
         return self.children[name], created
@@ -96,9 +98,9 @@ class TestItem(ABC):
         self.tags.update(tags)
 
 
-class TestRun(TestItem):
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+class TestRun(TestItem["Test", t.NoReturn]):
+    def __init__(self, name: str, parent: Test) -> None:
+        super().__init__(name=name, parent=parent)
         self.span_id: t.Optional[int] = None
         self.trace_id: t.Optional[int] = None
         self.attempt_number: int = 0
@@ -120,11 +122,11 @@ class TestRun(TestItem):
         return self.parent.parent.parent.parent.item_id
 
 
-class Test(TestItem):
+class Test(TestItem["TestSuite", "TestRun"]):
     ChildClass = TestRun
 
-    def __init__(self, name: str) -> None:
-        super().__init__(name)
+    def __init__(self, name: str, parent: TestSuite) -> None:
+        super().__init__(name=name, parent=parent)
 
         self.test_runs: t.List[TestRun] = []
 
@@ -145,7 +147,7 @@ class Test(TestItem):
         return self.parent.parent.parent.item_id
 
     def make_test_run(self):
-        test_run = TestRun(name=self.name)
+        test_run = TestRun(name=self.name, parent=self)
         test_run.parent = self
         test_run.attempt_number = len(self.test_runs)
         self.test_runs.append(test_run)
@@ -156,7 +158,7 @@ class Test(TestItem):
         return self.test_runs[-1]
 
 
-class TestSuite(TestItem):
+class TestSuite(TestItem["TestModule", "Test"]):
     ChildClass = Test
 
     @property
@@ -172,7 +174,7 @@ class TestSuite(TestItem):
         return self.parent.parent.item_id
 
 
-class TestModule(TestItem):
+class TestModule(TestItem["TestSession", "TestSuite"]):
     ChildClass = TestSuite
 
     @property
@@ -187,8 +189,11 @@ class TestModule(TestItem):
         self.module_path = str(module_path)
 
 
-class TestSession(TestItem):
+class TestSession(TestItem[t.NoReturn, "TestModule"]):
     ChildClass = TestModule
+
+    def __init__(self, name: str):
+        super().__init__(name=name, parent=None)  # type: ignore
 
     @property
     def session_id(self) -> str:
