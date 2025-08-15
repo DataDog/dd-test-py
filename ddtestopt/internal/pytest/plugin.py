@@ -88,7 +88,7 @@ class TestOptPlugin:
 
     def pytest_sessionfinish(self, session):
         self.session.finish()
-        self.manager.writer.append_event(self.session)
+        self.manager.writer.put_item(self.session)
         self.manager.writer.send()
         self.manager.finish()
 
@@ -142,17 +142,17 @@ class TestOptPlugin:
             test_run.set_tags(tags)
             test_run.set_context(context)
             test_run.finish()
-            self.manager.writer.append_event(test_run)
+            self.manager.writer.put_item(test_run)
 
         test.finish()
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
-            self.manager.writer.append_event(test_suite)
+            self.manager.writer.put_item(test_suite)
 
         if not next_test_ref or test_ref.suite.module != next_test_ref.suite.module:
             test_module.finish()
-            self.manager.writer.append_event(test_module)
+            self.manager.writer.put_item(test_module)
 
     def _do_one_test_run(
         self, item: pytest.Item, nextitem: t.Optional[pytest.Item], context: TestContext
@@ -183,7 +183,7 @@ class TestOptPlugin:
         else:
             self._log_test_reports(item, reports)
             test_run.finish()
-            self.manager.writer.append_event(test_run)
+            self.manager.writer.put_item(test_run)
 
     def _do_retries(self, item, nextitem, test, retry_handler, reports):
         # Save failure/skip representation to put into the final report.
@@ -198,7 +198,7 @@ class TestOptPlugin:
         test_run = test.last_test_run
         test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
         test_run.finish()
-        self.manager.writer.append_event(test_run)
+        self.manager.writer.put_item(test_run)
 
         should_retry = True
 
@@ -212,7 +212,7 @@ class TestOptPlugin:
             if not self._log_test_report(item, reports, TestPhase.CALL):
                 self._log_test_report(item, reports, TestPhase.SETUP)
             test_run.finish()
-            self.manager.writer.append_event(test_run)
+            self.manager.writer.put_item(test_run)
 
         final_status = retry_handler.get_final_status(test)
         test.set_status(final_status)
@@ -221,7 +221,8 @@ class TestOptPlugin:
         final_report = self._make_final_report(item, final_status, longrepr)
         item.ihook.pytest_runtest_logreport(report=final_report)
 
-        # Log teardown.
+        # Log teardown. There should be just one teardown for all of the retries, because the junitxml plugin closes the
+        # <testcase> element at teardown.
         self._log_test_report(item, reports, TestPhase.TEARDOWN)
 
     def _check_applicable_retry_handlers(self, test: Test):

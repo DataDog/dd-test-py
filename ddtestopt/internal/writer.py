@@ -43,8 +43,11 @@ class TestOptWriter:
             TestSession: session_to_event,
         }
 
-    def append_event(self, item: TestItem) -> None:
+    def put_item(self, item: TestItem) -> None:
         event = self.serializers[type(item)](item)
+        self.events.append(event)
+
+    def put_event(self, event: Event) -> None:
         self.events.append(event)
 
     def add_metadata(self, event_type: str, metadata: t.Dict[str, str]) -> None:

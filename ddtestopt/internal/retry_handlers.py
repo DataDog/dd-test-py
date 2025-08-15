@@ -22,7 +22,7 @@ class RetryHandler(ABC):
         Return whether this retry policy should be applied to the given test.
 
         This is called before any test runs have happened, and should consider test properties (such as whether it's
-        new), as well as per-session retry limits.
+        new), as well as per-session retry limits (accessible via `self.session_manager`).
 
         For each test, the test plugin will try each retry handler in the session's retry handlers list, and use the
         first one for which `should_apply()` returns True. The `should_apply()` check can assume that the retry feature

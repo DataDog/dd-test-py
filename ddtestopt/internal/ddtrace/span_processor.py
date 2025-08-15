@@ -25,7 +25,7 @@ class TestOptSpanProcessor(TraceFilter):
                 continue
 
             event = span_to_event(span)
-            self.writer.append_event(event)
+            self.writer.put_event(event)
         return None
 
 
