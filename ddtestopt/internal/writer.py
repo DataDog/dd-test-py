@@ -17,7 +17,9 @@ class Event(dict):
     pass
 
 
-EventSerializer = t.Callable[[TestItem], Event]
+TSerializable = t.TypeVar("TSerializable", bound=TestItem)
+
+EventSerializer = t.Callable[[TSerializable], Event]
 
 
 class TestOptWriter:
