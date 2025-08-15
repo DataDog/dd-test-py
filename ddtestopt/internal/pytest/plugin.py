@@ -31,10 +31,19 @@ _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?
 
 def nodeid_to_test_ref(nodeid: str) -> TestRef:
     matches = _NODEID_REGEX.match(nodeid)
-    module_ref = ModuleRef(matches.group("module"))
-    suite_ref = SuiteRef(module_ref, matches.group("suite"))
-    test_ref = TestRef(suite_ref, matches.group("name"))
-    return test_ref
+
+    if matches:
+        module_ref = ModuleRef(matches.group("module") or "")
+        suite_ref = SuiteRef(module_ref, matches.group("suite") or "")
+        test_ref = TestRef(suite_ref, matches.group("name"))
+        return test_ref
+
+    else:
+        # Fallback to considering the whole nodeid as the test name.
+        module_ref = ModuleRef("")
+        suite_ref = SuiteRef(module_ref, "")
+        test_ref = TestRef(suite_ref, nodeid)
+        return test_ref
 
 
 def _get_module_path_from_item(item: pytest.Item) -> Path:
@@ -234,11 +243,11 @@ class TestOptPlugin:
     def _mark_test_reports_as_retry(self, reports: _ReportGroup):
         if call_report := reports.get(TestPhase.CALL):
             call_report.user_properties += [("dd_retry_outcome", call_report.outcome)]
-            call_report.outcome = "dd_retry"
+            call_report.outcome = "dd_retry"  # type: ignore
 
         elif setup_report := reports.get(TestPhase.SETUP):
             setup_report.user_properties += [("dd_retry_outcome", setup_report.outcome)]
-            setup_report.outcome = "dd_retry"
+            setup_report.outcome = "dd_retry"  # type: ignore
 
     def _log_test_report(self, item: pytest.Item, reports: _ReportGroup, when: str):
         if report := reports.get(when):

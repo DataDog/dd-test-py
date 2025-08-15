@@ -23,7 +23,7 @@ EventSerializer = t.Callable[[TSerializable], Event]
 
 
 class TestOptWriter:
-    def __init__(self):
+    def __init__(self) -> None:
         self.events: t.List[Event] = []
         self.metadata: t.Dict[str, t.Dict[str, str]] = {
             "*": {
