@@ -3,9 +3,9 @@ from abc import abstractmethod
 from collections import defaultdict
 import typing as t
 
-from ddtestopt.internal.recorder import Test
-from ddtestopt.internal.recorder import TestRun
-from ddtestopt.internal.recorder import TestStatus
+from ddtestopt.internal.test_data import Test
+from ddtestopt.internal.test_data import TestRun
+from ddtestopt.internal.test_data import TestStatus
 
 
 if t.TYPE_CHECKING:

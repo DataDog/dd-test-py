@@ -5,12 +5,12 @@ import uuid
 import msgpack  # type: ignore
 import requests  # type: ignore
 
-from ddtestopt.internal.recorder import TestItem
-from ddtestopt.internal.recorder import TestModule
-from ddtestopt.internal.recorder import TestRun
-from ddtestopt.internal.recorder import TestSession
-from ddtestopt.internal.recorder import TestStatus
-from ddtestopt.internal.recorder import TestSuite
+from ddtestopt.internal.test_data import TestItem
+from ddtestopt.internal.test_data import TestModule
+from ddtestopt.internal.test_data import TestRun
+from ddtestopt.internal.test_data import TestSession
+from ddtestopt.internal.test_data import TestStatus
+from ddtestopt.internal.test_data import TestSuite
 
 
 class Event(dict):
