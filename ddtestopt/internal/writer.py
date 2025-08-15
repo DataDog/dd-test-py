@@ -2,8 +2,8 @@ import os
 import typing as t
 import uuid
 
-import msgpack
-import requests
+import msgpack  # type: ignore
+import requests  # type: ignore
 
 from ddtestopt.internal.recorder import TestItem
 from ddtestopt.internal.recorder import TestModule

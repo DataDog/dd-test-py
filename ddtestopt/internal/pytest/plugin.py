@@ -7,6 +7,7 @@ import traceback
 import typing as t
 
 from _pytest.runner import runtestprotocol
+import pluggy
 import pytest
 
 from ddtestopt.internal.ddtrace import install_global_trace_filter
@@ -111,7 +112,9 @@ class TestOptPlugin:
         return test_module, test_suite, test
 
     @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
-    def pytest_runtest_protocol_wrapper(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
+    def pytest_runtest_protocol_wrapper(
+        self, item: pytest.Item, nextitem: t.Optional[pytest.Item]
+    ) -> t.Generator[None, None, None]:
         test_ref = nodeid_to_test_ref(item.nodeid)
         next_test_ref = nodeid_to_test_ref(nextitem.nodeid) if nextitem else None
 
@@ -155,7 +158,7 @@ class TestOptPlugin:
 
         return test_run, reports
 
-    def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
+    def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> bool:
         self._do_test_runs(item, nextitem)
         return True  # Do not run other pytest_runtest_protocol hooks after this one.
 
@@ -268,7 +271,9 @@ class TestOptPlugin:
         return final_report
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> None:
+    def pytest_runtest_makereport(
+        self, item: pytest.Item, call: pytest.CallInfo
+    ) -> t.Generator[None, pluggy.Result, None]:
         """
         Save report and exception information for later use.
         """

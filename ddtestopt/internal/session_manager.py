@@ -5,6 +5,7 @@ from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
 from ddtestopt.internal.recorder import AutoTestRetriesHandler
 from ddtestopt.internal.recorder import EarlyFlakeDetectionHandler
+from ddtestopt.internal.recorder import RetryHandler
 from ddtestopt.internal.recorder import TestSession
 from ddtestopt.internal.recorder import TestTag
 from ddtestopt.internal.writer import TestOptWriter
@@ -15,7 +16,7 @@ class SessionManager:
         self.writer = writer or TestOptWriter()
         self.session = session or TestSession(name="test")
 
-        self.retry_handlers = [EarlyFlakeDetectionHandler(), AutoTestRetriesHandler()]
+        self.retry_handlers: t.List[RetryHandler] = [EarlyFlakeDetectionHandler(), AutoTestRetriesHandler()]
 
     def start(self) -> None:
         self.writer.add_metadata("*", get_git_tags())
