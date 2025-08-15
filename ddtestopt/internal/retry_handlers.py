@@ -17,16 +17,38 @@ class RetryHandler(ABC):
         self.session_manager = session_manager
 
     @abstractmethod
-    def should_apply(self, test: Test) -> bool: ...
+    def should_apply(self, test: Test) -> bool:
+        """
+        Return whether this retry policy should be applied to the given test.
+
+        This is called before any test runs have happened, and should consider test properties (such as whether it's
+        new), as well as per-session retry limits.
+
+        For each test, the test plugin will try each retry handler in the session's retry handlers list, and use the
+        first one for which `should_apply()` returns True. The `should_apply()` check can assume that the retry feature
+        is enabled for the current session (otherwise the retry handler would not be in the session's retry handlers
+        list).
+        """
 
     @abstractmethod
-    def should_retry(self, test: Test) -> bool: ...
+    def should_retry(self, test: Test) -> bool:
+        """
+        Return whether one more test run should be performed for the given test.
+
+        This should consider the status of previous runs, as well as number of attempts and per-session retry limits.
+        """
 
     @abstractmethod
-    def get_final_status(self, test: Test) -> bool: ...
+    def get_final_status(self, test: Test) -> TestStatus:
+        """
+        Return the final status to assign to the test, based on the status of all retries.
+        """
 
     @abstractmethod
-    def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]: ...
+    def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
+        """
+        Return the tags to be added to a given retry test run.
+        """
 
 
 class AutoTestRetriesHandler(RetryHandler):

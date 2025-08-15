@@ -12,6 +12,7 @@ import pytest
 
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
+from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import Test
@@ -22,7 +23,6 @@ from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
-from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.utils import TestContext
 
 
