@@ -211,7 +211,7 @@ class TestOptPlugin:
         longrepr = self._extract_longrepr(reports)
 
         # Log initial attempt.
-        self._mark_test_reports_as_retry(reports)
+        self._mark_test_reports_as_retry(reports, retry_handler)
         self._log_test_report(item, reports, TestPhase.SETUP)
         self._log_test_report(item, reports, TestPhase.CALL)
 
@@ -228,7 +228,7 @@ class TestOptPlugin:
 
             should_retry = retry_handler.should_retry(test)
             test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
-            self._mark_test_reports_as_retry(reports)
+            self._mark_test_reports_as_retry(reports, retry_handler)
 
             if not self._log_test_report(item, reports, TestPhase.CALL):
                 self._log_test_report(item, reports, TestPhase.SETUP)
@@ -263,14 +263,20 @@ class TestOptPlugin:
 
         return None
 
-    def _mark_test_reports_as_retry(self, reports: _ReportGroup) -> None:
-        if call_report := reports.get(TestPhase.CALL):
-            call_report.user_properties += [("dd_retry_outcome", call_report.outcome)]
-            call_report.outcome = "dd_retry"  # type: ignore
+    def _mark_test_reports_as_retry(self, reports: _ReportGroup, retry_handler: RetryHandler) -> None:
+        if not self._mark_test_report_as_retry(reports, retry_handler, TestPhase.CALL):
+            self._mark_test_report_as_retry(reports, retry_handler, TestPhase.SETUP)
 
-        elif setup_report := reports.get(TestPhase.SETUP):
-            setup_report.user_properties += [("dd_retry_outcome", setup_report.outcome)]
-            setup_report.outcome = "dd_retry"  # type: ignore
+    def _mark_test_report_as_retry(self, reports: _ReportGroup, retry_handler: RetryHandler, when: str) -> bool:
+        if call_report := reports.get(when):
+            call_report.user_properties += [
+                ("dd_retry_outcome", call_report.outcome),
+                ("dd_retry_reason", retry_handler.get_pretty_name()),
+            ]
+            call_report.outcome = "dd_retry"  # type: ignore
+            return True
+
+        return False
 
     def _log_test_report(self, item: pytest.Item, reports: _ReportGroup, when: str) -> bool:
         if report := reports.get(when):
@@ -317,7 +323,8 @@ class TestOptPlugin:
 
     def pytest_report_teststatus(self, report: pytest.TestReport) -> t.Optional[t.Tuple[str, str, str]]:
         if retry_outcome := _get_user_property(report, "dd_retry_outcome"):
-            return ("dd_retry", "R", f"RETRY {retry_outcome.upper()}")
+            retry_reason = _get_user_property(report, "dd_retry_reason")
+            return ("dd_retry", "R", f"RETRY {retry_outcome.upper()} ({retry_reason})")
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         """

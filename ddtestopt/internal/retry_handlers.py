@@ -50,8 +50,17 @@ class RetryHandler(ABC):
         Return the tags to be added to a given retry test run.
         """
 
+    @abstractmethod
+    def get_pretty_name(self):
+        """
+        Return a human-readable name of the retry handler.
+        """
+
 
 class AutoTestRetriesHandler(RetryHandler):
+    def get_pretty_name(self):
+        return "Auto Test Retries"
+
     def should_apply(self, test: Test) -> bool:
         return True
 
@@ -72,6 +81,9 @@ class AutoTestRetriesHandler(RetryHandler):
 
 
 class EarlyFlakeDetectionHandler(RetryHandler):
+    def get_pretty_name(self):
+        return "Early Flake Detection"
+
     def should_apply(self, test: Test) -> bool:
         # TODO: faulty session logic
         return test.is_new()

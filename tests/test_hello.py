@@ -12,7 +12,7 @@ def test_one():
 
 
 def test_two():
-    assert True
+    assert False
 
 def test_hello():
     time.sleep(0.1)
