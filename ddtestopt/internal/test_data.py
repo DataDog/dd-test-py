@@ -11,18 +11,18 @@ from ddtestopt.internal.utils import TestContext
 from ddtestopt.internal.utils import _gen_item_id
 
 
-@dataclass
+@dataclass(frozen=True)
 class ModuleRef:
     name: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class SuiteRef:
     module: ModuleRef
     name: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class TestRef:
     suite: SuiteRef
     name: str

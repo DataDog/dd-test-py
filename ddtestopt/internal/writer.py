@@ -24,7 +24,10 @@ EventSerializer = t.Callable[[TSerializable], Event]
 
 
 class TestOptWriter:
-    def __init__(self) -> None:
+    def __init__(self, site: str, api_key: str) -> None:
+        self.site = site
+        self.api_key = api_key
+
         self.events: t.List[Event] = []
         self.metadata: t.Dict[str, t.Dict[str, str]] = {
             "*": {
@@ -62,8 +65,7 @@ class TestOptWriter:
             "events": self.events,
         }
         pack = msgpack.packb(payload)
-        url = "https://citestcycle-intake.datadoghq.com/api/v2/citestcycle"
-        # url = "https://citestcycle-intake.datad0g.com/api/v2/citestcycle"
+        url = f"https://citestcycle-intake.{self.site}/api/v2/citestcycle"
         request = urllib.request.Request(url)
         request.add_header("content-type", "application/msgpack")
         request.add_header("dd-api-key", self.api_key)

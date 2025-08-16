@@ -15,10 +15,6 @@ from ddtestopt.internal.writer import TestOptWriter
 
 class SessionManager:
     def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None) -> None:
-        self.writer = writer or TestOptWriter()
-        self.session = session or TestSession(name="test")
-
-
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
         self.service = os.environ.get("DD_SERVICE")
@@ -34,16 +30,25 @@ class SessionManager:
             repository_url=self.git_tags[GitTag.REPOSITORY_URL],
             commit_sha=self.git_tags[GitTag.COMMIT_SHA],
             branch=self.git_tags[GitTag.BRANCH],
+            configurations=self.platform_tags,
         )
         self.settings = self.api_client.get_settings()
+
+        self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
 
         self.retry_handlers: t.List[RetryHandler] = []
 
         if self.settings.early_flake_detection.enabled:
-            self.retry_handlers.append(EarlyFlakeDetectionHandler(self))
+            if self.known_tests:
+                self.retry_handlers.append(EarlyFlakeDetectionHandler(self))
+            else:
+                log.info("No known tests, not enabling Early Flake Detection")
 
         if self.settings.auto_test_retries.enabled:
             self.retry_handlers.append(AutoTestRetriesHandler(self))
+
+        self.writer = writer or TestOptWriter(site=self.site, api_key=self.api_key)
+        self.session = session or TestSession(name="test")
 
 
     def start(self) -> None:
