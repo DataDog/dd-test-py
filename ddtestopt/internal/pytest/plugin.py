@@ -295,7 +295,7 @@ class TestOptPlugin:
 
     def pytest_report_teststatus(self, report: pytest.TestReport):
         if retry_outcome := _get_user_property(report, "dd_retry_outcome"):
-            return ("dd_retry", "r", f"retry: {retry_outcome}")
+            return ("dd_retry", "R", f"RETRY {retry_outcome.upper()}")
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         """
