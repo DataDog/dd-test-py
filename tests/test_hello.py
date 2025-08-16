@@ -18,7 +18,6 @@ def test_bye():
     assert False
 
 
-@pytest.mark.skip
 def test_skip4():
     time.sleep(0.1)
     pytest.skip()

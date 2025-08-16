@@ -1,9 +1,10 @@
+import gzip
 import os
 import typing as t
+import urllib.request
 import uuid
 
 import msgpack  # type: ignore
-import requests  # type: ignore
 
 from ddtestopt.internal.test_data import TestItem
 from ddtestopt.internal.test_data import TestModule
@@ -35,6 +36,7 @@ class TestOptWriter:
             },
         }
         self.api_key = os.environ["DD_API_KEY"]
+        self.gzip_enabled = True
 
         self.serializers: t.Dict[t.Type[TestItem], EventSerializer] = {
             TestRun: test_run_to_event,
@@ -59,19 +61,22 @@ class TestOptWriter:
             "metadata": self.metadata,
             "events": self.events,
         }
-        breakpoint()
         pack = msgpack.packb(payload)
         url = "https://citestcycle-intake.datadoghq.com/api/v2/citestcycle"
         # url = "https://citestcycle-intake.datad0g.com/api/v2/citestcycle"
-        response = requests.post(
-            url,
-            data=pack,
-            headers={
-                "content-type": "application/msgpack",
-                "dd-api-key": self.api_key,
-            },
-        )
-        print(response)
+        request = urllib.request.Request(url)
+        request.add_header("content-type", "application/msgpack")
+        request.add_header("dd-api-key", self.api_key)
+
+        breakpoint()
+
+        if self.gzip_enabled:
+            pack = gzip.compress(pack, compresslevel=6)
+            request.add_header("Content-Encoding", "gzip")
+
+        response = urllib.request.urlopen(request, data=pack)
+        content = response.read()
+        print(response, content)
 
     @classmethod
     def register_serializer(cls, item_type: t.Type[TestItem]) -> t.Callable[[EventSerializer], EventSerializer]:
