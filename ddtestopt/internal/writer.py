@@ -78,14 +78,6 @@ class TestOptWriter:
         content = response.read()
         print(response, content)
 
-    @classmethod
-    def register_serializer(cls, item_type: t.Type[TestItem]) -> t.Callable[[EventSerializer], EventSerializer]:
-        def decorator(serializer: EventSerializer) -> EventSerializer:
-            cls.serializers[item_type] = serializer
-            return serializer
-
-        return decorator
-
 
 def test_run_to_event(test: TestRun) -> Event:
     return Event(
@@ -155,7 +147,7 @@ def suite_to_event(suite: TestSuite) -> Event:
             "test_session_id": suite.session_id,
             "test_module_id": suite.module_id,
             "test_suite_id": suite.suite_id,
-            "itr_correlation_id": "9b237bb3f20ae3a2463e084cfb09219d",
+            "itr_correlation_id": "9b237bb3f20ae3a2463e084cfb09219d",  # ꙮ
         },
     )
 

@@ -1,6 +1,8 @@
 import os
 import typing as t
 
+from ddtestopt.internal.api_client import APIClient
+from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
 from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
@@ -18,9 +20,28 @@ class SessionManager:
 
         self.retry_handlers: t.List[RetryHandler] = [EarlyFlakeDetectionHandler(self), AutoTestRetriesHandler(self)]
 
+        self.git_tags = get_git_tags()
+        self.platform_tags = get_platform_tags()
+        self.service = os.environ.get("DD_SERVICE")
+        self.env = os.environ.get("DD_ENV")
+        self.site = os.environ.get("DD_SITE", "datadoghq.com")
+        self.api_key = os.environ["DD_API_KEY"]
+
+        self.api_client = APIClient(
+            site=self.site,
+            api_key=self.api_key,
+            service=self.service,
+            env=self.env,
+            repository_url=self.git_tags[GitTag.REPOSITORY_URL],
+            commit_sha=self.git_tags[GitTag.COMMIT_SHA],
+            branch=self.git_tags[GitTag.BRANCH],
+        )
+        self.settings = self.api_client.get_settings()
+        breakpoint()
+
     def start(self) -> None:
-        self.writer.add_metadata("*", get_git_tags())
-        self.writer.add_metadata("*", get_platform_tags())
+        self.writer.add_metadata("*", self.git_tags)
+        self.writer.add_metadata("*", self.platform_tags)
         self.writer.add_metadata(
             "*",
             {
@@ -28,7 +49,7 @@ class SessionManager:
                 TestTag.TEST_FRAMEWORK: self.session.test_framework,
                 TestTag.TEST_FRAMEWORK_VERSION: self.session.test_framework_version,
                 TestTag.COMPONENT: self.session.test_framework,
-                TestTag.ENV: os.environ.get("DD_ENV", "none"),
+                TestTag.ENV: self.env or "none",
             },
         )
 
