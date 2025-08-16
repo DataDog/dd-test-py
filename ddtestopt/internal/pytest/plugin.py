@@ -125,8 +125,10 @@ class TestOptPlugin:
 
         test, created = test_suite.get_or_create_child(test_ref.name)
         if created:
+            # TODO: maybe make this less pytest-specific? Move discovery to its own class?
+            is_new = self.manager.known_tests and test_ref not in self.manager.known_tests
             path, start_line, _test_name = item.reportinfo()
-            test.set_attributes(path=path, start_line=start_line)
+            test.set_attributes(is_new=is_new, path=path, start_line=start_line)
 
         return test_module, test_suite, test
 

@@ -23,7 +23,7 @@ class SessionManager:
         self.platform_tags = get_platform_tags()
         self.service = os.environ.get("DD_SERVICE")
         self.env = os.environ.get("DD_ENV")
-        self.site = os.environ.get("DD_SITE", "datadoghq.com")
+        self.site = os.environ.get("DD_SITE") or "datadoghq.com"
         self.api_key = os.environ["DD_API_KEY"]
 
         self.api_client = APIClient(

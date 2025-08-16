@@ -133,9 +133,14 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
         self.test_runs: t.List[TestRun] = []
 
-    def set_attributes(self, path: Path, start_line: int) -> None:
+    def set_attributes(self, is_new: bool, path: Path, start_line: int) -> None:
+        if is_new:
+            self.tags[TestTag.IS_NEW] = "true"
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
+
+    def is_new(self):
+        return self.tags.get(TestTag.IS_NEW) == "true"
 
     @property
     def suite_id(self) -> str:
@@ -222,3 +227,5 @@ class TestTag:
     ERROR_MESSAGE = "error.message"
 
     SKIP_REASON = "test.skip_reason"
+
+    IS_NEW = "test.is_new"

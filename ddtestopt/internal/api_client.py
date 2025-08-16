@@ -68,7 +68,7 @@ class APIClient:
             return Settings.from_attributes(attributes)
 
         except Exception:
-            log.exception("Error getting settings from API: {e}")
+            log.exception("Error getting settings from API (%s)", url)
             return Settings()
 
     def get_known_tests(self) -> t.Set[TestRef]:
@@ -114,7 +114,7 @@ class APIClient:
             return known_test_ids
 
         except Exception:
-            log.exception("Error getting known tests from API: {e}")
+            log.exception("Error getting known tests from API (%s)", url)
             return set()
 
 

@@ -81,28 +81,29 @@ class TestOptWriter:
         print(response, content)
 
 
-def test_run_to_event(test: TestRun) -> Event:
+def test_run_to_event(test_run: TestRun) -> Event:
     return Event(
         version=2,
         type="test",
         content={
-            "trace_id": test.trace_id,
+            "trace_id": test_run.trace_id,
             "parent_id": 1,
-            "span_id": test.span_id,
+            "span_id": test_run.span_id,
             "service": "ddtestopt",
-            "resource": test.name,
+            "resource": test_run.name,
             "name": "pytest.test",
-            "error": 1 if test.get_status() == TestStatus.FAIL else 0,
-            "start": test.start_ns,
-            "duration": test.duration_ns,
+            "error": 1 if test_run.get_status() == TestStatus.FAIL else 0,
+            "start": test_run.start_ns,
+            "duration": test_run.duration_ns,
             "meta": {
-                **test.tags,
+                **test_run.parent.tags,
+                **test_run.tags,
                 "span.kind": "test",
-                "test.module": test.parent.parent.parent.name,
-                "test.module_path": test.parent.parent.parent.module_path,
-                "test.name": test.name,
-                "test.status": test.get_status().value,
-                "test.suite": test.parent.parent.name,
+                "test.module": test_run.parent.parent.parent.name,
+                "test.module_path": test_run.parent.parent.parent.module_path,
+                "test.name": test_run.name,
+                "test.status": test_run.get_status().value,
+                "test.suite": test_run.parent.parent.name,
                 "test.type": "test",
                 "type": "test",
             },
@@ -111,12 +112,12 @@ def test_run_to_event(test: TestRun) -> Event:
                 "_dd.top_level": 1,
                 "_dd.tracer_kr": 1.0,
                 "_sampling_priority_v1": 1,
-                **test.metrics,
+                **test_run.metrics,
             },
             "type": "test",
-            "test_session_id": test.session_id,
-            "test_module_id": test.module_id,
-            "test_suite_id": test.suite_id,
+            "test_session_id": test_run.session_id,
+            "test_module_id": test_run.module_id,
+            "test_suite_id": test_run.suite_id,
         },
     )
 

@@ -73,8 +73,8 @@ class AutoTestRetriesHandler(RetryHandler):
 
 class EarlyFlakeDetectionHandler(RetryHandler):
     def should_apply(self, test: Test) -> bool:
-        # TODO: check is_new tag
-        return True
+        # TODO: faulty session logic
+        return test.is_new()
 
     def should_retry(self, test: Test):
         seconds_so_far = test.seconds_so_far()
