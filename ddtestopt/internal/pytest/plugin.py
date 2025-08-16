@@ -12,6 +12,9 @@ import pytest
 
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
+from ddtestopt.internal.logging import catch_and_log_exceptions
+from ddtestopt.internal.logging import setup_logging
+from ddtestopt.internal.retry_handlers import RetryHandler
 from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
@@ -66,8 +69,12 @@ _ReportGroup = t.Dict[str, pytest.TestReport]
 
 
 class TestOptPlugin:
+    """
+    pytest plugin for test optimization.
+    """
+
     def __init__(self) -> None:
-        self.enable_ddtrace = True
+        self.enable_ddtrace = True  # TODO: make it configurable via command line.
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
@@ -134,8 +141,10 @@ class TestOptPlugin:
             yield
 
         if not test.test_runs:
-            # No test runs: our pytest_runtest_protocol did not run, some other plugin did it instead.
-            # In this case, we create a test run now with the test results of the plugin run as a fallback.
+            # No test runs: our pytest_runtest_protocol did not run. This can happen if some other plugin (such as
+            # `flaky` or `rerunfailures`) did it instead, or if there is a user-defined `pytest_runtest_protocol` in
+            # `conftest.py`. In this case, we create a test run now with the test results of the plugin run as a
+            # fallback, but we are unable to do retries in this case.
             test_run = test.make_test_run()
             status, tags = self._get_test_outcome(item.nodeid)
             test_run.set_status(status)
@@ -154,6 +163,11 @@ class TestOptPlugin:
             test_module.finish()
             self.manager.writer.put_item(test_module)
 
+    @catch_and_log_exceptions()
+    def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> bool:
+        self._do_test_runs(item, nextitem)
+        return True  # Do not run other pytest_runtest_protocol hooks after this one.
+
     def _do_one_test_run(
         self, item: pytest.Item, nextitem: t.Optional[pytest.Item], context: TestContext
     ) -> t.Tuple[TestRun, _ReportGroup]:
@@ -166,10 +180,6 @@ class TestOptPlugin:
         test_run.set_context(context)
 
         return test_run, reports
-
-    def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> bool:
-        self._do_test_runs(item, nextitem)
-        return True  # Do not run other pytest_runtest_protocol hooks after this one.
 
     def _do_test_runs(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> None:
         test = self.tests_by_nodeid[item.nodeid]
@@ -209,8 +219,10 @@ class TestOptPlugin:
             should_retry = retry_handler.should_retry(test)
             test_run.set_tags(retry_handler.get_tags_for_test_run(test_run))
             self._mark_test_reports_as_retry(reports)
+
             if not self._log_test_report(item, reports, TestPhase.CALL):
                 self._log_test_report(item, reports, TestPhase.SETUP)
+
             test_run.finish()
             self.manager.writer.put_item(test_run)
 
@@ -221,18 +233,18 @@ class TestOptPlugin:
         final_report = self._make_final_report(item, final_status, longrepr)
         item.ihook.pytest_runtest_logreport(report=final_report)
 
-        # Log teardown. There should be just one teardown for all of the retries, because the junitxml plugin closes the
-        # <testcase> element at teardown.
+        # Log teardown. There should be just one teardown logged for all of the retries, because the junitxml plugin
+        # closes the <testcase> element when teardown is logged.
         self._log_test_report(item, reports, TestPhase.TEARDOWN)
 
-    def _check_applicable_retry_handlers(self, test: Test):
+    def _check_applicable_retry_handlers(self, test: Test) -> t.Optional[RetryHandler]:
         for handler in self.manager.retry_handlers:
             if handler.should_apply(test):
                 return handler
 
         return None
 
-    def _extract_longrepr(self, reports: _ReportGroup):
+    def _extract_longrepr(self, reports: _ReportGroup) -> t.Any:
         # The call longrepr is more interesting for us, if available.
         for when in (TestPhase.CALL, TestPhase.SETUP, TestPhase.TEARDOWN):
             if report := reports.get(when):
@@ -241,7 +253,7 @@ class TestOptPlugin:
 
         return None
 
-    def _mark_test_reports_as_retry(self, reports: _ReportGroup):
+    def _mark_test_reports_as_retry(self, reports: _ReportGroup) -> None:
         if call_report := reports.get(TestPhase.CALL):
             call_report.user_properties += [("dd_retry_outcome", call_report.outcome)]
             call_report.outcome = "dd_retry"  # type: ignore
@@ -250,14 +262,14 @@ class TestOptPlugin:
             setup_report.user_properties += [("dd_retry_outcome", setup_report.outcome)]
             setup_report.outcome = "dd_retry"  # type: ignore
 
-    def _log_test_report(self, item: pytest.Item, reports: _ReportGroup, when: str):
+    def _log_test_report(self, item: pytest.Item, reports: _ReportGroup, when: str) -> bool:
         if report := reports.get(when):
             item.ihook.pytest_runtest_logreport(report=report)
             return True
 
         return False
 
-    def _log_test_reports(self, item: pytest.Item, reports: _ReportGroup):
+    def _log_test_reports(self, item: pytest.Item, reports: _ReportGroup) -> bool:
         for when in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             if report := reports.get(when):
                 item.ihook.pytest_runtest_logreport(report=report)
@@ -293,7 +305,7 @@ class TestOptPlugin:
         self.reports_by_nodeid[item.nodeid][call.when] = report
         self.excinfo_by_report[report] = call.excinfo
 
-    def pytest_report_teststatus(self, report: pytest.TestReport):
+    def pytest_report_teststatus(self, report: pytest.TestReport) -> t.Optional[t.Tuple[str, str, str]]:
         if retry_outcome := _get_user_property(report, "dd_retry_outcome"):
             return ("dd_retry", "R", f"RETRY {retry_outcome.upper()}")
 
@@ -304,6 +316,7 @@ class TestOptPlugin:
         This methods consumes the test reports and exception information for the specified test, and removes them from
         the dictionaries.
         """
+        # TODO: handle xfail/xpass.
         reports_dict = self.reports_by_nodeid.pop(nodeid, None)
 
         for phase in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
@@ -322,6 +335,14 @@ class TestOptPlugin:
 
 def _make_reports_dict(reports) -> _ReportGroup:
     return {report.when: report for report in reports}
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_load_initial_conftests(
+    early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
+) -> t.Generator[None, None, None]:
+    setup_logging()
+    yield
 
 
 def pytest_configure(config):
