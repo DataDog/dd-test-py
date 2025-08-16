@@ -1,3 +1,4 @@
+import logging
 import os
 import typing as t
 
@@ -11,6 +12,8 @@ from ddtestopt.internal.retry_handlers import RetryHandler
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.writer import TestOptWriter
+
+log = logging.getLogger(__name__)
 
 
 class SessionManager:
@@ -33,6 +36,11 @@ class SessionManager:
             configurations=self.platform_tags,
         )
         self.settings = self.api_client.get_settings()
+
+        # DEBUG
+        self.settings.early_flake_detection.enabled = True
+        self.settings.known_tests_enabled = True
+        #######
 
         self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
 

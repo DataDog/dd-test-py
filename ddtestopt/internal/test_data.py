@@ -52,6 +52,9 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         self.tags: t.Dict[str, str] = {}
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
 
+    def seconds_so_far(self):
+        return (time.time_ns() - self.start_ns) / 1e9
+
     def finish(self):
         self.duration_ns = time.time_ns() - self.start_ns
 

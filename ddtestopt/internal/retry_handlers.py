@@ -73,17 +73,24 @@ class AutoTestRetriesHandler(RetryHandler):
 
 class EarlyFlakeDetectionHandler(RetryHandler):
     def should_apply(self, test: Test) -> bool:
-        return (
-            True
-            # and test.is_new()
-        )
+        # TODO: check is_new tag
+        return True
 
     def should_retry(self, test: Test):
-        return (
-            # test.last_test_run.get_status() != TestStatus.SKIP and
-            len(test.test_runs)
-            < 6  # should be based on total time and shenanigans
-        )
+        seconds_so_far = test.seconds_so_far()
+        retries_so_far = len(test.test_runs) - 1  # Initial attempt does not count.
+        efd_settings = self.session_manager.settings.early_flake_detection
+
+        if seconds_so_far <= 5:
+            return retries_so_far < efd_settings.slow_test_retries_5s
+        if seconds_so_far <= 10:
+            return retries_so_far < efd_settings.slow_test_retries_10s
+        if seconds_so_far <= 30:
+            return retries_so_far < efd_settings.slow_test_retries_30s
+        if seconds_so_far <= 300:
+            return retries_so_far < efd_settings.slow_test_retries_5m
+
+        return False
 
     def get_final_status(self, test: Test):
         status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
