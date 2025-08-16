@@ -53,11 +53,7 @@ class RetryHandler(ABC):
 
 class AutoTestRetriesHandler(RetryHandler):
     def should_apply(self, test: Test) -> bool:
-        return (
-            False
-            # test.last_test_run.get_status() == TestStatus.FAIL
-            # and not test.is_new()
-        )
+        return True
 
     def should_retry(self, test: Test):
         return test.last_test_run.get_status() == TestStatus.FAIL and len(test.test_runs) < 6

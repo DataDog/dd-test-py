@@ -18,7 +18,6 @@ class SessionManager:
         self.writer = writer or TestOptWriter()
         self.session = session or TestSession(name="test")
 
-        self.retry_handlers: t.List[RetryHandler] = [EarlyFlakeDetectionHandler(self), AutoTestRetriesHandler(self)]
 
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
@@ -37,7 +36,15 @@ class SessionManager:
             branch=self.git_tags[GitTag.BRANCH],
         )
         self.settings = self.api_client.get_settings()
-        breakpoint()
+
+        self.retry_handlers: t.List[RetryHandler] = []
+
+        if self.settings.early_flake_detection.enabled:
+            self.retry_handlers.append(EarlyFlakeDetectionHandler(self))
+
+        if self.settings.auto_test_retries.enabled:
+            self.retry_handlers.append(AutoTestRetriesHandler(self))
+
 
     def start(self) -> None:
         self.writer.add_metadata("*", self.git_tags)
