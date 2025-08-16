@@ -8,16 +8,25 @@ import typing as t
 import urllib.request
 import uuid
 
-from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
+from ddtestopt.internal.test_data import TestRef
+
 
 log = logging.getLogger(__name__)
 
 
 class APIClient:
     def __init__(
-            self, site: str, api_key: str, service: str, env: str, repository_url: str, commit_sha: str, branch: str, configurations: t.Dict[str, str]
+        self,
+        site: str,
+        api_key: str,
+        service: str,
+        env: str,
+        repository_url: str,
+        commit_sha: str,
+        branch: str,
+        configurations: t.Dict[str, str],
     ) -> None:
         self.site = site
         self.api_key = api_key
@@ -88,7 +97,9 @@ class APIClient:
             #     response_data = json.load(gzip.open(response))
             # else:
             #     response_data = json.load(response)
-            response_data = json.load(open("/home/vitor.dearaujo/dd/test-optimization-python/tests/simple_known_tests_response.json")) # DEBUG
+            response_data = json.load(
+                open("/home/vitor.dearaujo/dd/test-optimization-python/tests/simple_known_tests_response.json")
+            )  # DEBUG
 
             tests_data = response_data["data"]["attributes"]["tests"]
             known_test_ids = set()
@@ -105,7 +116,6 @@ class APIClient:
         except Exception:
             log.exception("Error getting known tests from API: {e}")
             return set()
-
 
 
 @dataclass

@@ -13,6 +13,7 @@ from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.writer import TestOptWriter
 
+
 log = logging.getLogger(__name__)
 
 
@@ -57,7 +58,6 @@ class SessionManager:
 
         self.writer = writer or TestOptWriter(site=self.site, api_key=self.api_key)
         self.session = session or TestSession(name="test")
-
 
     def start(self) -> None:
         self.writer.add_metadata("*", self.git_tags)
