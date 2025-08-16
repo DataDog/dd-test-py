@@ -1,5 +1,6 @@
 from collections import defaultdict
 from io import StringIO
+import logging
 import os
 from pathlib import Path
 import re
@@ -30,6 +31,8 @@ from ddtestopt.internal.utils import TestContext
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
+
+log = logging.getLogger(__name__)
 
 
 def nodeid_to_test_ref(nodeid: str) -> TestRef:
@@ -145,6 +148,11 @@ class TestOptPlugin:
             # `flaky` or `rerunfailures`) did it instead, or if there is a user-defined `pytest_runtest_protocol` in
             # `conftest.py`. In this case, we create a test run now with the test results of the plugin run as a
             # fallback, but we are unable to do retries in this case.
+            log.debug(
+                "Test Optimization pytest_runtest_protocol did not run for %s; "
+                "perhaps some plugin or conftest.py has overridden it",
+                item.nodeid,
+            )
             test_run = test.make_test_run()
             status, tags = self._get_test_outcome(item.nodeid)
             test_run.set_status(status)
