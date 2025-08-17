@@ -92,14 +92,11 @@ class APIClient:
         }
 
         try:
-            # response = urllib.request.urlopen(request, json.dumps(request_data).encode("utf-8"))
-            # if response.headers.get("Content-Encoding") == "gzip":
-            #     response_data = json.load(gzip.open(response))
-            # else:
-            #     response_data = json.load(response)
-            response_data = json.load(
-                open("/home/vitor.dearaujo/dd/test-optimization-python/tests/simple_known_tests_response.json")
-            )  # DEBUG
+            response = urllib.request.urlopen(request, json.dumps(request_data).encode("utf-8"))
+            if response.headers.get("Content-Encoding") == "gzip":
+                response_data = json.load(gzip.open(response))
+            else:
+                response_data = json.load(response)
 
             tests_data = response_data["data"]["attributes"]["tests"]
             known_test_ids = set()
