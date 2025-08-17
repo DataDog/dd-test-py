@@ -25,11 +25,13 @@ def install_global_trace_filter(writer):
 
     from .span_processor import TestOptSpanProcessor
 
+    span_processor = TestOptSpanProcessor(writer)
+
     try:
-        ddtrace.tracer.configure(trace_processors=[TestOptSpanProcessor(writer)])
+        ddtrace.tracer.configure(trace_processors=[span_processor])  # type: ignore
     except TypeError:
         # ddtrace 2.x compatibility
-        ddtrace.tracer.configure(settings={"FILTERS": [TestOptSpanProcessor(writer)]})
+        ddtrace.tracer.configure(settings={"FILTERS": [span_processor]})  # type: ignore
 
     # TODO: this should be somewhere else, and should not be specific to flask.
     ddtrace.patch(flask=True)
@@ -45,10 +47,10 @@ def uninstall_global_trace_filter():
         return None
 
     try:
-        ddtrace.tracer.configure(trace_processors=[])
+        ddtrace.tracer.configure(trace_processors=[])  # type: ignore
     except TypeError:
         # ddtrace 2.x compatibility
-        ddtrace.tracer.configure(settings={"FILTERS": []})
+        ddtrace.tracer.configure(settings={"FILTERS": []})  # type: ignore
 
 
 def trace_context(ddtrace_enabled: bool):

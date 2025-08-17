@@ -1,0 +1,231 @@
+from __future__ import annotations
+
+from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+import time
+import typing as t
+
+from ddtestopt.internal.utils import TestContext
+from ddtestopt.internal.utils import _gen_item_id
+
+
+@dataclass(frozen=True)
+class ModuleRef:
+    name: str
+
+
+@dataclass(frozen=True)
+class SuiteRef:
+    module: ModuleRef
+    name: str
+
+
+@dataclass(frozen=True)
+class TestRef:
+    suite: SuiteRef
+    name: str
+
+
+class TestStatus(Enum):
+    PASS = "pass"
+    FAIL = "fail"
+    SKIP = "skip"
+
+
+TParentClass = t.TypeVar("TParentClass", bound="TestItem")
+TChildClass = t.TypeVar("TChildClass", bound="TestItem")
+
+
+class TestItem(t.Generic[TParentClass, TChildClass]):
+    ChildClass: t.Type[TChildClass]
+
+    def __init__(self, name: str, parent: TParentClass):
+        self.name = name
+        self.children: t.Dict[str, TChildClass] = {}
+        self.start_ns: int = time.time_ns()
+        self.duration_ns: t.Optional[int] = None
+        self.parent: TParentClass = parent
+        self.item_id = _gen_item_id()
+        self.status: TestStatus = TestStatus.FAIL
+        self.tags: t.Dict[str, str] = {}
+        self.metrics: t.Dict[str, t.Union[int, float]] = {}
+
+    def seconds_so_far(self):
+        return (time.time_ns() - self.start_ns) / 1e9
+
+    def finish(self):
+        self.duration_ns = time.time_ns() - self.start_ns
+
+    def is_finished(self) -> bool:
+        return self.duration_ns is not None
+
+    def get_status(self) -> TestStatus:
+        if self.children:  # ꙮ
+            self.status = self._get_status_from_children()
+        return self.status
+
+    def set_status(self, status: TestStatus) -> None:
+        self.status = status
+
+    def _get_status_from_children(self) -> TestStatus:
+        status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
+        total_count = 0
+
+        for child in self.children.values():
+            status = child.get_status()
+            if status:
+                status_counts[status] += 1
+                total_count += 1
+
+        if status_counts[TestStatus.FAIL] > 0:
+            return TestStatus.FAIL
+
+        if status_counts[TestStatus.SKIP] == total_count:
+            return TestStatus.SKIP
+
+        return TestStatus.PASS
+
+    def get_or_create_child(self, name: str) -> t.Tuple[TChildClass, bool]:
+        created = False
+
+        if name not in self.children:
+            created = True
+            child = self.ChildClass(name=name, parent=self)
+            self.children[name] = child
+
+        return self.children[name], created
+
+    def set_tags(self, tags: t.Dict[str, str]) -> None:
+        self.tags.update(tags)
+
+
+class TestRun(TestItem["Test", t.NoReturn]):
+    def __init__(self, name: str, parent: Test) -> None:
+        super().__init__(name=name, parent=parent)
+        self.span_id: t.Optional[int] = None
+        self.trace_id: t.Optional[int] = None
+        self.attempt_number: int = 0
+
+    def set_context(self, context: TestContext) -> None:
+        self.span_id = context.span_id
+        self.trace_id = context.trace_id
+
+    @property
+    def suite_id(self) -> str:
+        return self.parent.parent.item_id
+
+    @property
+    def module_id(self) -> str:
+        return self.parent.parent.parent.item_id
+
+    @property
+    def session_id(self) -> str:
+        return self.parent.parent.parent.parent.item_id
+
+
+class Test(TestItem["TestSuite", "TestRun"]):
+    ChildClass = TestRun
+
+    def __init__(self, name: str, parent: TestSuite) -> None:
+        super().__init__(name=name, parent=parent)
+
+        self.test_runs: t.List[TestRun] = []
+
+    def set_attributes(self, is_new: bool, path: Path, start_line: int) -> None:
+        if is_new:
+            self.tags[TestTag.IS_NEW] = "true"
+        self.tags["test.source.file"] = str(path)
+        self.metrics["test.source.start"] = start_line
+
+    def is_new(self):
+        return self.tags.get(TestTag.IS_NEW) == "true"
+
+    @property
+    def suite_id(self) -> str:
+        return self.parent.item_id
+
+    @property
+    def module_id(self) -> str:
+        return self.parent.parent.item_id
+
+    @property
+    def session_id(self) -> str:
+        return self.parent.parent.parent.item_id
+
+    def make_test_run(self):
+        test_run = TestRun(name=self.name, parent=self)
+        test_run.parent = self
+        test_run.attempt_number = len(self.test_runs)
+        self.test_runs.append(test_run)
+        return test_run
+
+    @property
+    def last_test_run(self):
+        return self.test_runs[-1]
+
+
+class TestSuite(TestItem["TestModule", "Test"]):
+    ChildClass = Test
+
+    @property
+    def suite_id(self) -> str:
+        return self.item_id
+
+    @property
+    def module_id(self) -> str:
+        return self.parent.item_id
+
+    @property
+    def session_id(self) -> str:
+        return self.parent.parent.item_id
+
+
+class TestModule(TestItem["TestSession", "TestSuite"]):
+    ChildClass = TestSuite
+
+    @property
+    def module_id(self) -> str:
+        return self.item_id
+
+    @property
+    def session_id(self) -> str:
+        return self.parent.item_id
+
+    def set_attributes(self, module_path: Path) -> None:
+        self.module_path = str(module_path)
+
+
+class TestSession(TestItem[t.NoReturn, "TestModule"]):
+    ChildClass = TestModule
+
+    def __init__(self, name: str):
+        super().__init__(name=name, parent=None)  # type: ignore
+
+    @property
+    def session_id(self) -> str:
+        return self.item_id
+
+    def set_attributes(self, test_command: str, test_framework: str, test_framework_version: str) -> None:
+        self.command = test_command
+        self.test_command = test_command
+        self.test_framework = test_framework
+        self.test_framework_version = test_framework_version
+
+
+class TestTag:
+    COMPONENT = "component"
+    TEST_COMMAND = "test.command"
+    TEST_FRAMEWORK = "test.framework"
+    TEST_FRAMEWORK_VERSION = "test.framework_version"
+
+    ENV = "env"
+
+    ERROR_STACK = "error.stack"
+    ERROR_TYPE = "error.type"
+    ERROR_MESSAGE = "error.message"
+
+    SKIP_REASON = "test.skip_reason"
+
+    IS_NEW = "test.is_new"

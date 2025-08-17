@@ -2,15 +2,15 @@ import typing as t
 
 
 try:
-    from ddtrace.trace import Span
-    from ddtrace.trace import TraceFilter
+    from ddtrace.trace import Span  # type: ignore
+    from ddtrace.trace import TraceFilter  # type: ignore
 except ImportError:
     # ddtrace 2.x compatibility
-    from ddtrace import Span
-    from ddtrace.filters import TraceFilter
+    from ddtrace import Span  # type: ignore
+    from ddtrace.filters import TraceFilter  # type: ignore
 
-from ddtestopt.internal.recorder import Event
 from ddtestopt.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
+from ddtestopt.internal.writer import Event
 
 
 class TestOptSpanProcessor(TraceFilter):
@@ -25,7 +25,7 @@ class TestOptSpanProcessor(TraceFilter):
                 continue
 
             event = span_to_event(span)
-            self.writer.append_event(event)
+            self.writer.put_event(event)
         return None
 
 
@@ -38,7 +38,7 @@ def span_to_event(span: Span) -> Event:
         type="span",
         content={
             "trace_id": span.trace_id % (1 << 64),
-            "parent_id": span.parent_id % (1 << 64),
+            "parent_id": span.parent_id % (1 << 64) if span.parent_id is not None else None,
             "span_id": span.span_id % (1 << 64),
             "service": span.service,
             "resource": span.resource,

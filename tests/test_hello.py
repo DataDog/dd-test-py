@@ -7,6 +7,13 @@ class Flakiness:
     x = 0
 
 
+def test_one():
+    assert True
+
+
+def test_two():
+    assert False
+
 def test_hello():
     time.sleep(0.1)
     Flakiness.x += 1
@@ -18,7 +25,6 @@ def test_bye():
     assert False
 
 
-@pytest.mark.skip
 def test_skip4():
     time.sleep(0.1)
     pytest.skip()
