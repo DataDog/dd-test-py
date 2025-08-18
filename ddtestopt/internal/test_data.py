@@ -162,8 +162,8 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
     def make_test_run(self):
         test_run = TestRun(name=self.name, parent=self)
-        test_run.parent = self
         test_run.attempt_number = len(self.test_runs)
+        test_run.set_service(self.service)
         self.test_runs.append(test_run)
         return test_run
 
