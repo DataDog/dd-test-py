@@ -70,8 +70,6 @@ class TestOptWriter:
         request.add_header("content-type", "application/msgpack")
         request.add_header("dd-api-key", self.api_key)
 
-        breakpoint()
-
         if self.gzip_enabled:
             pack = gzip.compress(pack, compresslevel=6)
             request.add_header("Content-Encoding", "gzip")
@@ -89,7 +87,7 @@ def test_run_to_event(test_run: TestRun) -> Event:
             "trace_id": test_run.trace_id,
             "parent_id": 1,
             "span_id": test_run.span_id,
-            "service": "ddtestopt",
+            "service": test_run.service,
             "resource": test_run.name,
             "name": "pytest.test",
             "error": 1 if test_run.get_status() == TestStatus.FAIL else 0,
@@ -127,7 +125,7 @@ def suite_to_event(suite: TestSuite) -> Event:
         version=1,
         type="test_suite_end",
         content={
-            "service": "ddtestopt",
+            "service": suite.service,
             "resource": "pytest.test_suite",
             "name": "pytest.test_suite",
             "error": 0,
@@ -160,7 +158,7 @@ def module_to_event(module: TestModule) -> Event:
         version=1,
         type="test_module_end",
         content={
-            "service": "ddtestopt",
+            "service": module.service,
             "resource": "pytest.test_module",
             "name": "pytest.test_module",
             "error": 0,
@@ -192,7 +190,7 @@ def session_to_event(session: TestSession) -> Event:
         version=1,
         type="test_session_end",
         content={
-            "service": "ddtestopt",
+            "service": session.service,
             "resource": "pytest.test_session",
             "name": "pytest.test_session",
             "error": 0,
