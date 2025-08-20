@@ -4,8 +4,8 @@ import re
 import typing as t
 
 from ddtestopt.internal.api_client import APIClient
-from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestopt.internal.constants import DEFAULT_ENV_NAME
+from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestopt.internal.constants import DEFAULT_SITE
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import get_git_tags
@@ -45,13 +45,12 @@ class SessionManager:
             api_key=self.api_key,
             service=self.service,
             env=self.env,
-            repository_url=self.git_tags[GitTag.REPOSITORY_URL],
-            commit_sha=self.git_tags[GitTag.COMMIT_SHA],
-            branch=self.git_tags[GitTag.BRANCH],
+            git_tags=self.git_tags,
             configurations=self.platform_tags,
         )
         self.settings = self.api_client.get_settings()
         self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
+        self.test_properties = self.api_client.get_test_management_tests()
         self.retry_handlers: t.List[RetryHandler] = []
 
         if self.settings.early_flake_detection.enabled:

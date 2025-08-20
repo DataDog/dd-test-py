@@ -7,9 +7,9 @@ from pathlib import Path
 import time
 import typing as t
 
+from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestopt.internal.utils import TestContext
 from ddtestopt.internal.utils import _gen_item_id
-from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,5 @@
 import gzip
+import logging
 import os
 import typing as t
 import urllib.request
@@ -12,6 +13,9 @@ from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
+
+
+log = logging.getLogger(__name__)
 
 
 class Event(dict):
@@ -75,8 +79,8 @@ class TestOptWriter:
             request.add_header("Content-Encoding", "gzip")
 
         response = urllib.request.urlopen(request, data=pack)
-        content = response.read()
-        print(response, content)
+        _content = response.read()
+        log.info("Sent %d bytes to to %s", len(pack), url)
 
 
 def test_run_to_event(test_run: TestRun) -> Event:
