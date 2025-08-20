@@ -41,6 +41,14 @@ class TestOptWriter:
                 "_dd.origin": "ciapp-test",
                 "_dd.p.dm": "-0",  # what is this?
             },
+            "test": {
+                "_dd.library_capabilities.early_flake_detection": "1",
+                "_dd.library_capabilities.auto_test_retries": "1",
+                "_dd.library_capabilities.test_impact_analysis": "1",
+                "_dd.library_capabilities.test_management.quarantine": "1",
+                "_dd.library_capabilities.test_management.disable": "1",
+                "_dd.library_capabilities.test_management.attempt_to_fix": "4",
+            },
         }
         self.api_key = os.environ["DD_API_KEY"]
         self.gzip_enabled = True

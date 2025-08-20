@@ -136,9 +136,31 @@ class APIClient:
                 response_data = json.load(gzip.open(response))
             else:
                 response_data = json.load(response)
+
+            test_properties = {}
+            modules = response_data["data"]["attributes"]["modules"]
+
+            for module_name, module_data in modules.items():
+                module_ref = ModuleRef(module_name)
+                suites = module_data["suites"]
+                for suite_name, suite_data in suites.items():
+                    suite_ref = SuiteRef(module_ref, suite_name)
+                    tests = suite_data["tests"]
+                    for test_name, test_data in tests.items():
+                        test_ref = TestRef(suite_ref, test_name)
+                        properties = test_data.get("properties", {})
+                        test_properties[test_ref] = TestProperties(
+                            quarantined=properties.get("quarantined", False),
+                            disabled=properties.get("disabled", False),
+                            attempt_to_fix=properties.get("attempt_to_fix", False),
+                        )
+
             breakpoint()
+            return test_properties
+
         except:
-            ...
+            log.exception("Failed to parse Test Management tests data")
+            return {}
 
 
 @dataclass
@@ -189,3 +211,12 @@ class Settings:
         )
 
         return settings
+
+
+@dataclass(frozen=True)
+class TestProperties:
+    quarantined: bool = False
+    disabled: bool = False
+    attempt_to_fix: bool = False
+
+    __test__ = False
