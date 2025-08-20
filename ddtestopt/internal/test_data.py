@@ -139,14 +139,40 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
         self.test_runs: t.List[TestRun] = []
 
-    def set_attributes(self, is_new: bool, path: Path, start_line: int) -> None:
+    def set_attributes(
+        self,
+        is_new: bool,
+        path: Path,
+        start_line: int,
+        is_quarantined: bool,
+        is_disabled: bool,
+        is_attempt_to_fix: bool,
+    ) -> None:
         if is_new:
             self.tags[TestTag.IS_NEW] = "true"
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
 
-    def is_new(self):
+        if is_quarantined:
+            self.tags[TestTag.IS_QUARANTINED] = "true"
+
+        if is_disabled:
+            self.tags[TestTag.IS_DISABLED] = "true"
+
+        if is_attempt_to_fix:
+            self.tags[TestTag.IS_ATTEMPT_TO_FIX] = "true"
+
+    def is_new(self) -> bool:
         return self.tags.get(TestTag.IS_NEW) == "true"
+
+    def is_quarantined(self) -> bool:
+        return self.tags.get(TestTag.IS_QUARANTINED) == "true"
+
+    def is_disabled(self) -> bool:
+        return self.tags.get(TestTag.IS_DISABLED) == "true"
+
+    def is_attempt_to_fix(self) -> bool:
+        return self.tags.get(TestTag.IS_ATTEMPT_TO_FIX) == "true"
 
     @property
     def suite_id(self) -> str:
@@ -160,7 +186,7 @@ class Test(TestItem["TestSuite", "TestRun"]):
     def session_id(self) -> str:
         return self.parent.parent.parent.item_id
 
-    def make_test_run(self):
+    def make_test_run(self) -> TestRun:
         test_run = TestRun(name=self.name, parent=self)
         test_run.attempt_number = len(self.test_runs)
         test_run.set_service(self.service)
@@ -168,7 +194,7 @@ class Test(TestItem["TestSuite", "TestRun"]):
         return test_run
 
     @property
-    def last_test_run(self):
+    def last_test_run(self) -> TestRun:
         return self.test_runs[-1]
 
 
@@ -235,3 +261,6 @@ class TestTag:
     SKIP_REASON = "test.skip_reason"
 
     IS_NEW = "test.is_new"
+    IS_QUARANTINED = "test.test_management.is_quarantined"
+    IS_DISABLED = "test.test_management.is_test_disabled"
+    IS_ATTEMPT_TO_FIX = "test.test_management.is_attempt_to_fix"

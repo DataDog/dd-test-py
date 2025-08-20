@@ -86,6 +86,8 @@ class TestOptWriter:
             pack = gzip.compress(pack, compresslevel=6)
             request.add_header("Content-Encoding", "gzip")
 
+        breakpoint()
+
         response = urllib.request.urlopen(request, data=pack)
         _content = response.read()
         log.info("Sent %d bytes to to %s", len(pack), url)

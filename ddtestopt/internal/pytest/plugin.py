@@ -11,6 +11,7 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.logging import catch_and_log_exceptions
@@ -127,8 +128,16 @@ class TestOptPlugin:
         if created:
             # TODO: maybe make this less pytest-specific? Move discovery to its own class?
             is_new = len(self.manager.known_tests) > 0 and test_ref not in self.manager.known_tests
+            test_properties = self.manager.test_properties.get(test_ref) or TestProperties()
             path, start_line, _test_name = item.reportinfo()
-            test.set_attributes(is_new=is_new, path=path, start_line=start_line)
+            test.set_attributes(
+                is_new=is_new,
+                is_quarantined=test_properties.quarantined,
+                is_disabled=test_properties.disabled,
+                is_attempt_to_fix=test_properties.attempt_to_fix,
+                path=path,
+                start_line=start_line,
+            )
 
         return test_module, test_suite, test
 
