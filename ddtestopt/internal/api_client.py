@@ -111,7 +111,7 @@ class APIClient:
             log.exception("Error getting known tests from API (%s)", url)
             return set()
 
-    def get_test_management_tests(self) -> t.Set[TestRef]:
+    def get_test_management_tests(self) -> t.Dict[TestRef, TestProperties]:
         url = f"{self.base_url}/api/v2/test/libraries/test-management/tests"
         request = urllib.request.Request(url)
         request.add_header("content-type", "application/json")
@@ -137,7 +137,7 @@ class APIClient:
             else:
                 response_data = json.load(response)
 
-            test_properties = {}
+            test_properties: t.Dict[TestRef, TestProperties] = {}
             modules = response_data["data"]["attributes"]["modules"]
 
             for module_name, module_data in modules.items():
@@ -155,7 +155,6 @@ class APIClient:
                             attempt_to_fix=properties.get("attempt_to_fix", False),
                         )
 
-            breakpoint()
             return test_properties
 
         except:
@@ -191,21 +190,36 @@ class AutoTestRetriesSettings:
 
 
 @dataclass
+class TestManagementSettings:
+    enabled: bool = False
+    attempt_to_fix_retries: int = 20
+
+    @classmethod
+    def from_attributes(cls, test_management_attributes: t.Dict[str, t.Any]) -> TestManagementSettings:
+        test_management_settings = cls(
+            enabled=test_management_attributes["enabled"],
+            attempt_to_fix_retries=test_management_attributes["attempt_to_fix_retries"],
+        )
+        return test_management_settings
+
+
+@dataclass
 class Settings:
     early_flake_detection: EarlyFlakeDetectionSettings = field(default_factory=EarlyFlakeDetectionSettings)
     auto_test_retries: AutoTestRetriesSettings = field(default_factory=AutoTestRetriesSettings)
+    test_management: TestManagementSettings = field(default_factory=TestManagementSettings)
     known_tests_enabled: bool = False
 
     @classmethod
     def from_attributes(cls, attributes) -> Settings:
-        if efd_attributes := attributes.get("early_flake_detection"):
-            efd_settings = EarlyFlakeDetectionSettings.from_attributes(efd_attributes)
-
+        efd_settings = EarlyFlakeDetectionSettings.from_attributes(attributes.get("early_flake_detection"))
+        test_management_settings = TestManagementSettings.from_attributes(attributes.get("test_management"))
         atr_enabled = bool(attributes.get("flaky_test_retries_enabled"))
         known_tests_enabled = bool(attributes.get("known_tests_enabled"))
 
         settings = cls(
             early_flake_detection=efd_settings,
+            test_management=test_management_settings,
             auto_test_retries=AutoTestRetriesSettings(enabled=atr_enabled),
             known_tests_enabled=known_tests_enabled,
         )

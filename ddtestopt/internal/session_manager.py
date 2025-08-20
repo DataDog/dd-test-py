@@ -50,7 +50,9 @@ class SessionManager:
         )
         self.settings = self.api_client.get_settings()
         self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
-        self.test_properties = self.api_client.get_test_management_tests()
+        self.test_properties = (
+            self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
+        )
         self.retry_handlers: t.List[RetryHandler] = []
 
         if self.settings.early_flake_detection.enabled:
