@@ -138,7 +138,7 @@ def suite_to_event(suite: TestSuite) -> Event:
         type="test_suite_end",
         content={
             "service": suite.service,
-            "resource": "pytest.test_suite",
+            "resource": suite.name,
             "name": "pytest.test_suite",
             "error": 0,
             "start": suite.start_ns,
@@ -171,7 +171,7 @@ def module_to_event(module: TestModule) -> Event:
         type="test_module_end",
         content={
             "service": module.service,
-            "resource": "pytest.test_module",
+            "resource": module.name,
             "name": "pytest.test_module",
             "error": 0,
             "start": module.start_ns,
@@ -203,7 +203,7 @@ def session_to_event(session: TestSession) -> Event:
         type="test_session_end",
         content={
             "service": session.service,
-            "resource": "pytest.test_session",
+            "resource": session.name,
             "name": "pytest.test_session",
             "error": 0,
             "start": session.start_ns,

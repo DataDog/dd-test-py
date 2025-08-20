@@ -15,16 +15,19 @@ def test_two():
     assert False
 
 def test_hello():
-    time.sleep(0.1)
+    time.sleep(0.05)
     Flakiness.x += 1
     assert Flakiness.x > 2
 
 
 def test_bye():
-    time.sleep(0.1)
+    time.sleep(0.05)
     assert False
 
 
 def test_skip4():
-    time.sleep(0.1)
+    time.sleep(0.05)
     pytest.skip()
+
+def test_blabla():
+    assert True
