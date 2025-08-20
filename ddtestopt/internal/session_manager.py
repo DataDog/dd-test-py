@@ -1,8 +1,12 @@
 import logging
 import os
+import re
 import typing as t
 
 from ddtestopt.internal.api_client import APIClient
+from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
+from ddtestopt.internal.constants import DEFAULT_ENV_NAME
+from ddtestopt.internal.constants import DEFAULT_SITE
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
@@ -21,9 +25,19 @@ class SessionManager:
     def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None) -> None:
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
-        self.service = os.environ.get("DD_SERVICE")
-        self.env = os.environ.get("DD_ENV")
-        self.site = os.environ.get("DD_SITE") or "datadoghq.com"
+
+        self.is_user_provided_service: bool
+
+        dd_service = os.environ.get("DD_SERVICE")
+        if dd_service:
+            self.service = dd_service
+            self.is_user_provided_service = True
+        else:
+            self.is_user_provided_service = False
+            self.service = _get_service_name_from_git_repo(self.git_tags) or DEFAULT_SERVICE_NAME
+
+        self.env = os.environ.get("DD_ENV") or DEFAULT_ENV_NAME
+        self.site = os.environ.get("DD_SITE") or DEFAULT_SITE
         self.api_key = os.environ["DD_API_KEY"]
 
         self.api_client = APIClient(
@@ -37,14 +51,7 @@ class SessionManager:
             configurations=self.platform_tags,
         )
         self.settings = self.api_client.get_settings()
-
-        # DEBUG
-        self.settings.early_flake_detection.enabled = True
-        self.settings.known_tests_enabled = True
-        #######
-
         self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
-
         self.retry_handlers: t.List[RetryHandler] = []
 
         if self.settings.early_flake_detection.enabled:
@@ -58,6 +65,7 @@ class SessionManager:
 
         self.writer = writer or TestOptWriter(site=self.site, api_key=self.api_key)
         self.session = session or TestSession(name="test")
+        self.session.set_service(self.service)
 
     def start(self) -> None:
         self.writer.add_metadata("*", self.git_tags)
@@ -69,9 +77,17 @@ class SessionManager:
                 TestTag.TEST_FRAMEWORK: self.session.test_framework,
                 TestTag.TEST_FRAMEWORK_VERSION: self.session.test_framework_version,
                 TestTag.COMPONENT: self.session.test_framework,
-                TestTag.ENV: self.env or "none",
+                TestTag.ENV: self.env,
             },
         )
 
     def finish(self) -> None:
         pass
+
+
+def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:
+    repo_name = git_tags.get(GitTag.REPOSITORY_URL)
+    if repo_name and (m := re.match(r".*/([^/]+)(?:.git)/?", repo_name)):
+        return m.group(1).lower()
+    else:
+        return None

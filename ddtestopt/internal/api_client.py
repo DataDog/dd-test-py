@@ -7,6 +7,7 @@ import logging
 import typing as t
 import urllib.request
 import uuid
+import gzip
 
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
@@ -97,7 +98,6 @@ class APIClient:
                 response_data = json.load(gzip.open(response))
             else:
                 response_data = json.load(response)
-
             tests_data = response_data["data"]["attributes"]["tests"]
             known_test_ids = set()
 

@@ -126,7 +126,7 @@ class TestOptPlugin:
         test, created = test_suite.get_or_create_child(test_ref.name)
         if created:
             # TODO: maybe make this less pytest-specific? Move discovery to its own class?
-            is_new = self.manager.known_tests and test_ref not in self.manager.known_tests
+            is_new = len(self.manager.known_tests) > 0 and test_ref not in self.manager.known_tests
             path, start_line, _test_name = item.reportinfo()
             test.set_attributes(is_new=is_new, path=path, start_line=start_line)
 
@@ -285,7 +285,7 @@ class TestOptPlugin:
 
         return False
 
-    def _log_test_reports(self, item: pytest.Item, reports: _ReportGroup) -> bool:
+    def _log_test_reports(self, item: pytest.Item, reports: _ReportGroup) -> None:
         for when in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             if report := reports.get(when):
                 item.ihook.pytest_runtest_logreport(report=report)
@@ -301,7 +301,7 @@ class TestOptPlugin:
             nodeid=item.nodeid,
             location=item.location,
             keywords={k: 1 for k in item.keywords},
-            when=TestPhase.CALL,
+            when=TestPhase.CALL,  # type: ignore
             longrepr=longrepr,
             outcome=outcomes.get(final_status, str(final_status)),  # type: ignore
             user_properties=item.user_properties,
@@ -325,6 +325,7 @@ class TestOptPlugin:
         if retry_outcome := _get_user_property(report, "dd_retry_outcome"):
             retry_reason = _get_user_property(report, "dd_retry_reason")
             return ("dd_retry", "R", f"RETRY {retry_outcome.upper()} ({retry_reason})")
+        return None
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         """

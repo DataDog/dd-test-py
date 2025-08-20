@@ -9,6 +9,7 @@ import typing as t
 
 from ddtestopt.internal.utils import TestContext
 from ddtestopt.internal.utils import _gen_item_id
+from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         self.status: TestStatus = TestStatus.FAIL
         self.tags: t.Dict[str, str] = {}
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
+        self.service: str = DEFAULT_SERVICE_NAME
 
     def seconds_so_far(self):
         return (time.time_ns() - self.start_ns) / 1e9
@@ -68,6 +70,9 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
 
     def set_status(self, status: TestStatus) -> None:
         self.status = status
+
+    def set_service(self, service: str) -> None:
+        self.service = service
 
     def _get_status_from_children(self) -> TestStatus:
         status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
@@ -93,6 +98,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         if name not in self.children:
             created = True
             child = self.ChildClass(name=name, parent=self)
+            child.set_service(self.service)
             self.children[name] = child
 
         return self.children[name], created
@@ -156,8 +162,8 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
     def make_test_run(self):
         test_run = TestRun(name=self.name, parent=self)
-        test_run.parent = self
         test_run.attempt_number = len(self.test_runs)
+        test_run.set_service(self.service)
         self.test_runs.append(test_run)
         return test_run
 
