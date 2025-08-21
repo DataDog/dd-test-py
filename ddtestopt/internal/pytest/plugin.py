@@ -332,8 +332,14 @@ class TestOptPlugin:
             report.outcome = "skipped"
 
     def _mark_test_reports_as_quarantined(self, item: pytest.Item, reports: _ReportGroup) -> None:
-        for report in reports.values():
-            self._mark_test_report_as_quarantined(item, report)
+        if call_report := reports.get(TestPhase.CALL):
+            self._mark_test_report_as_quarantined(item, call_report)
+            reports[TestPhase.SETUP].outcome = "passed"
+            reports[TestPhase.TEARDOWN].outcome = "passed"
+        else:
+            setup_report = reports.get(TestPhase.SETUP)
+            self._mark_test_report_as_quarantined(item, setup_report)
+            reports[TestPhase.TEARDOWN].outcome = "passed"
 
     def _mark_test_report_as_retry(self, reports: _ReportGroup, retry_handler: RetryHandler, when: str) -> bool:
         if call_report := reports.get(when):
