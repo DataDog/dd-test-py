@@ -21,7 +21,6 @@ from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.writer import TestOptWriter
-from ddtestopt.internal.logging import catch_and_log_exceptions
 
 
 log = logging.getLogger(__name__)
@@ -100,17 +99,21 @@ class SessionManager:
         """
         test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
         if created:
-            with catch_and_log_exceptions():
+            try:
                 on_new_module(test_module)
+            except:
+                log.exception("Error during module discovery")
 
         test_suite, created = test_module.get_or_create_child(test_ref.suite.name)
         if created:
-            with catch_and_log_exceptions():
+            try:
                 on_new_suite(test_suite)
+            except:
+                log.exception("Error during suite discovery")
 
         test, created = test_suite.get_or_create_child(test_ref.name)
         if created:
-            with catch_and_log_exceptions():
+            try:
                 is_new = len(self.known_tests) > 0 and test_ref not in self.known_tests
                 test_properties = self.test_properties.get(test_ref) or TestProperties()
                 test.set_attributes(
@@ -120,6 +123,8 @@ class SessionManager:
                     is_attempt_to_fix=test_properties.attempt_to_fix,
                 )
                 on_new_test(test)
+            except:
+                log.exception("Error during test discovery")
 
         return test_module, test_suite, test
 
