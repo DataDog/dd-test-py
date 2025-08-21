@@ -73,15 +73,15 @@ def nodeid_to_test_ref(nodeid: str) -> TestRef:
     matches = _NODEID_REGEX.match(nodeid)
 
     if matches:
-        module_ref = ModuleRef(matches.group("module") or "")
-        suite_ref = SuiteRef(module_ref, matches.group("suite") or "")
+        module_ref = ModuleRef(matches.group("module") or ".")
+        suite_ref = SuiteRef(module_ref, matches.group("suite") or ".")
         test_ref = TestRef(suite_ref, matches.group("name"))
         return test_ref
 
     else:
         # Fallback to considering the whole nodeid as the test name.
-        module_ref = ModuleRef("")
-        suite_ref = SuiteRef(module_ref, "")
+        module_ref = ModuleRef(".")
+        suite_ref = SuiteRef(module_ref, ".")
         test_ref = TestRef(suite_ref, nodeid)
         return test_ref
 

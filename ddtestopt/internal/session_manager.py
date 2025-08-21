@@ -21,6 +21,7 @@ from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.writer import TestOptWriter
+from ddtestopt.internal.logging import catch_and_log_exceptions
 
 
 log = logging.getLogger(__name__)
@@ -99,23 +100,26 @@ class SessionManager:
         """
         test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
         if created:
-            on_new_module(test_module)
+            with catch_and_log_exceptions():
+                on_new_module(test_module)
 
         test_suite, created = test_module.get_or_create_child(test_ref.suite.name)
         if created:
-            on_new_suite(test_suite)
+            with catch_and_log_exceptions():
+                on_new_suite(test_suite)
 
         test, created = test_suite.get_or_create_child(test_ref.name)
         if created:
-            is_new = len(self.known_tests) > 0 and test_ref not in self.known_tests
-            test_properties = self.test_properties.get(test_ref) or TestProperties()
-            test.set_attributes(
-                is_new=is_new,
-                is_quarantined=test_properties.quarantined,
-                is_disabled=test_properties.disabled,
-                is_attempt_to_fix=test_properties.attempt_to_fix,
-            )
-            on_new_test(test)
+            with catch_and_log_exceptions():
+                is_new = len(self.known_tests) > 0 and test_ref not in self.known_tests
+                test_properties = self.test_properties.get(test_ref) or TestProperties()
+                test.set_attributes(
+                    is_new=is_new,
+                    is_quarantined=test_properties.quarantined,
+                    is_disabled=test_properties.disabled,
+                    is_attempt_to_fix=test_properties.attempt_to_fix,
+                )
+                on_new_test(test)
 
         return test_module, test_suite, test
 
