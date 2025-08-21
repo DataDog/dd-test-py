@@ -2,6 +2,7 @@ import time
 
 import pytest
 
+
 @pytest.fixture()
 def bad_setup():
     raise Exception("No!")
