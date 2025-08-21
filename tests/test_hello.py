@@ -17,13 +17,16 @@ def test_two():
 def test_hello():
     time.sleep(0.05)
     Flakiness.x += 1
-    assert Flakiness.x > 2
+    assert Flakiness.x > 0
 
 
 def test_bye():
     time.sleep(0.05)
     assert False
 
+@pytest.mark.skip
+def test_skip():
+    assert False
 
 def test_skip4():
     time.sleep(0.05)
