@@ -35,8 +35,8 @@ class SessionManager:
 
         dd_service = os.environ.get("DD_SERVICE")
         if dd_service:
-            self.service = dd_service
             self.is_user_provided_service = True
+            self.service = dd_service
         else:
             self.is_user_provided_service = False
             self.service = _get_service_name_from_git_repo(self.git_tags) or DEFAULT_SERVICE_NAME
