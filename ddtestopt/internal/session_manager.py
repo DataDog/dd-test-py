@@ -102,14 +102,14 @@ class SessionManager:
             try:
                 on_new_module(test_module)
             except:
-                log.exception("Error during module discovery")
+                log.exception("Error during discovery of module %s", test_module)
 
         test_suite, created = test_module.get_or_create_child(test_ref.suite.name)
         if created:
             try:
                 on_new_suite(test_suite)
             except:
-                log.exception("Error during suite discovery")
+                log.exception("Error during discovery of suite %s", test_suite)
 
         test, created = test_suite.get_or_create_child(test_ref.name)
         if created:
@@ -124,7 +124,7 @@ class SessionManager:
                 )
                 on_new_test(test)
             except:
-                log.exception("Error during test discovery")
+                log.exception("Error during discovery of test %s", test)
 
         return test_module, test_suite, test
 

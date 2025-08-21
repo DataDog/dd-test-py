@@ -139,6 +139,9 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
         self.test_runs: t.List[TestRun] = []
 
+    def __str__(self) -> str:
+        return f"{self.parent.parent.name}/{self.parent.name}::{self.name}"
+
     def set_attributes(
         self,
         is_new: bool,
@@ -201,6 +204,9 @@ class Test(TestItem["TestSuite", "TestRun"]):
 class TestSuite(TestItem["TestModule", "Test"]):
     ChildClass = Test
 
+    def __str__(self) -> str:
+        return f"{self.parent.name}/{self.name}"
+
     @property
     def suite_id(self) -> str:
         return self.item_id
@@ -216,6 +222,9 @@ class TestSuite(TestItem["TestModule", "Test"]):
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
     ChildClass = TestSuite
+
+    def __str__(self) -> str:
+        return f"{self.name}"
 
     @property
     def module_id(self) -> str:
