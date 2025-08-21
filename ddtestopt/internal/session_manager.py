@@ -4,6 +4,7 @@ import re
 import typing as t
 
 from ddtestopt.internal.api_client import APIClient
+from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.constants import DEFAULT_ENV_NAME
 from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestopt.internal.constants import DEFAULT_SITE
@@ -13,7 +14,11 @@ from ddtestopt.internal.platform import get_platform_tags
 from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
 from ddtestopt.internal.retry_handlers import EarlyFlakeDetectionHandler
 from ddtestopt.internal.retry_handlers import RetryHandler
+from ddtestopt.internal.test_data import Test
+from ddtestopt.internal.test_data import TestModule
+from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestSession
+from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.writer import TestOptWriter
 
@@ -81,6 +86,38 @@ class SessionManager:
                 TestTag.ENV: self.env,
             },
         )
+
+    def discover_test(
+        self,
+        test_ref: TestRef,
+        on_new_module: t.Callable[[TestModule], None],
+        on_new_suite: t.Callable[[TestSuite], None],
+        on_new_test: t.Callable[[Test], None],
+    ) -> t.Tuple[TestModule, TestSuite, Test]:
+        """
+        Return the module, suite and test objects for a given test reference, creating them if necessary.
+        """
+        test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
+        if created:
+            on_new_module(test_module)
+
+        test_suite, created = test_module.get_or_create_child(test_ref.suite.name)
+        if created:
+            on_new_suite(test_suite)
+
+        test, created = test_suite.get_or_create_child(test_ref.name)
+        if created:
+            is_new = len(self.known_tests) > 0 and test_ref not in self.known_tests
+            test_properties = self.test_properties.get(test_ref) or TestProperties()
+            test.set_attributes(
+                is_new=is_new,
+                is_quarantined=test_properties.quarantined,
+                is_disabled=test_properties.disabled,
+                is_attempt_to_fix=test_properties.attempt_to_fix,
+            )
+            on_new_test(test)
+
+        return test_module, test_suite, test
 
     def finish(self) -> None:
         pass

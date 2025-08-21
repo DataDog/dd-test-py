@@ -11,7 +11,6 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
-from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.logging import catch_and_log_exceptions
@@ -150,30 +149,23 @@ class TestOptPlugin:
         """
         Return the module, suite and test objects for a given test item, creating them if necessary.
         """
-        test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
-        if created:
-            test_module.set_attributes(module_path=_get_module_path_from_item(item))
 
-        test_suite, created = test_module.get_or_create_child(test_ref.suite.name)
-        # if created:
-        #     test_suite.set_attributes(...)
+        def _on_new_module(module: TestModule) -> None:
+            module.set_location(module_path=_get_module_path_from_item(item))
 
-        test, created = test_suite.get_or_create_child(test_ref.name)
-        if created:
-            # TODO: maybe make this less pytest-specific? Move discovery to its own class?
-            is_new = len(self.manager.known_tests) > 0 and test_ref not in self.manager.known_tests
-            test_properties = self.manager.test_properties.get(test_ref) or TestProperties()
+        def _on_new_suite(suite: TestSuite) -> None:
+            pass
+
+        def _on_new_test(test: Test) -> None:
             path, start_line, _test_name = item.reportinfo()
-            test.set_attributes(
-                is_new=is_new,
-                is_quarantined=test_properties.quarantined,
-                is_disabled=test_properties.disabled,
-                is_attempt_to_fix=test_properties.attempt_to_fix,
-                path=path,
-                start_line=start_line,
-            )
+            test.set_location(path=path, start_line=start_line)
 
-        return test_module, test_suite, test
+        return self.manager.discover_test(
+            test_ref,
+            on_new_module=_on_new_module,
+            on_new_suite=_on_new_suite,
+            on_new_test=_on_new_test,
+        )
 
     @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
     def pytest_runtest_protocol_wrapper(
