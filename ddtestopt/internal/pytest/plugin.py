@@ -11,6 +11,7 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.logging import catch_and_log_exceptions
@@ -33,6 +34,40 @@ from ddtestopt.internal.utils import TestContext
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 
 log = logging.getLogger(__name__)
+
+
+# The tuple pytest expects as the `longrepr` field of reports for failed or skipped tests.
+_Longrepr = t.Tuple[
+    # 1st field: pathname of the test file
+    str,
+    # 2nd field: line number.
+    int,
+    # 3rd field: skip reason.
+    str,
+]
+
+
+# The tuple pytest expects as the output of the `pytest_report_teststatus` hook.
+_ReportTestStatus = t.Tuple[
+    # 1st field: the status category in which the test will be counted in the final stats (X passed, Y failed, etc).
+    # Usually this is the same as report.outcome, but does not have to be! For example if a report has report.outcome =
+    # "skipped" but `pytest_report_teststatus` returns "quarantined" as the first tuple item here, the test will be
+    # counted as "quarantined" in the final stats.
+    str,
+    # 2nd field: the short (single-character) representation of the test status (e.g., "F" for failed tests).
+    str,
+    # 3rd field: the long representation of the test status (e.g., "FAILED" for failed tests). It can be either:
+    t.Union[
+        # - a simple string; or
+        str,
+        # - a tuple (text, properties_dict), where the properties_dict can contain properties such as {"blue": True}.
+        #   These properties are also applied to the short representation.
+        t.Tuple[str, t.Dict[str, bool]],
+    ],
+]
+# The `pytest_report_teststatus` hook can return a tuple of empty strings ("", "", ""), in which case the test report is
+# not logged at all. On the other, if the hook returns `None`, the next hook will be tried (so you can return `None` if
+# you want the default pytest log output).
 
 
 def nodeid_to_test_ref(nodeid: str) -> TestRef:
@@ -127,8 +162,16 @@ class TestOptPlugin:
         if created:
             # TODO: maybe make this less pytest-specific? Move discovery to its own class?
             is_new = len(self.manager.known_tests) > 0 and test_ref not in self.manager.known_tests
+            test_properties = self.manager.test_properties.get(test_ref) or TestProperties()
             path, start_line, _test_name = item.reportinfo()
-            test.set_attributes(is_new=is_new, path=path, start_line=start_line)
+            test.set_attributes(
+                is_new=is_new,
+                is_quarantined=test_properties.quarantined,
+                is_disabled=test_properties.disabled,
+                is_attempt_to_fix=test_properties.attempt_to_fix,
+                path=path,
+                start_line=start_line,
+            )
 
         return test_module, test_suite, test
 
@@ -141,6 +184,9 @@ class TestOptPlugin:
 
         test_module, test_suite, test = self._discover_test(item, test_ref)
         self.tests_by_nodeid[item.nodeid] = test
+
+        if test.is_quarantined():
+            item.user_properties += [("dd_quarantined", True)]
 
         with trace_context(self.enable_ddtrace) as context:
             yield
@@ -201,6 +247,8 @@ class TestOptPlugin:
         if retry_handler and retry_handler.should_retry(test):
             self._do_retries(item, nextitem, test, retry_handler, reports)
         else:
+            if test.is_quarantined():
+                self._mark_test_reports_as_quarantined(item, reports)
             self._log_test_reports(item, reports)
             test_run.finish()
             self.manager.writer.put_item(test_run)
@@ -241,11 +289,16 @@ class TestOptPlugin:
 
         # Log final status.
         final_report = self._make_final_report(item, final_status, longrepr)
+        if test.is_quarantined():
+            self._mark_test_report_as_quarantined(item, final_report)
         item.ihook.pytest_runtest_logreport(report=final_report)
 
         # Log teardown. There should be just one teardown logged for all of the retries, because the junitxml plugin
         # closes the <testcase> element when teardown is logged.
-        self._log_test_report(item, reports, TestPhase.TEARDOWN)
+        teardown_report = reports.get(TestPhase.TEARDOWN)
+        if test.is_quarantined():
+            self._mark_test_report_as_quarantined(item, teardown_report)
+        item.ihook.pytest_runtest_logreport(report=teardown_report)
 
     def _check_applicable_retry_handlers(self, test: Test) -> t.Optional[RetryHandler]:
         for handler in self.manager.retry_handlers:
@@ -266,6 +319,27 @@ class TestOptPlugin:
     def _mark_test_reports_as_retry(self, reports: _ReportGroup, retry_handler: RetryHandler) -> None:
         if not self._mark_test_report_as_retry(reports, retry_handler, TestPhase.CALL):
             self._mark_test_report_as_retry(reports, retry_handler, TestPhase.SETUP)
+
+    def _mark_test_report_as_quarantined(self, item: pytest.Item, report: pytest.TestReport) -> None:
+        # For junitxml, probably the least confusing way to report a quarantined test is as skipped.
+        # In `pytest_runtest_logreport`, we can still identify the test as quarantined via the `dd_quarantined`
+        # user property.
+        if report.when == TestPhase.TEARDOWN:
+            report.outcome = "passed"
+        else:
+            longrepr: _Longrepr = (str(item.path), item.location[1], "Quarantined")
+            report.longrepr = longrepr
+            report.outcome = "skipped"
+
+    def _mark_test_reports_as_quarantined(self, item: pytest.Item, reports: _ReportGroup) -> None:
+        if call_report := reports.get(TestPhase.CALL):
+            self._mark_test_report_as_quarantined(item, call_report)
+            reports[TestPhase.SETUP].outcome = "passed"
+            reports[TestPhase.TEARDOWN].outcome = "passed"
+        else:
+            setup_report = reports.get(TestPhase.SETUP)
+            self._mark_test_report_as_quarantined(item, setup_report)
+            reports[TestPhase.TEARDOWN].outcome = "passed"
 
     def _mark_test_report_as_retry(self, reports: _ReportGroup, retry_handler: RetryHandler, when: str) -> bool:
         if call_report := reports.get(when):
@@ -321,10 +395,17 @@ class TestOptPlugin:
         self.reports_by_nodeid[item.nodeid][call.when] = report
         self.excinfo_by_report[report] = call.excinfo
 
-    def pytest_report_teststatus(self, report: pytest.TestReport) -> t.Optional[t.Tuple[str, str, str]]:
+    def pytest_report_teststatus(self, report: pytest.TestReport) -> t.Optional[_ReportTestStatus]:
         if retry_outcome := _get_user_property(report, "dd_retry_outcome"):
             retry_reason = _get_user_property(report, "dd_retry_reason")
             return ("dd_retry", "R", f"RETRY {retry_outcome.upper()} ({retry_reason})")
+
+        if _get_user_property(report, "dd_quarantined"):
+            if report.when == TestPhase.TEARDOWN:
+                return ("quarantined", "Q", ("QUARANTINED", {"blue": True}))
+            else:
+                return ("", "", "")
+
         return None
 
     def _get_test_outcome(self, nodeid: str) -> t.Tuple[TestStatus, t.Dict[str, str]]:
@@ -381,7 +462,9 @@ def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:
 
 
 def _get_user_property(report: pytest.TestReport, user_property: str):
-    for key, value in report.user_properties:
+    user_properties = getattr(report, "user_properties", [])  # pytest.CollectReport does not have `user_properties`.
+
+    for key, value in user_properties:
         if key == user_property:
             return value
 

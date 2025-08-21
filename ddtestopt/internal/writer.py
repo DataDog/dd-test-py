@@ -1,4 +1,5 @@
 import gzip
+import logging
 import os
 import typing as t
 import urllib.request
@@ -12,6 +13,9 @@ from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
+
+
+log = logging.getLogger(__name__)
 
 
 class Event(dict):
@@ -36,6 +40,14 @@ class TestOptWriter:
                 "library_version": "0.0.0",
                 "_dd.origin": "ciapp-test",
                 "_dd.p.dm": "-0",  # what is this?
+            },
+            "test": {
+                "_dd.library_capabilities.early_flake_detection": "1",
+                "_dd.library_capabilities.auto_test_retries": "1",
+                "_dd.library_capabilities.test_impact_analysis": "1",
+                "_dd.library_capabilities.test_management.quarantine": "1",
+                "_dd.library_capabilities.test_management.disable": "1",
+                "_dd.library_capabilities.test_management.attempt_to_fix": "4",
             },
         }
         self.api_key = os.environ["DD_API_KEY"]
@@ -75,8 +87,8 @@ class TestOptWriter:
             request.add_header("Content-Encoding", "gzip")
 
         response = urllib.request.urlopen(request, data=pack)
-        content = response.read()
-        print(response, content)
+        _content = response.read()
+        log.info("Sent %d bytes to to %s", len(pack), url)
 
 
 def test_run_to_event(test_run: TestRun) -> Event:
@@ -126,7 +138,7 @@ def suite_to_event(suite: TestSuite) -> Event:
         type="test_suite_end",
         content={
             "service": suite.service,
-            "resource": "pytest.test_suite",
+            "resource": suite.name,
             "name": "pytest.test_suite",
             "error": 0,
             "start": suite.start_ns,
@@ -159,7 +171,7 @@ def module_to_event(module: TestModule) -> Event:
         type="test_module_end",
         content={
             "service": module.service,
-            "resource": "pytest.test_module",
+            "resource": module.name,
             "name": "pytest.test_module",
             "error": 0,
             "start": module.start_ns,
@@ -191,7 +203,7 @@ def session_to_event(session: TestSession) -> Event:
         type="test_session_end",
         content={
             "service": session.service,
-            "resource": "pytest.test_session",
+            "resource": session.name,
             "name": "pytest.test_session",
             "error": 0,
             "start": session.start_ns,

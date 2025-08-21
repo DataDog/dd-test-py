@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
+import gzip
 import json
 import logging
 import typing as t
 import urllib.request
 import uuid
-import gzip
 
+from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
@@ -24,18 +25,14 @@ class APIClient:
         api_key: str,
         service: str,
         env: str,
-        repository_url: str,
-        commit_sha: str,
-        branch: str,
+        git_tags: t.Dict[str, str],
         configurations: t.Dict[str, str],
     ) -> None:
         self.site = site
         self.api_key = api_key
         self.service = service
         self.env = env
-        self.repository_url = repository_url
-        self.commit_sha = commit_sha
-        self.branch = branch
+        self.git_tags = git_tags
         self.configurations = configurations
 
         self.base_url = f"https://api.{self.site}"
@@ -54,9 +51,9 @@ class APIClient:
                     "test_level": "suite",
                     "service": self.service,
                     "env": self.env,
-                    "repository_url": self.repository_url,
-                    "sha": self.commit_sha,
-                    "branch": self.branch,
+                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+                    "sha": self.git_tags[GitTag.COMMIT_SHA],
+                    "branch": self.git_tags[GitTag.BRANCH],
                     "configurations": self.configurations,
                 },
             }
@@ -86,7 +83,7 @@ class APIClient:
                 "attributes": {
                     "service": self.service,
                     "env": self.env,
-                    "repository_url": self.repository_url,
+                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
                     "configurations": self.configurations,
                 },
             }
@@ -113,6 +110,56 @@ class APIClient:
         except Exception:
             log.exception("Error getting known tests from API (%s)", url)
             return set()
+
+    def get_test_management_tests(self) -> t.Dict[TestRef, TestProperties]:
+        url = f"{self.base_url}/api/v2/test/libraries/test-management/tests"
+        request = urllib.request.Request(url)
+        request.add_header("content-type", "application/json")
+        request.add_header("dd-api-key", self.api_key)
+        request.add_header("Accept-Encoding", "gzip")
+
+        request_data = {
+            "data": {
+                "id": str(uuid.uuid4()),
+                "type": "ci_app_libraries_tests_request",
+                "attributes": {
+                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+                    "commit_message": self.git_tags[GitTag.COMMIT_MESSAGE],
+                    "sha": self.git_tags[GitTag.COMMIT_SHA],
+                },
+            }
+        }
+
+        try:
+            response = urllib.request.urlopen(request, json.dumps(request_data).encode("utf-8"))
+            if response.headers.get("Content-Encoding") == "gzip":
+                response_data = json.load(gzip.open(response))
+            else:
+                response_data = json.load(response)
+
+            test_properties: t.Dict[TestRef, TestProperties] = {}
+            modules = response_data["data"]["attributes"]["modules"]
+
+            for module_name, module_data in modules.items():
+                module_ref = ModuleRef(module_name)
+                suites = module_data["suites"]
+                for suite_name, suite_data in suites.items():
+                    suite_ref = SuiteRef(module_ref, suite_name)
+                    tests = suite_data["tests"]
+                    for test_name, test_data in tests.items():
+                        test_ref = TestRef(suite_ref, test_name)
+                        properties = test_data.get("properties", {})
+                        test_properties[test_ref] = TestProperties(
+                            quarantined=properties.get("quarantined", False),
+                            disabled=properties.get("disabled", False),
+                            attempt_to_fix=properties.get("attempt_to_fix", False),
+                        )
+
+            return test_properties
+
+        except:
+            log.exception("Failed to parse Test Management tests data")
+            return {}
 
 
 @dataclass
@@ -143,23 +190,47 @@ class AutoTestRetriesSettings:
 
 
 @dataclass
+class TestManagementSettings:
+    enabled: bool = False
+    attempt_to_fix_retries: int = 20
+
+    @classmethod
+    def from_attributes(cls, test_management_attributes: t.Dict[str, t.Any]) -> TestManagementSettings:
+        test_management_settings = cls(
+            enabled=test_management_attributes["enabled"],
+            attempt_to_fix_retries=test_management_attributes["attempt_to_fix_retries"],
+        )
+        return test_management_settings
+
+
+@dataclass
 class Settings:
     early_flake_detection: EarlyFlakeDetectionSettings = field(default_factory=EarlyFlakeDetectionSettings)
     auto_test_retries: AutoTestRetriesSettings = field(default_factory=AutoTestRetriesSettings)
+    test_management: TestManagementSettings = field(default_factory=TestManagementSettings)
     known_tests_enabled: bool = False
 
     @classmethod
     def from_attributes(cls, attributes) -> Settings:
-        if efd_attributes := attributes.get("early_flake_detection"):
-            efd_settings = EarlyFlakeDetectionSettings.from_attributes(efd_attributes)
-
+        efd_settings = EarlyFlakeDetectionSettings.from_attributes(attributes.get("early_flake_detection"))
+        test_management_settings = TestManagementSettings.from_attributes(attributes.get("test_management"))
         atr_enabled = bool(attributes.get("flaky_test_retries_enabled"))
         known_tests_enabled = bool(attributes.get("known_tests_enabled"))
 
         settings = cls(
             early_flake_detection=efd_settings,
+            test_management=test_management_settings,
             auto_test_retries=AutoTestRetriesSettings(enabled=atr_enabled),
             known_tests_enabled=known_tests_enabled,
         )
 
         return settings
+
+
+@dataclass(frozen=True)
+class TestProperties:
+    quarantined: bool = False
+    disabled: bool = False
+    attempt_to_fix: bool = False
+
+    __test__ = False
