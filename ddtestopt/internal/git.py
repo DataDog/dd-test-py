@@ -122,7 +122,7 @@ def get_git_tags():
     tags[GitTag.REPOSITORY_URL] = git.get_repository_url()
     tags[GitTag.COMMIT_SHA] = git.get_commit_sha()
     tags[GitTag.BRANCH] = git.get_branch()
-    tags[GitTag.COMMIT_MESSAGE] = git.get_commit_message() + " DD_QSSQN3"  # DEBUGꙮ
+    tags[GitTag.COMMIT_MESSAGE] = git.get_commit_message()
     tags.update(git.get_user_info())
 
     return tags
