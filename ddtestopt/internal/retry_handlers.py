@@ -114,10 +114,10 @@ class EarlyFlakeDetectionHandler(RetryHandler):
             total_count += 1
 
         if status_counts[TestStatus.PASS] > 0:
-            return TestStatus.PASS
+            return TestStatus.PASS, {}
 
         if status_counts[TestStatus.FAIL] > 0:
-            return TestStatus.FAIL
+            return TestStatus.FAIL, {}
 
         return TestStatus.SKIP, {}
 
@@ -155,10 +155,10 @@ class AttemptToFixHandler(RetryHandler):
             status_counts[test_run.get_status()] += 1
             total_count += 1
 
-        if status_counts[TestStatus.FAIL] > 0:
-            final_status = TestStatus.FAIL
-        elif status_counts[TestStatus.PASS] > 0:
+        if status_counts[TestStatus.PASS] > 0:
             final_status = TestStatus.PASS
+        elif status_counts[TestStatus.FAIL] > 0:
+            final_status = TestStatus.FAIL
         else:
             final_status = TestStatus.SKIP
 
