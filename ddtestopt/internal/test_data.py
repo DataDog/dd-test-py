@@ -139,19 +139,18 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
         self.test_runs: t.List[TestRun] = []
 
+    def __str__(self) -> str:
+        return f"{self.parent.parent.name}/{self.parent.name}::{self.name}"
+
     def set_attributes(
         self,
         is_new: bool,
-        path: Path,
-        start_line: int,
         is_quarantined: bool,
         is_disabled: bool,
         is_attempt_to_fix: bool,
     ) -> None:
         if is_new:
             self.tags[TestTag.IS_NEW] = "true"
-        self.tags["test.source.file"] = str(path)
-        self.metrics["test.source.start"] = start_line
 
         if is_quarantined:
             self.tags[TestTag.IS_QUARANTINED] = "true"
@@ -161,6 +160,10 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
         if is_attempt_to_fix:
             self.tags[TestTag.IS_ATTEMPT_TO_FIX] = "true"
+
+    def set_location(self, path: Path, start_line: int) -> None:
+        self.tags["test.source.file"] = str(path)
+        self.metrics["test.source.start"] = start_line
 
     def is_new(self) -> bool:
         return self.tags.get(TestTag.IS_NEW) == "true"
@@ -201,6 +204,9 @@ class Test(TestItem["TestSuite", "TestRun"]):
 class TestSuite(TestItem["TestModule", "Test"]):
     ChildClass = Test
 
+    def __str__(self) -> str:
+        return f"{self.parent.name}/{self.name}"
+
     @property
     def suite_id(self) -> str:
         return self.item_id
@@ -217,6 +223,9 @@ class TestSuite(TestItem["TestModule", "Test"]):
 class TestModule(TestItem["TestSession", "TestSuite"]):
     ChildClass = TestSuite
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
     @property
     def module_id(self) -> str:
         return self.item_id
@@ -225,7 +234,7 @@ class TestModule(TestItem["TestSession", "TestSuite"]):
     def session_id(self) -> str:
         return self.parent.item_id
 
-    def set_attributes(self, module_path: Path) -> None:
+    def set_location(self, module_path: Path) -> None:
         self.module_path = str(module_path)
 
 
