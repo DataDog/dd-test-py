@@ -25,7 +25,7 @@ def test_one():
 def test_two():
     assert False
 
-def test_hello(bad_teardown):
+def test_hello():
     time.sleep(0.05)
     Flakiness.x += 1
     assert Flakiness.x > 0

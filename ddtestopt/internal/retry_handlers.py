@@ -6,6 +6,7 @@ import typing as t
 from ddtestopt.internal.test_data import Test
 from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestStatus
+from ddtestopt.internal.test_data import TestTag
 
 
 if t.TYPE_CHECKING:
@@ -39,9 +40,9 @@ class RetryHandler(ABC):
         """
 
     @abstractmethod
-    def get_final_status(self, test: Test) -> TestStatus:
+    def get_final_status(self, test: Test) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         """
-        Return the final status to assign to the test, based on the status of all retries.
+        Return the final status to assign to the test, and the tags to add to the final test run.
         """
 
     @abstractmethod
@@ -64,11 +65,11 @@ class AutoTestRetriesHandler(RetryHandler):
     def should_apply(self, test: Test) -> bool:
         return True
 
-    def should_retry(self, test: Test):
+    def should_retry(self, test: Test) -> bool:
         return test.last_test_run.get_status() == TestStatus.FAIL and len(test.test_runs) < 6
 
-    def get_final_status(self, test: Test):
-        return test.last_test_run.get_status()
+    def get_final_status(self, test: Test) -> t.Tuple[TestStatus, t.Dict[str, str]]:
+        return test.last_test_run.get_status(), {}
 
     def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
         if test_run.attempt_number == 0:
@@ -104,7 +105,7 @@ class EarlyFlakeDetectionHandler(RetryHandler):
 
         return False
 
-    def get_final_status(self, test: Test):
+    def get_final_status(self, test: Test) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
         total_count = 0
 
@@ -118,7 +119,7 @@ class EarlyFlakeDetectionHandler(RetryHandler):
         if status_counts[TestStatus.FAIL] > 0:
             return TestStatus.FAIL
 
-        return TestStatus.SKIP
+        return TestStatus.SKIP, {}
 
     def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
         if test_run.attempt_number == 0:
@@ -141,7 +142,12 @@ class AttemptToFixHandler(RetryHandler):
         retries_so_far = len(test.test_runs) - 1  # Initial attempt does not count.
         return retries_so_far < self.session_manager.settings.test_management.attempt_to_fix_retries
 
-    def get_final_status(self, test: Test):
+    def get_final_status(self, test: Test) -> t.Tuple[TestStatus, t.Dict[str, str]]:
+        final_status: TestStatus
+        final_tags: t.Dict[str, str] = {
+            TestTag.ATTEMPT_TO_FIX_PASSED: "false",
+        }
+
         status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
         total_count = 0
 
@@ -150,12 +156,18 @@ class AttemptToFixHandler(RetryHandler):
             total_count += 1
 
         if status_counts[TestStatus.FAIL] > 0:
-            return TestStatus.FAIL
+            final_status = TestStatus.FAIL
+        elif status_counts[TestStatus.PASS] > 0:
+            final_status = TestStatus.PASS
+        else:
+            final_status = TestStatus.SKIP
 
-        if status_counts[TestStatus.SKIP] > 0:
-            return TestStatus.SKIP
+        if status_counts[TestStatus.PASS] == total_count:
+            final_tags[TestTag.ATTEMPT_TO_FIX_PASSED] = "true"
+        elif status_counts[TestStatus.FAIL] == total_count:
+            final_tags[TestTag.HAS_FAILED_ALL_RETRIES] = "true"
 
-        return TestStatus.PASS  # TODO: attempt_to_fix_passed tag
+        return final_status, final_tags
 
     def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
         if test_run.attempt_number == 0:

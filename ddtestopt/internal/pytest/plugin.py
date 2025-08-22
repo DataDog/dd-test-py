@@ -279,10 +279,13 @@ class TestOptPlugin:
                 self._log_test_report(item, reports, TestPhase.SETUP)
 
             test_run.finish()
-            self.manager.writer.put_item(test_run)
 
-        final_status = retry_handler.get_final_status(test)
+        final_status, final_tags = retry_handler.get_final_status(test)
         test.set_status(final_status)
+        test_run.set_tags(final_tags)
+
+        for test_run in test.test_runs:
+            self.manager.writer.put_item(test_run)
 
         # Log final status.
         final_report = self._make_final_report(item, final_status, longrepr)
