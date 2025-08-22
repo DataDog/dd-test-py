@@ -273,3 +273,5 @@ class TestTag:
     IS_QUARANTINED = "test.test_management.is_quarantined"
     IS_DISABLED = "test.test_management.is_test_disabled"
     IS_ATTEMPT_TO_FIX = "test.test_management.is_attempt_to_fix"
+    HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries"
+    ATTEMPT_TO_FIX_PASSED = "test.test_management.attempt_to_fix_passed"

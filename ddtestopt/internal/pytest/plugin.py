@@ -31,6 +31,7 @@ from ddtestopt.internal.utils import TestContext
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
+DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
 
 log = logging.getLogger(__name__)
 
@@ -177,7 +178,11 @@ class TestOptPlugin:
         test_module, test_suite, test = self._discover_test(item, test_ref)
         self.tests_by_nodeid[item.nodeid] = test
 
-        if test.is_quarantined():
+        if test.is_disabled() and not test.is_attempt_to_fix():
+            item.add_marker(pytest.mark.skip(reason=DISABLED_BY_TEST_MANAGEMENT_REASON))
+        elif test.is_quarantined() or (test.is_disabled() and test.is_attempt_to_fix()):
+            # A test that is disabled and attempt-to-fix will run, but a failure does not break the pipeline (i.e., it
+            # is effectively quarantined). We may want to present it in a different way in the output though.
             item.user_properties += [("dd_quarantined", True)]
 
         with trace_context(self.enable_ddtrace) as context:
@@ -239,7 +244,7 @@ class TestOptPlugin:
         if retry_handler and retry_handler.should_retry(test):
             self._do_retries(item, nextitem, test, retry_handler, reports)
         else:
-            if test.is_quarantined():
+            if test.is_quarantined() or test.is_disabled():
                 self._mark_test_reports_as_quarantined(item, reports)
             self._log_test_reports(item, reports)
             test_run.finish()
@@ -274,21 +279,24 @@ class TestOptPlugin:
                 self._log_test_report(item, reports, TestPhase.SETUP)
 
             test_run.finish()
-            self.manager.writer.put_item(test_run)
 
-        final_status = retry_handler.get_final_status(test)
+        final_status, final_tags = retry_handler.get_final_status(test)
         test.set_status(final_status)
+        test_run.set_tags(final_tags)
+
+        for test_run in test.test_runs:
+            self.manager.writer.put_item(test_run)
 
         # Log final status.
         final_report = self._make_final_report(item, final_status, longrepr)
-        if test.is_quarantined():
+        if test.is_quarantined() or test.is_disabled():
             self._mark_test_report_as_quarantined(item, final_report)
         item.ihook.pytest_runtest_logreport(report=final_report)
 
         # Log teardown. There should be just one teardown logged for all of the retries, because the junitxml plugin
         # closes the <testcase> element when teardown is logged.
         teardown_report = reports.get(TestPhase.TEARDOWN)
-        if test.is_quarantined():
+        if test.is_quarantined() or test.is_disabled():
             self._mark_test_report_as_quarantined(item, teardown_report)
         item.ihook.pytest_runtest_logreport(report=teardown_report)
 
@@ -319,6 +327,7 @@ class TestOptPlugin:
         if report.when == TestPhase.TEARDOWN:
             report.outcome = "passed"
         else:
+            # TODO: distinguish quarantine vs disabled
             longrepr: _Longrepr = (str(item.path), item.location[1], "Quarantined")
             report.longrepr = longrepr
             report.outcome = "skipped"
