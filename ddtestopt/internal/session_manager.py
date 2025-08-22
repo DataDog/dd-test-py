@@ -11,6 +11,7 @@ from ddtestopt.internal.constants import DEFAULT_SITE
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
+from ddtestopt.internal.retry_handlers import AttemptToFixHandler
 from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
 from ddtestopt.internal.retry_handlers import EarlyFlakeDetectionHandler
 from ddtestopt.internal.retry_handlers import RetryHandler
@@ -59,6 +60,9 @@ class SessionManager:
             self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
         )
         self.retry_handlers: t.List[RetryHandler] = []
+
+        if self.settings.test_management.enabled:
+            self.retry_handlers.append(AttemptToFixHandler(self))
 
         if self.settings.early_flake_detection.enabled:
             if self.known_tests:

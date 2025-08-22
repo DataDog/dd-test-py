@@ -31,6 +31,7 @@ from ddtestopt.internal.utils import TestContext
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
+DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
 
 log = logging.getLogger(__name__)
 
@@ -177,7 +178,11 @@ class TestOptPlugin:
         test_module, test_suite, test = self._discover_test(item, test_ref)
         self.tests_by_nodeid[item.nodeid] = test
 
-        if test.is_quarantined():
+        if test.is_disabled() and not test.is_attempt_to_fix():
+            item.add_marker(pytest.mark.skip(reason=DISABLED_BY_TEST_MANAGEMENT_REASON))
+        elif test.is_quarantined() or (test.is_disabled() and test.is_attempt_to_fix()):
+            # A test that is disabled and attempt-to-fix will run, but a failure does not break the pipeline (i.e., it
+            # is effectively quarantined). We may want to present it in a different way in the output though.
             item.user_properties += [("dd_quarantined", True)]
 
         with trace_context(self.enable_ddtrace) as context:

@@ -128,3 +128,40 @@ class EarlyFlakeDetectionHandler(RetryHandler):
             "test.is_retry": "true",
             "test.retry_reason": "early_flake_detection",
         }
+
+
+class AttemptToFixHandler(RetryHandler):
+    def get_pretty_name(self):
+        return "Attempt to Fix"
+
+    def should_apply(self, test: Test) -> bool:
+        return test.is_attempt_to_fix()
+
+    def should_retry(self, test: Test):
+        retries_so_far = len(test.test_runs) - 1  # Initial attempt does not count.
+        return retries_so_far < self.session_manager.settings.test_management.attempt_to_fix_retries
+
+    def get_final_status(self, test: Test):
+        status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
+        total_count = 0
+
+        for test_run in test.test_runs:
+            status_counts[test_run.get_status()] += 1
+            total_count += 1
+
+        if status_counts[TestStatus.FAIL] > 0:
+            return TestStatus.FAIL
+
+        if status_counts[TestStatus.SKIP] > 0:
+            return TestStatus.SKIP
+
+        return TestStatus.PASS  # TODO: attempt_to_fix_passed tag
+
+    def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:
+        if test_run.attempt_number == 0:
+            return {}
+
+        return {
+            "test.is_retry": "true",
+            "test.retry_reason": "attempt_to_fix",
+        }
