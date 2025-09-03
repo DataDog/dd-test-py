@@ -134,7 +134,6 @@ class TestOptPlugin:
     def pytest_sessionfinish(self, session):
         self.session.finish()
         self.manager.writer.put_item(self.session)
-        self.manager.writer.send()
         self.manager.finish()
 
     def _get_test_command(self, session: pytest.Session) -> str:

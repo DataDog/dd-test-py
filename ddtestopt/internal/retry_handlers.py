@@ -43,6 +43,9 @@ class RetryHandler(ABC):
     def get_final_status(self, test: Test) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         """
         Return the final status to assign to the test, and the tags to add to the final test run.
+
+        Final status and tags are calculated together because they typically depend on the same data (count of
+        passed/failed/skipped test runs).
         """
 
     @abstractmethod
@@ -52,7 +55,7 @@ class RetryHandler(ABC):
         """
 
     @abstractmethod
-    def get_pretty_name(self):
+    def get_pretty_name(self) -> str:
         """
         Return a human-readable name of the retry handler.
         """
@@ -76,8 +79,8 @@ class AutoTestRetriesHandler(RetryHandler):
             return {}
 
         return {
-            "test.is_retry": "true",
-            "test.retry_reason": "auto_test_retry",
+            TestTag.IS_RETRY: "true",
+            TestTag.RETRY_REASON: "auto_test_retry",
         }
 
 
@@ -126,8 +129,8 @@ class EarlyFlakeDetectionHandler(RetryHandler):
             return {}
 
         return {
-            "test.is_retry": "true",
-            "test.retry_reason": "early_flake_detection",
+            TestTag.IS_RETRY: "true",
+            TestTag.RETRY_REASON: "early_flake_detection",
         }
 
 
@@ -138,7 +141,7 @@ class AttemptToFixHandler(RetryHandler):
     def should_apply(self, test: Test) -> bool:
         return test.is_attempt_to_fix()
 
-    def should_retry(self, test: Test):
+    def should_retry(self, test: Test) -> bool:
         retries_so_far = len(test.test_runs) - 1  # Initial attempt does not count.
         return retries_so_far < self.session_manager.settings.test_management.attempt_to_fix_retries
 
@@ -174,6 +177,6 @@ class AttemptToFixHandler(RetryHandler):
             return {}
 
         return {
-            "test.is_retry": "true",
-            "test.retry_reason": "attempt_to_fix",
+            TestTag.IS_RETRY: "true",
+            TestTag.RETRY_REASON: "attempt_to_fix",
         }

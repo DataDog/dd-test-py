@@ -2,6 +2,7 @@ import gzip
 import logging
 import os
 import typing as t
+import threading
 import urllib.request
 import uuid
 
@@ -32,6 +33,9 @@ class TestOptWriter:
         self.site = site
         self.api_key = api_key
 
+        self.lock = threading.RLock()
+        self.should_finish = threading.Event()
+        self.flush_interval_seconds = 60
         self.events: t.List[Event] = []
         self.metadata: t.Dict[str, t.Dict[str, str]] = {
             "*": {
@@ -62,19 +66,53 @@ class TestOptWriter:
 
     def put_item(self, item: TestItem) -> None:
         event = self.serializers[type(item)](item)
-        self.events.append(event)
+        self.put_event(event)
 
     def put_event(self, event: Event) -> None:
-        self.events.append(event)
+        with self.lock:
+            self.events.append(event)
+
+    def pop_events(self) -> t.List[Event]:
+        with self.lock:
+            events = self.events
+            self.events = []
+
+        return events
 
     def add_metadata(self, event_type: str, metadata: t.Dict[str, str]) -> None:
         self.metadata[event_type].update(metadata)
 
-    def send(self):
+    def start(self):
+        self.task = threading.Thread(target=self._periodic_task)
+        self.task.start()
+
+    def finish(self):
+        log.info("Waiting for writer thread to finish")
+        self.should_finish.set()
+        self.task.join()
+        log.info("Writer thread finished")
+
+    def _periodic_task(self):
+        while True:
+            self.should_finish.wait(timeout=self.flush_interval_seconds)
+            log.info("Flushing events in background task")
+            self.flush()
+
+            if self.should_finish.is_set():
+                break
+
+        log.info("Exiting background task")
+
+    def flush(self):
+        if events := self.pop_events():
+            log.info("Sending %d events", len(events))
+            self._send_events(events)
+
+    def _send_events(self, events: t.List[Event]):
         payload = {
             "version": 1,
             "metadata": self.metadata,
-            "events": self.events,
+            "events": events,
         }
         pack = msgpack.packb(payload)
         url = f"https://citestcycle-intake.{self.site}/api/v2/citestcycle"

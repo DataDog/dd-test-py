@@ -10,6 +10,7 @@ import urllib.request
 import uuid
 
 from ddtestopt.internal.git import GitTag
+from ddtestopt.internal.http import BackendConnector
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
@@ -37,12 +38,9 @@ class APIClient:
 
         self.base_url = f"https://api.{self.site}"
 
-    def get_settings(self) -> Settings:
-        url = f"{self.base_url}/api/v2/libraries/tests/services/setting"
-        request = urllib.request.Request(url)
-        request.add_header("content-type", "application/json")
-        request.add_header("dd-api-key", self.api_key)
+        self.connector = BackendConnector(host=f"api.{self.site}", default_headers={"dd-api-key": self.api_key})
 
+    def get_settings(self) -> Settings:
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -60,22 +58,15 @@ class APIClient:
         }
 
         try:
-            response = urllib.request.urlopen(request, json.dumps(request_data).encode("utf-8"))
-            response_data = json.load(response)
+            response, response_data = self.connector.post_json("/api/v2/libraries/tests/services/setting", request_data)
             attributes = response_data["data"]["attributes"]
             return Settings.from_attributes(attributes)
 
         except Exception:
-            log.exception("Error getting settings from API (%s)", url)
+            log.exception("Error getting settings from API")
             return Settings()
 
     def get_known_tests(self) -> t.Set[TestRef]:
-        url = f"{self.base_url}/api/v2/ci/libraries/tests"
-        request = urllib.request.Request(url)
-        request.add_header("content-type", "application/json")
-        request.add_header("dd-api-key", self.api_key)
-        request.add_header("Accept-Encoding", "gzip")
-
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -90,11 +81,7 @@ class APIClient:
         }
 
         try:
-            response = urllib.request.urlopen(request, json.dumps(request_data).encode("utf-8"))
-            if response.headers.get("Content-Encoding") == "gzip":
-                response_data = json.load(gzip.open(response))
-            else:
-                response_data = json.load(response)
+            response, response_data = self.connector.post_json("/api/v2/ci/libraries/tests", request_data)
             tests_data = response_data["data"]["attributes"]["tests"]
             known_test_ids = set()
 
@@ -112,12 +99,6 @@ class APIClient:
             return set()
 
     def get_test_management_tests(self) -> t.Dict[TestRef, TestProperties]:
-        url = f"{self.base_url}/api/v2/test/libraries/test-management/tests"
-        request = urllib.request.Request(url)
-        request.add_header("content-type", "application/json")
-        request.add_header("dd-api-key", self.api_key)
-        request.add_header("Accept-Encoding", "gzip")
-
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -131,12 +112,7 @@ class APIClient:
         }
 
         try:
-            response = urllib.request.urlopen(request, json.dumps(request_data).encode("utf-8"))
-            if response.headers.get("Content-Encoding") == "gzip":
-                response_data = json.load(gzip.open(response))
-            else:
-                response_data = json.load(response)
-
+            response, response_data = self.connector.post_json("/api/v2/test/libraries/test-management/tests", request_data)
             test_properties: t.Dict[TestRef, TestProperties] = {}
             modules = response_data["data"]["attributes"]["modules"]
 
