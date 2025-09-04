@@ -87,25 +87,25 @@ class TestOptWriter:
         self.task.start()
 
     def finish(self):
-        log.info("Waiting for writer thread to finish")
+        log.debug("Waiting for writer thread to finish")
         self.should_finish.set()
         self.task.join()
-        log.info("Writer thread finished")
+        log.debug("Writer thread finished")
 
     def _periodic_task(self):
         while True:
             self.should_finish.wait(timeout=self.flush_interval_seconds)
-            log.info("Flushing events in background task")
+            log.debug("Flushing events in background task")
             self.flush()
 
             if self.should_finish.is_set():
                 break
 
-        log.info("Exiting background task")
+        log.debug("Exiting background task")
 
     def flush(self):
         if events := self.pop_events():
-            log.info("Sending %d events", len(events))
+            log.debug("Sending %d events", len(events))
             self._send_events(events)
 
     def _send_events(self, events: t.List[Event]):
@@ -126,7 +126,7 @@ class TestOptWriter:
 
         response = urllib.request.urlopen(request, data=pack)
         _content = response.read()
-        log.info("Sent %d bytes to to %s", len(pack), url)
+        log.debug("Sent %d bytes to to %s", len(pack), url)
 
 
 def test_run_to_event(test_run: TestRun) -> Event:

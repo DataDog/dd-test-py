@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import random
+import typing as t
 
 
 DDTESTOPT_ROOT_SPAN_RESOURCE = "ddtestopt_root_span"
@@ -7,6 +8,16 @@ DDTESTOPT_ROOT_SPAN_RESOURCE = "ddtestopt_root_span"
 
 def _gen_item_id():
     return random.randint(1, (1 << 64) - 1)
+
+
+def asbool(value: t.Union[str, bool, None]) -> bool:
+    if value is None:
+        return False
+
+    if isinstance(value, bool):
+        return value
+
+    return value.lower() in ("true", "1")
 
 
 @dataclass

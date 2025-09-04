@@ -112,7 +112,9 @@ class APIClient:
         }
 
         try:
-            response, response_data = self.connector.post_json("/api/v2/test/libraries/test-management/tests", request_data)
+            response, response_data = self.connector.post_json(
+                "/api/v2/test/libraries/test-management/tests", request_data
+            )
             test_properties: t.Dict[TestRef, TestProperties] = {}
             modules = response_data["data"]["attributes"]["modules"]
 
