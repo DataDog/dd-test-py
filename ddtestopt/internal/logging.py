@@ -1,6 +1,9 @@
 from functools import wraps
 import logging
+import os
 import typing as t
+
+from ddtestopt.internal.utils import asbool
 
 
 ddtestopt_logger = logging.getLogger("ddtestopt")
@@ -10,7 +13,9 @@ F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
 def setup_logging():
     ddtestopt_logger.propagate = False
-    ddtestopt_logger.setLevel(logging.INFO)
+
+    log_level = logging.DEBUG if asbool(os.getenv("DDTESTOPT_DEBUG")) else logging.INFO
+    ddtestopt_logger.setLevel(log_level)
 
     handler = logging.StreamHandler()
     handler.setFormatter(

@@ -1,12 +1,12 @@
-import gzip
 import logging
 import os
+import threading
 import typing as t
-import urllib.request
 import uuid
 
 import msgpack  # type: ignore
 
+from ddtestopt.internal.http import BackendConnector
 from ddtestopt.internal.test_data import TestItem
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRun
@@ -32,6 +32,9 @@ class TestOptWriter:
         self.site = site
         self.api_key = api_key
 
+        self.lock = threading.RLock()
+        self.should_finish = threading.Event()
+        self.flush_interval_seconds = 60
         self.events: t.List[Event] = []
         self.metadata: t.Dict[str, t.Dict[str, str]] = {
             "*": {
@@ -51,7 +54,10 @@ class TestOptWriter:
             },
         }
         self.api_key = os.environ["DD_API_KEY"]
-        self.gzip_enabled = True
+        self.connector = BackendConnector(
+            host=f"citestcycle-intake.{self.site}",
+            default_headers={"dd-api-key": self.api_key},
+        )
 
         self.serializers: t.Dict[t.Type[TestItem], EventSerializer] = {
             TestRun: test_run_to_event,
@@ -62,33 +68,59 @@ class TestOptWriter:
 
     def put_item(self, item: TestItem) -> None:
         event = self.serializers[type(item)](item)
-        self.events.append(event)
+        self.put_event(event)
 
     def put_event(self, event: Event) -> None:
-        self.events.append(event)
+        # TODO: compute/estimate payload size as events are inserted, and force a push once we reach a certain size.
+        with self.lock:
+            self.events.append(event)
+
+    def pop_events(self) -> t.List[Event]:
+        with self.lock:
+            events = self.events
+            self.events = []
+
+        return events
 
     def add_metadata(self, event_type: str, metadata: t.Dict[str, str]) -> None:
         self.metadata[event_type].update(metadata)
 
-    def send(self):
+    def start(self):
+        self.task = threading.Thread(target=self._periodic_task)
+        self.task.start()
+
+    def finish(self):
+        log.debug("Waiting for writer thread to finish")
+        self.should_finish.set()
+        self.task.join()
+        log.debug("Writer thread finished")
+
+    def _periodic_task(self):
+        while True:
+            self.should_finish.wait(timeout=self.flush_interval_seconds)
+            log.debug("Flushing events in background task")
+            self.flush()
+
+            if self.should_finish.is_set():
+                break
+
+        log.debug("Exiting background task")
+
+    def flush(self):
+        if events := self.pop_events():
+            log.debug("Sending %d events", len(events))
+            self._send_events(events)
+
+    def _send_events(self, events: t.List[Event]):
         payload = {
             "version": 1,
             "metadata": self.metadata,
-            "events": self.events,
+            "events": events,
         }
         pack = msgpack.packb(payload)
-        url = f"https://citestcycle-intake.{self.site}/api/v2/citestcycle"
-        request = urllib.request.Request(url)
-        request.add_header("content-type", "application/msgpack")
-        request.add_header("dd-api-key", self.api_key)
-
-        if self.gzip_enabled:
-            pack = gzip.compress(pack, compresslevel=6)
-            request.add_header("Content-Encoding", "gzip")
-
-        response = urllib.request.urlopen(request, data=pack)
-        _content = response.read()
-        log.info("Sent %d bytes to to %s", len(pack), url)
+        response, response_data = self.connector.request(
+            "POST", "/api/v2/citestcycle", data=pack, headers={"Content-Type": "application/msgpack"}, send_gzip=True
+        )
 
 
 def test_run_to_event(test_run: TestRun) -> Event:

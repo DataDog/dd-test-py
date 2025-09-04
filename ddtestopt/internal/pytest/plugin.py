@@ -66,8 +66,8 @@ _ReportTestStatus = t.Tuple[
     ],
 ]
 # The `pytest_report_teststatus` hook can return a tuple of empty strings ("", "", ""), in which case the test report is
-# not logged at all. On the other, if the hook returns `None`, the next hook will be tried (so you can return `None` if
-# you want the default pytest log output).
+# not logged at all. On the other hand, if the hook returns `None`, the next hook will be tried (so you can return
+# `None` if you want the default pytest log output).
 
 
 def nodeid_to_test_ref(nodeid: str) -> TestRef:
@@ -134,7 +134,6 @@ class TestOptPlugin:
     def pytest_sessionfinish(self, session):
         self.session.finish()
         self.manager.writer.put_item(self.session)
-        self.manager.writer.send()
         self.manager.finish()
 
     def _get_test_command(self, session: pytest.Session) -> str:
@@ -245,12 +244,19 @@ class TestOptPlugin:
             self._do_retries(item, nextitem, test, retry_handler, reports)
         else:
             if test.is_quarantined() or test.is_disabled():
-                self._mark_test_reports_as_quarantined(item, reports)
+                self._mark_quarantined_test_report_group_as_skipped(item, reports)
             self._log_test_reports(item, reports)
             test_run.finish()
             self.manager.writer.put_item(test_run)
 
-    def _do_retries(self, item, nextitem, test, retry_handler, reports):
+    def _do_retries(
+        self,
+        item: pytest.Item,
+        nextitem: t.Optional[pytest.Item],
+        test: Test,
+        retry_handler: RetryHandler,
+        reports: _ReportGroup,
+    ) -> None:
         # Save failure/skip representation to put into the final report.
         # TODO: for flaky tests, we currently don't show the longrepr (because the final report has `passed` status).
         longrepr = self._extract_longrepr(reports)
@@ -258,6 +264,7 @@ class TestOptPlugin:
         # Log initial attempt.
         self._mark_test_reports_as_retry(reports, retry_handler)
         self._log_test_report(item, reports, TestPhase.SETUP)
+        # The call report may not exist if setup failed or skipped.
         self._log_test_report(item, reports, TestPhase.CALL)
 
         test_run = test.last_test_run
@@ -290,14 +297,14 @@ class TestOptPlugin:
         # Log final status.
         final_report = self._make_final_report(item, final_status, longrepr)
         if test.is_quarantined() or test.is_disabled():
-            self._mark_test_report_as_quarantined(item, final_report)
+            self._mark_quarantined_test_report_as_skipped(item, final_report)
         item.ihook.pytest_runtest_logreport(report=final_report)
 
         # Log teardown. There should be just one teardown logged for all of the retries, because the junitxml plugin
         # closes the <testcase> element when teardown is logged.
         teardown_report = reports.get(TestPhase.TEARDOWN)
         if test.is_quarantined() or test.is_disabled():
-            self._mark_test_report_as_quarantined(item, teardown_report)
+            self._mark_quarantined_test_report_as_skipped(item, teardown_report)
         item.ihook.pytest_runtest_logreport(report=teardown_report)
 
     def _check_applicable_retry_handlers(self, test: Test) -> t.Optional[RetryHandler]:
@@ -320,7 +327,10 @@ class TestOptPlugin:
         if not self._mark_test_report_as_retry(reports, retry_handler, TestPhase.CALL):
             self._mark_test_report_as_retry(reports, retry_handler, TestPhase.SETUP)
 
-    def _mark_test_report_as_quarantined(self, item: pytest.Item, report: pytest.TestReport) -> None:
+    def _mark_quarantined_test_report_as_skipped(self, item: pytest.Item, report: pytest.TestReport) -> None:
+        """
+        Modify a test report for a quarantined test to make it look like it was skipped.
+        """
         # For junitxml, probably the least confusing way to report a quarantined test is as skipped.
         # In `pytest_runtest_logreport`, we can still identify the test as quarantined via the `dd_quarantined`
         # user property.
@@ -332,14 +342,17 @@ class TestOptPlugin:
             report.longrepr = longrepr
             report.outcome = "skipped"
 
-    def _mark_test_reports_as_quarantined(self, item: pytest.Item, reports: _ReportGroup) -> None:
+    def _mark_quarantined_test_report_group_as_skipped(self, item: pytest.Item, reports: _ReportGroup) -> None:
+        """
+        Modify the test reports for a quarantined test to make it look like it was skipped.
+        """
         if call_report := reports.get(TestPhase.CALL):
-            self._mark_test_report_as_quarantined(item, call_report)
+            self._mark_quarantined_test_report_as_skipped(item, call_report)
             reports[TestPhase.SETUP].outcome = "passed"
             reports[TestPhase.TEARDOWN].outcome = "passed"
         else:
             setup_report = reports.get(TestPhase.SETUP)
-            self._mark_test_report_as_quarantined(item, setup_report)
+            self._mark_quarantined_test_report_as_skipped(item, setup_report)
             reports[TestPhase.TEARDOWN].outcome = "passed"
 
     def _mark_test_report_as_retry(self, reports: _ReportGroup, retry_handler: RetryHandler, when: str) -> bool:
@@ -354,6 +367,12 @@ class TestOptPlugin:
         return False
 
     def _log_test_report(self, item: pytest.Item, reports: _ReportGroup, when: str) -> bool:
+        """
+        Log the test report for a given test phase, if it exists.
+
+        Returns True if the report exists, and False if not.
+        Tests that fail or skip during setup do not have the call phase report.
+        """
         if report := reports.get(when):
             item.ihook.pytest_runtest_logreport(report=report)
             return True

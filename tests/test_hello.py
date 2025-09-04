@@ -3,6 +3,8 @@ import time
 import pytest
 
 
+DELAY = 1
+
 @pytest.fixture()
 def bad_setup():
     raise Exception("No!")
@@ -19,20 +21,22 @@ class Flakiness:
 
 
 def test_one():
+    time.sleep(DELAY)
     assert True
 
 
 def test_two():
+    time.sleep(DELAY)
     assert False
 
 def test_hello():
-    time.sleep(0.05)
+    time.sleep(DELAY)
     Flakiness.x += 1
     assert Flakiness.x > 0
 
 
 def test_bye():
-    time.sleep(0.05)
+    time.sleep(DELAY)
     assert False
 
 
@@ -40,11 +44,13 @@ def test_bye():
 
 @pytest.mark.skip
 def test_skip():
+    time.sleep(DELAY)
     assert False
 
 def test_skip4():
-    time.sleep(0.05)
+    time.sleep(DELAY)
     pytest.skip()
 
 def test_blabla():
+    time.sleep(DELAY)
     assert True

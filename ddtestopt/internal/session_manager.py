@@ -68,7 +68,7 @@ class SessionManager:
             if self.known_tests:
                 self.retry_handlers.append(EarlyFlakeDetectionHandler(self))
             else:
-                log.info("No known tests, not enabling Early Flake Detection")
+                log.debug("No known tests, not enabling Early Flake Detection")
 
         if self.settings.auto_test_retries.enabled:
             self.retry_handlers.append(AutoTestRetriesHandler(self))
@@ -77,7 +77,6 @@ class SessionManager:
         self.session = session or TestSession(name="test")
         self.session.set_service(self.service)
 
-    def start(self) -> None:
         self.writer.add_metadata("*", self.git_tags)
         self.writer.add_metadata("*", self.platform_tags)
         self.writer.add_metadata(
@@ -90,6 +89,12 @@ class SessionManager:
                 TestTag.ENV: self.env,
             },
         )
+
+    def start(self) -> None:
+        self.writer.start()
+
+    def finish(self) -> None:
+        self.writer.finish()
 
     def discover_test(
         self,
@@ -131,9 +136,6 @@ class SessionManager:
                 log.exception("Error during discovery of test %s", test)
 
         return test_module, test_suite, test
-
-    def finish(self) -> None:
-        pass
 
 
 def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:
