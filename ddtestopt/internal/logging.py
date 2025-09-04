@@ -14,10 +14,8 @@ F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 def setup_logging():
     ddtestopt_logger.propagate = False
 
-    if asbool(os.getenv("DDTESTOPT_DEBUG")):
-        ddtestopt_logger.setLevel(logging.DEBUG)
-    else:
-        ddtestopt_logger.setLevel(logging.INFO)
+    log_level = logging.DEBUG if asbool(os.getenv("DDTESTOPT_DEBUG")) else logging.INFO
+    ddtestopt_logger.setLevel(log_level)
 
     handler = logging.StreamHandler()
     handler.setFormatter(

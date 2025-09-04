@@ -66,8 +66,8 @@ _ReportTestStatus = t.Tuple[
     ],
 ]
 # The `pytest_report_teststatus` hook can return a tuple of empty strings ("", "", ""), in which case the test report is
-# not logged at all. On the other hand, if the hook returns `None`, the next hook will be tried (so you can return `None`
-# if you want the default pytest log output).
+# not logged at all. On the other hand, if the hook returns `None`, the next hook will be tried (so you can return
+# `None` if you want the default pytest log output).
 
 
 def nodeid_to_test_ref(nodeid: str) -> TestRef:

@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
-import gzip
-import json
 import logging
 import typing as t
-import urllib.request
 import uuid
 
 from ddtestopt.internal.git import GitTag
@@ -62,7 +59,7 @@ class APIClient:
             attributes = response_data["data"]["attributes"]
             return Settings.from_attributes(attributes)
 
-        except Exception:
+        except:
             log.exception("Error getting settings from API")
             return Settings()
 
@@ -94,8 +91,8 @@ class APIClient:
 
             return known_test_ids
 
-        except Exception:
-            log.exception("Error getting known tests from API (%s)", url)
+        except:
+            log.exception("Error getting known tests from API")
             return set()
 
     def get_test_management_tests(self) -> t.Dict[TestRef, TestProperties]:

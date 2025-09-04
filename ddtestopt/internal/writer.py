@@ -1,8 +1,8 @@
 import gzip
 import logging
 import os
-import typing as t
 import threading
+import typing as t
 import urllib.request
 import uuid
 
