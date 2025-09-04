@@ -71,6 +71,7 @@ class TestOptWriter:
         self.put_event(event)
 
     def put_event(self, event: Event) -> None:
+        # TODO: compute/estimate payload size as events are inserted, and force a push once we reach a certain size.
         with self.lock:
             self.events.append(event)
 
