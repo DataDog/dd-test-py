@@ -1,13 +1,12 @@
-import gzip
 import logging
 import os
 import threading
 import typing as t
-import urllib.request
 import uuid
 
 import msgpack  # type: ignore
 
+from ddtestopt.internal.http import BackendConnector
 from ddtestopt.internal.test_data import TestItem
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRun
@@ -55,7 +54,10 @@ class TestOptWriter:
             },
         }
         self.api_key = os.environ["DD_API_KEY"]
-        self.gzip_enabled = True
+        self.connector = BackendConnector(
+            host=f"citestcycle-intake.{self.site}",
+            default_headers={"dd-api-key": self.api_key},
+        )
 
         self.serializers: t.Dict[t.Type[TestItem], EventSerializer] = {
             TestRun: test_run_to_event,
@@ -115,18 +117,9 @@ class TestOptWriter:
             "events": events,
         }
         pack = msgpack.packb(payload)
-        url = f"https://citestcycle-intake.{self.site}/api/v2/citestcycle"
-        request = urllib.request.Request(url)
-        request.add_header("content-type", "application/msgpack")
-        request.add_header("dd-api-key", self.api_key)
-
-        if self.gzip_enabled:
-            pack = gzip.compress(pack, compresslevel=6)
-            request.add_header("Content-Encoding", "gzip")
-
-        response = urllib.request.urlopen(request, data=pack)
-        _content = response.read()
-        log.debug("Sent %d bytes to to %s", len(pack), url)
+        response, response_data = self.connector.request(
+            "POST", "/api/v2/citestcycle", data=pack, headers={"Content-Type": "application/msgpack"}, send_gzip=True
+        )
 
 
 def test_run_to_event(test_run: TestRun) -> Event:
