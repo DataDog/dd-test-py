@@ -8,6 +8,7 @@ import time
 import typing as t
 
 from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
+from ddtestopt.internal.constants import TAG_TRUE
 from ddtestopt.internal.utils import TestContext
 from ddtestopt.internal.utils import _gen_item_id
 
@@ -150,32 +151,32 @@ class Test(TestItem["TestSuite", "TestRun"]):
         is_attempt_to_fix: bool,
     ) -> None:
         if is_new:
-            self.tags[TestTag.IS_NEW] = "true"
+            self.tags[TestTag.IS_NEW] = TAG_TRUE
 
         if is_quarantined:
-            self.tags[TestTag.IS_QUARANTINED] = "true"
+            self.tags[TestTag.IS_QUARANTINED] = TAG_TRUE
 
         if is_disabled:
-            self.tags[TestTag.IS_DISABLED] = "true"
+            self.tags[TestTag.IS_DISABLED] = TAG_TRUE
 
         if is_attempt_to_fix:
-            self.tags[TestTag.IS_ATTEMPT_TO_FIX] = "true"
+            self.tags[TestTag.IS_ATTEMPT_TO_FIX] = TAG_TRUE
 
     def set_location(self, path: Path, start_line: int) -> None:
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
 
     def is_new(self) -> bool:
-        return self.tags.get(TestTag.IS_NEW) == "true"
+        return self.tags.get(TestTag.IS_NEW) == TAG_TRUE
 
     def is_quarantined(self) -> bool:
-        return self.tags.get(TestTag.IS_QUARANTINED) == "true"
+        return self.tags.get(TestTag.IS_QUARANTINED) == TAG_TRUE
 
     def is_disabled(self) -> bool:
-        return self.tags.get(TestTag.IS_DISABLED) == "true"
+        return self.tags.get(TestTag.IS_DISABLED) == TAG_TRUE
 
     def is_attempt_to_fix(self) -> bool:
-        return self.tags.get(TestTag.IS_ATTEMPT_TO_FIX) == "true"
+        return self.tags.get(TestTag.IS_ATTEMPT_TO_FIX) == TAG_TRUE
 
     @property
     def suite_id(self) -> str:

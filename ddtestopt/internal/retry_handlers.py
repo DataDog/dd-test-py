@@ -3,6 +3,8 @@ from abc import abstractmethod
 from collections import defaultdict
 import typing as t
 
+from ddtestopt.internal.constants import TAG_FALSE
+from ddtestopt.internal.constants import TAG_TRUE
 from ddtestopt.internal.test_data import Test
 from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestStatus
@@ -79,7 +81,7 @@ class AutoTestRetriesHandler(RetryHandler):
             return {}
 
         return {
-            TestTag.IS_RETRY: "true",
+            TestTag.IS_RETRY: TAG_TRUE,
             TestTag.RETRY_REASON: "auto_test_retry",
         }
 
@@ -129,7 +131,7 @@ class EarlyFlakeDetectionHandler(RetryHandler):
             return {}
 
         return {
-            TestTag.IS_RETRY: "true",
+            TestTag.IS_RETRY: TAG_TRUE,
             TestTag.RETRY_REASON: "early_flake_detection",
         }
 
@@ -148,7 +150,7 @@ class AttemptToFixHandler(RetryHandler):
     def get_final_status(self, test: Test) -> t.Tuple[TestStatus, t.Dict[str, str]]:
         final_status: TestStatus
         final_tags: t.Dict[str, str] = {
-            TestTag.ATTEMPT_TO_FIX_PASSED: "false",
+            TestTag.ATTEMPT_TO_FIX_PASSED: TAG_FALSE,
         }
 
         status_counts: t.Dict[TestStatus, int] = defaultdict(lambda: 0)
@@ -166,9 +168,9 @@ class AttemptToFixHandler(RetryHandler):
             final_status = TestStatus.SKIP
 
         if status_counts[TestStatus.PASS] == total_count:
-            final_tags[TestTag.ATTEMPT_TO_FIX_PASSED] = "true"
+            final_tags[TestTag.ATTEMPT_TO_FIX_PASSED] = TAG_TRUE
         elif status_counts[TestStatus.FAIL] == total_count:
-            final_tags[TestTag.HAS_FAILED_ALL_RETRIES] = "true"
+            final_tags[TestTag.HAS_FAILED_ALL_RETRIES] = TAG_TRUE
 
         return final_status, final_tags
 
@@ -177,6 +179,6 @@ class AttemptToFixHandler(RetryHandler):
             return {}
 
         return {
-            TestTag.IS_RETRY: "true",
+            TestTag.IS_RETRY: TAG_TRUE,
             TestTag.RETRY_REASON: "attempt_to_fix",
         }
