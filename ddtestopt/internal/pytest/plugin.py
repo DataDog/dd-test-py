@@ -137,6 +137,19 @@ class TestOptPlugin:
         self.manager.writer.put_item(self.session)
         self.manager.finish()
 
+    def pytest_collection_finish(self, session: pytest.Session) -> None:
+        """
+        Discover modules, suites, and tests that have been selected by pytest.
+
+        NOTE: Using pytest_collection_finish instead of pytest_collection_modifyitems allows us to capture only the
+        tests that pytest has selection for run (eg: with the use of -k as an argument).
+        """
+        for item in session.items:
+            test_ref = nodeid_to_test_ref(item.nodeid)
+            test_module, test_suite, test = self._discover_test(item, test_ref)
+
+        self.manager.finish_collection()
+
     def _get_test_command(self, session: pytest.Session) -> str:
         """Extract and re-create pytest session command from pytest config."""
         command = "pytest"
