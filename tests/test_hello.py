@@ -3,7 +3,7 @@ import time
 import pytest
 
 
-DELAY = 1
+DELAY = 0.05
 
 @pytest.fixture()
 def bad_setup():
@@ -53,4 +53,9 @@ def test_skip4():
 
 def test_blabla():
     time.sleep(DELAY)
+    assert True
+
+
+@pytest.mark.parametrize("i", range(200))
+def test_parameterz(i):
     assert True

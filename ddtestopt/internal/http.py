@@ -7,14 +7,21 @@ import time
 import typing as t
 
 
+DEFAULT_TIMEOUT_SECONDS = 15.0
+
 log = logging.getLogger(__name__)
 
 
 class BackendConnector(threading.local):
     def __init__(
-        self, host: str, port: int = 443, default_headers: t.Optional[t.Dict[str, str]] = None, accept_gzip: bool = True
+        self,
+        host: str,
+        port: int = 443,
+        default_headers: t.Optional[t.Dict[str, str]] = None,
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        accept_gzip: bool = True,
     ):
-        self.conn = http.client.HTTPSConnection(host, port)
+        self.conn = http.client.HTTPSConnection(host=host, port=port, timeout=timeout_seconds)
         self.default_headers = default_headers or {}
         if accept_gzip:
             self.default_headers["Accept-Encoding"] = "gzip"

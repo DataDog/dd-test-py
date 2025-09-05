@@ -31,6 +31,7 @@ class SessionManager:
     def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None) -> None:
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
+        self.collected_tests: t.Set[TestRef] = set()
 
         self.is_user_provided_service: bool
 
@@ -44,7 +45,10 @@ class SessionManager:
 
         self.env = os.environ.get("DD_ENV") or DEFAULT_ENV_NAME
         self.site = os.environ.get("DD_SITE") or DEFAULT_SITE
-        self.api_key = os.environ["DD_API_KEY"]
+        self.api_key = os.environ.get("DD_API_KEY")
+
+        if not self.api_key:
+            raise RuntimeError("DD_API_KEY environment variable is not set")
 
         self.api_client = APIClient(
             site=self.site,
@@ -59,19 +63,10 @@ class SessionManager:
         self.test_properties = (
             self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
         )
+        # TODO: close connection after fetching stuff
+
+        # Retry handlers must be set up after collection phase for EFD faulty session logic to work.
         self.retry_handlers: t.List[RetryHandler] = []
-
-        if self.settings.test_management.enabled:
-            self.retry_handlers.append(AttemptToFixHandler(self))
-
-        if self.settings.early_flake_detection.enabled:
-            if self.known_tests:
-                self.retry_handlers.append(EarlyFlakeDetectionHandler(self))
-            else:
-                log.debug("No known tests, not enabling Early Flake Detection")
-
-        if self.settings.auto_test_retries.enabled:
-            self.retry_handlers.append(AutoTestRetriesHandler(self))
 
         self.writer = writer or TestOptWriter(site=self.site, api_key=self.api_key)
         self.session = session or TestSession(name="test")
@@ -89,6 +84,33 @@ class SessionManager:
                 TestTag.ENV: self.env,
             },
         )
+
+    def finish_collection(self):
+        self.setup_retry_handlers()
+
+    def setup_retry_handlers(self):
+        if self.settings.test_management.enabled:
+            self.retry_handlers.append(AttemptToFixHandler(self))
+
+        if self.settings.early_flake_detection.enabled:
+            if self.known_tests:
+                # TODO: handle parametrized tests specially. Currently each parametrized version is counted as a
+                # separate test.
+                new_tests = self.collected_tests - self.known_tests
+                new_tests_percentage = len(new_tests) / len(self.collected_tests) * 100
+                is_faulty_session = (
+                    len(self.known_tests) > self.settings.early_flake_detection.faulty_session_threshold
+                    and new_tests_percentage > self.settings.early_flake_detection.faulty_session_threshold
+                )
+                if is_faulty_session:
+                    log.info("Not enabling Early Flake Detection: too many new tests")
+                else:
+                    self.retry_handlers.append(EarlyFlakeDetectionHandler(self))
+            else:
+                log.info("Not enabling Early Flake Detection: no known tests")
+
+        if self.settings.auto_test_retries.enabled:
+            self.retry_handlers.append(AutoTestRetriesHandler(self))
 
     def start(self) -> None:
         self.writer.start()
@@ -123,6 +145,7 @@ class SessionManager:
         test, created = test_suite.get_or_create_child(test_ref.name)
         if created:
             try:
+                self.collected_tests.add(test_ref)
                 is_new = len(self.known_tests) > 0 and test_ref not in self.known_tests
                 test_properties = self.test_properties.get(test_ref) or TestProperties()
                 test.set_attributes(
