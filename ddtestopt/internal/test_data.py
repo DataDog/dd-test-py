@@ -50,7 +50,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         self.duration_ns: t.Optional[int] = None
         self.parent: TParentClass = parent
         self.item_id = _gen_item_id()
-        self.status: TestStatus = TestStatus.FAIL
+        self.status: t.Optional[TestStatus] = None
         self.tags: t.Dict[str, str] = {}
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
         self.service: str = DEFAULT_SERVICE_NAME
@@ -72,7 +72,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         return self.duration_ns is not None
 
     def get_status(self) -> TestStatus:
-        if self.children:  # ꙮ
+        if self.status is None:
             self.status = self._get_status_from_children()
         return self.status
 

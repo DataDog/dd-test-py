@@ -140,6 +140,9 @@ class TestOptPlugin:
             install_global_trace_filter(self.manager.writer)
 
     def pytest_sessionfinish(self, session: pytest.Session) -> None:
+        self.session.set_status(
+            TestStatus.FAIL if session.exitstatus == pytest.ExitCode.TESTS_FAILED else TestStatus.PASS
+        )
         self.session.finish()
 
         if not self.is_xdist_worker:
@@ -238,6 +241,7 @@ class TestOptPlugin:
             test_run.set_tags(tags)
             test_run.set_context(context)
             test_run.finish()
+            test.set_status(test_run.get_status())  # TODO: this should be automatic?
             self.manager.writer.put_item(test_run)
 
         test.finish()
@@ -283,6 +287,7 @@ class TestOptPlugin:
                 self._mark_quarantined_test_report_group_as_skipped(item, reports)
             self._log_test_reports(item, reports)
             test_run.finish()
+            test.set_status(test_run.get_status())  # TODO: this should be automatic?
             self.manager.writer.put_item(test_run)
 
     def _do_retries(
