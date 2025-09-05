@@ -1,3 +1,4 @@
+import atexit
 import logging
 import os
 import re
@@ -114,8 +115,10 @@ class SessionManager:
 
     def start(self) -> None:
         self.writer.start()
+        atexit.register(self.finish)
 
     def finish(self) -> None:
+        atexit.unregister(self.finish)
         self.writer.finish()
 
     def discover_test(
