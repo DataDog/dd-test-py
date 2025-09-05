@@ -140,6 +140,9 @@ class TestOptPlugin:
             install_global_trace_filter(self.manager.writer)
 
     def pytest_sessionfinish(self, session: pytest.Session) -> None:
+        # With xdist, the main process does not execute tests, so we cannot rely on the normal `session.get_status()`
+        # behavior of determining the status based on the status of the children. Instead, we set the status manually
+        # based on the exit status reported by pytest.
         self.session.set_status(
             TestStatus.FAIL if session.exitstatus == pytest.ExitCode.TESTS_FAILED else TestStatus.PASS
         )
