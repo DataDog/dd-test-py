@@ -116,14 +116,21 @@ class TestOptPlugin:
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
+        self.is_xdist_worker = False
 
-    def pytest_sessionstart(self, session: pytest.Session):
+    def pytest_sessionstart(self, session: pytest.Session) -> None:
         self.session = TestSession(name="pytest")
         self.session.set_attributes(
             test_command=self._get_test_command(session),
             test_framework="pytest",
             test_framework_version=pytest.__version__,
         )
+
+        if xdist_worker_input := getattr(session.config, "workerinput", None):
+            if session_id := xdist_worker_input.get("dd_session_id"):
+                self.session.set_session_id(session_id)
+                self.is_xdist_worker = True
+
         self.session.start()
 
         self.manager = SessionManager(session=self.session)
@@ -132,10 +139,20 @@ class TestOptPlugin:
         if self.enable_ddtrace:
             install_global_trace_filter(self.manager.writer)
 
-    def pytest_sessionfinish(self, session):
+    def pytest_sessionfinish(self, session: pytest.Session) -> None:
         self.session.finish()
-        self.manager.writer.put_item(self.session)
+
+        if not self.is_xdist_worker:
+            # When running with xdist, only the main process writes the session event.
+            self.manager.writer.put_item(self.session)
+
         self.manager.finish()
+
+    def pytest_configure_node(self, node: t.Any) -> None:
+        """
+        Pass test session id from the main process to xdist workers.
+        """
+        node.workerinput["dd_session_id"] = self.session.session_id
 
     def pytest_collection_finish(self, session: pytest.Session) -> None:
         """
