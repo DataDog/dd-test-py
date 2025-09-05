@@ -46,7 +46,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def __init__(self, name: str, parent: TParentClass):
         self.name = name
         self.children: t.Dict[str, TChildClass] = {}
-        self.start_ns: int = time.time_ns()
+        self.start_ns: t.Optional[int] = None
         self.duration_ns: t.Optional[int] = None
         self.parent: TParentClass = parent
         self.item_id = _gen_item_id()
@@ -58,7 +58,14 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def seconds_so_far(self):
         return (time.time_ns() - self.start_ns) / 1e9
 
-    def finish(self):
+    def start(self, start_ns: t.Optional[int] = None) -> None:
+        self.start_ns = start_ns if start_ns is not None else time.time_ns()
+
+    def ensure_started(self) -> None:
+        if self.start_ns is None:
+            self.start()
+
+    def finish(self) -> None:
         self.duration_ns = time.time_ns() - self.start_ns
 
     def is_finished(self) -> bool:

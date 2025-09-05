@@ -3,7 +3,7 @@ import time
 import pytest
 
 
-DELAY = 1
+DELAY = 0.05
 
 @pytest.fixture()
 def bad_setup():

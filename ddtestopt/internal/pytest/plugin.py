@@ -124,6 +124,7 @@ class TestOptPlugin:
             test_framework="pytest",
             test_framework_version=pytest.__version__,
         )
+        self.session.start()
 
         self.manager = SessionManager(session=self.session)
         self.manager.start()
@@ -174,7 +175,10 @@ class TestOptPlugin:
         test_ref = nodeid_to_test_ref(item.nodeid)
         next_test_ref = nodeid_to_test_ref(nextitem.nodeid) if nextitem else None
 
-        test_module, test_suite, test = self._discover_test(item, test_ref)
+        test_module, test_suite, test = test_items = self._discover_test(item, test_ref)
+        for test_item in test_items:
+            test_item.ensure_started()
+
         self.tests_by_nodeid[item.nodeid] = test
 
         if test.is_disabled() and not test.is_attempt_to_fix():
@@ -198,6 +202,7 @@ class TestOptPlugin:
                 item.nodeid,
             )
             test_run = test.make_test_run()
+            test_run.start(start_ns=test.start_ns)
             status, tags = self._get_test_outcome(item.nodeid)
             test_run.set_status(status)
             test_run.set_tags(tags)
@@ -225,6 +230,7 @@ class TestOptPlugin:
     ) -> t.Tuple[TestRun, _ReportGroup]:
         test = self.tests_by_nodeid[item.nodeid]
         test_run = test.make_test_run()
+        test_run.start()
         reports = _make_reports_dict(runtestprotocol(item, nextitem=nextitem, log=False))
         status, tags = self._get_test_outcome(item.nodeid)
         test_run.set_status(status)

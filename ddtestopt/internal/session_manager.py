@@ -44,7 +44,10 @@ class SessionManager:
 
         self.env = os.environ.get("DD_ENV") or DEFAULT_ENV_NAME
         self.site = os.environ.get("DD_SITE") or DEFAULT_SITE
-        self.api_key = os.environ["DD_API_KEY"]
+        self.api_key = os.environ.get("DD_API_KEY")
+
+        if not self.api_key:
+            raise RuntimeError("DD_API_KEY environment variable is not set")
 
         self.api_client = APIClient(
             site=self.site,
@@ -59,6 +62,7 @@ class SessionManager:
         self.test_properties = (
             self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
         )
+        # TODO: close connection after fetching stuff
         self.retry_handlers: t.List[RetryHandler] = []
 
         if self.settings.test_management.enabled:
