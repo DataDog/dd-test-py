@@ -173,6 +173,9 @@ class Test(TestItem["TestSuite", "TestRun"]):
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
 
+    def set_parameters(self, parameters: str) -> None:
+        self.tags[TestTag.PARAMETERS] = parameters
+
     def is_new(self) -> bool:
         return self.tags.get(TestTag.IS_NEW) == TAG_TRUE
 
@@ -184,6 +187,9 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
     def is_attempt_to_fix(self) -> bool:
         return self.tags.get(TestTag.IS_ATTEMPT_TO_FIX) == TAG_TRUE
+
+    def has_parameters(self) -> bool:
+        return TestTag.PARAMETERS in self.tags
 
     @property
     def suite_id(self) -> str:
@@ -289,3 +295,5 @@ class TestTag:
     IS_RETRY = "test.is_retry"
     RETRY_REASON = "test.retry_reason"
     HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries"
+
+    PARAMETERS = "test.parameters"
