@@ -98,7 +98,8 @@ class SessionManager:
                 # TODO: handle parametrized tests specially. Currently each parametrized version is counted as a
                 # separate test.
                 new_tests = self.collected_tests - self.known_tests
-                new_tests_percentage = len(new_tests) / len(self.collected_tests) * 100
+                total_tests = len(new_tests) + len(self.known_tests)
+                new_tests_percentage = len(new_tests) / total_tests * 100
                 is_faulty_session = (
                     len(self.known_tests) > self.settings.early_flake_detection.faulty_session_threshold
                     and new_tests_percentage > self.settings.early_flake_detection.faulty_session_threshold

@@ -91,8 +91,10 @@ class EarlyFlakeDetectionHandler(RetryHandler):
         return "Early Flake Detection"
 
     def should_apply(self, test: Test) -> bool:
-        # TODO: faulty session logic
-        return test.is_new()
+        # NOTE: currently we replicate dd-trace-py's behavior and disable EFD for parameterized tests. This is
+        # technically NOT correct: we should instead treat all parameterized versions of a test as a single test for
+        # EFD. But this would be more complex, and for now replicating dd-trace-py's behavior is Fine™.
+        return test.is_new() and not test.has_parameters()
 
     def should_retry(self, test: Test):
         seconds_so_far = test.seconds_so_far()

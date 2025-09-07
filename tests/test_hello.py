@@ -54,3 +54,11 @@ def test_skip4():
 def test_blabla():
     time.sleep(DELAY)
     assert True
+
+
+@pytest.mark.parametrize("i", [1,2])
+def test_param(i):
+    assert i > 1
+
+def test_param0():
+    assert 1 > 1

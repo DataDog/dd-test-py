@@ -1,5 +1,6 @@
 from collections import defaultdict
 from io import StringIO
+import json
 import logging
 import os
 from pathlib import Path
@@ -196,6 +197,9 @@ class TestOptPlugin:
         def _on_new_test(test: Test) -> None:
             path, start_line, _test_name = item.reportinfo()
             test.set_location(path=path, start_line=start_line)
+
+            if parameters := _get_test_parameters_json(item):
+                test.set_parameters(parameters)
 
         return self.manager.discover_test(
             test_ref,
@@ -533,3 +537,31 @@ def _get_user_property(report: pytest.TestReport, user_property: str):
             return value
 
     return None
+
+
+def _get_test_parameters_json(item: pytest.Item) -> t.Optional[str]:
+    callspec: t.Optional[pytest.python.CallSpec2] = getattr(item, "callspec", None)
+
+    if callspec is None:
+        return None
+
+    parameters: t.Dict[str, t.Dict[str, str]] = {"arguments": {}, "metadata": {}}
+    for param_name, param_val in item.callspec.params.items():
+        try:
+            parameters["arguments"][param_name] = _encode_test_parameter(param_val)
+        except:
+            parameters["arguments"][param_name] = "Could not encode"
+            log.warning("Failed to encode %r", param_name, exc_info=True)
+
+    try:
+        return json.dumps(parameters, sort_keys=True)
+    except TypeError:
+        log.warning("Failed to serialize parameters for test %s", item, exc_info=True)
+        return None
+
+
+def _encode_test_parameter(parameter: t.Any) -> str:
+    param_repr = repr(parameter)
+    # if the representation includes an id() we'll remove it
+    # because it isn't constant across executions
+    return re.sub(r" at 0[xX][0-9a-fA-F]+", "", param_repr)
