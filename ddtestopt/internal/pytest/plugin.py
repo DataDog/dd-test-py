@@ -70,6 +70,13 @@ _ReportTestStatus = t.Tuple[
 # not logged at all. On the other hand, if the hook returns `None`, the next hook will be tried (so you can return
 # `None` if you want the default pytest log output).
 
+# The tuple stored in the `location` attribute of a `pytest.Item`
+_Location = t.Tuple[
+    str,  # 1st field: file name
+    int,  # 2nd field: line number
+    str,  # 3rd field: test name
+]
+
 
 def nodeid_to_test_ref(nodeid: str) -> TestRef:
     matches = _NODEID_REGEX.match(nodeid)
@@ -263,7 +270,9 @@ class TestOptPlugin:
 
     @catch_and_log_exceptions()
     def pytest_runtest_protocol(self, item: pytest.Item, nextitem: t.Optional[pytest.Item]) -> bool:
+        item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         self._do_test_runs(item, nextitem)
+        item.ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
         return True  # Do not run other pytest_runtest_protocol hooks after this one.
 
     def _do_one_test_run(
