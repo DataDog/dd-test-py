@@ -1,6 +1,7 @@
 from abc import ABC
 from abc import abstractmethod
 from collections import defaultdict
+import os
 import typing as t
 
 from ddtestopt.internal.constants import TAG_FALSE
@@ -64,16 +65,23 @@ class RetryHandler(ABC):
 
 
 class AutoTestRetriesHandler(RetryHandler):
+    def __init__(self, session_manager: "SessionManager") -> None:
+        super().__init__(session_manager=session_manager)
+        self.max_tests_to_retry_per_session = int(os.getenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "1000"))
+        self.max_retries_per_test = int(os.getenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "5"))
+
     def get_pretty_name(self):
         return "Auto Test Retries"
 
     def should_apply(self, test: Test) -> bool:
-        return True
+        return self.max_tests_to_retry_per_session > 0
 
     def should_retry(self, test: Test) -> bool:
-        return test.last_test_run.get_status() == TestStatus.FAIL and len(test.test_runs) < 6
+        retries_so_far = len(test.test_runs) - 1  # Initial attempt does not count.
+        return test.last_test_run.get_status() == TestStatus.FAIL and retries_so_far < self.max_retries_per_test
 
     def get_final_status(self, test: Test) -> t.Tuple[TestStatus, t.Dict[str, str]]:
+        self.max_tests_to_retry_per_session -= 1
         return test.last_test_run.get_status(), {}
 
     def get_tags_for_test_run(self, test_run: TestRun) -> t.Dict[str, str]:

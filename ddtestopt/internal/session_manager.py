@@ -22,6 +22,7 @@ from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
+from ddtestopt.internal.utils import asbool
 from ddtestopt.internal.writer import TestOptWriter
 
 
@@ -111,7 +112,7 @@ class SessionManager:
             else:
                 log.info("Not enabling Early Flake Detection: no known tests")
 
-        if self.settings.auto_test_retries.enabled:
+        if self.settings.auto_test_retries.enabled and asbool(os.getenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")):
             self.retry_handlers.append(AutoTestRetriesHandler(self))
 
     def start(self) -> None:
