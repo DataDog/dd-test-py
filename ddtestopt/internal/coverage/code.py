@@ -380,7 +380,6 @@ class ModuleCodeCollector(ModuleWatchdog):
         # The pytest module loader doesn't implement a get_code method so we
         # need to intercept the loading of test modules by wrapping around the
         # exec built-in function.
-
         module = getmodule(_object)
 
         new_object = (

@@ -29,7 +29,8 @@ from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.utils import TestContext
-
+from ddtestopt.internal.coverage.code import ModuleCodeCollector
+from ddtestopt.internal.coverage.installer import install as install_coverage
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
@@ -236,7 +237,11 @@ class TestOptPlugin:
             item.user_properties += [("dd_quarantined", True)]
 
         with trace_context(self.enable_ddtrace) as context:
-            yield
+            with ModuleCodeCollector.CollectInContext() as coverage_collector:
+                yield
+                covered_lines = coverage_collector.get_covered_lines()
+
+        breakpoint()
 
         if not test.test_runs:
             # No test runs: our pytest_runtest_protocol did not run. This can happen if some other plugin (such as
@@ -518,7 +523,14 @@ def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
     setup_logging()
+    setup_coverage_collection()
     yield
+
+
+def setup_coverage_collection():
+    workspace_path = Path.cwd().absolute() # ꙮ
+    install_coverage(include_paths=[workspace_path], collect_import_time_coverage=True)
+    ModuleCodeCollector.start_coverage()
 
 
 def pytest_configure(config):

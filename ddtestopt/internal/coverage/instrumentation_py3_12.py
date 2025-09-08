@@ -23,10 +23,13 @@ EMPTY_MODULE_BYTES = bytes([RESUME, 0, RETURN_CONST, 0])
 
 _CODE_HOOKS: t.Dict[CodeType, t.Tuple[HookType, str, t.Dict[int, t.Tuple[str, t.Optional[t.Tuple[str]]]]]] = {}
 
+COVERAGE_TOOL_NAME = "ddtestopt"
+COVERAGE_TOOL_ID = 4
+
 
 def instrument_all_lines(code: CodeType, hook: HookType, path: str, package: str) -> t.Tuple[CodeType, CoverageLines]:
-    coverage_tool = sys.monitoring.get_tool(sys.monitoring.COVERAGE_ID)
-    if coverage_tool is not None and coverage_tool != "datadog":
+    coverage_tool = sys.monitoring.get_tool(COVERAGE_TOOL_ID)
+    if coverage_tool is not None and coverage_tool != COVERAGE_TOOL_NAME:
         log.debug("Coverage tool '%s' already registered, not gathering coverage", coverage_tool)
         return code, CoverageLines()
 
@@ -47,11 +50,11 @@ def _register_monitoring():
     """
     Register the coverage tool with the low-impact monitoring system.
     """
-    sys.monitoring.use_tool_id(sys.monitoring.COVERAGE_ID, "datadog")
+    sys.monitoring.use_tool_id(COVERAGE_TOOL_ID, COVERAGE_TOOL_NAME)
 
     # Register the line callback
     sys.monitoring.register_callback(
-        sys.monitoring.COVERAGE_ID, sys.monitoring.events.LINE, _line_event_handler
+        COVERAGE_TOOL_ID, sys.monitoring.events.LINE, _line_event_handler
     )  # noqa
 
 
@@ -59,7 +62,7 @@ def _instrument_all_lines_with_monitoring(
     code: CodeType, hook: HookType, path: str, package: str
 ) -> t.Tuple[CodeType, CoverageLines]:
     # Enable local line events for the code object
-    sys.monitoring.set_local_events(sys.monitoring.COVERAGE_ID, code, sys.monitoring.events.LINE)  # noqa
+    sys.monitoring.set_local_events(COVERAGE_TOOL_ID, code, sys.monitoring.events.LINE)  # noqa
 
     # Collect all the line numbers in the code object
     linestarts = dict(dis.findlinestarts(code))
