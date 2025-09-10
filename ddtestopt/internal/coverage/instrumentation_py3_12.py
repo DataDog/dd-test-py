@@ -53,9 +53,7 @@ def _register_monitoring():
     sys.monitoring.use_tool_id(COVERAGE_TOOL_ID, COVERAGE_TOOL_NAME)
 
     # Register the line callback
-    sys.monitoring.register_callback(
-        COVERAGE_TOOL_ID, sys.monitoring.events.LINE, _line_event_handler
-    )  # noqa
+    sys.monitoring.register_callback(COVERAGE_TOOL_ID, sys.monitoring.events.LINE, _line_event_handler)  # noqa
 
 
 def _instrument_all_lines_with_monitoring(

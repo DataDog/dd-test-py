@@ -23,6 +23,7 @@ from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.utils import asbool
+from ddtestopt.internal.writer import TestCoverageWriter
 from ddtestopt.internal.writer import TestOptWriter
 
 
@@ -71,6 +72,7 @@ class SessionManager:
         self.retry_handlers: t.List[RetryHandler] = []
 
         self.writer = writer or TestOptWriter(site=self.site, api_key=self.api_key)
+        self.coverage_writer = TestCoverageWriter(site=self.site, api_key=self.api_key)
         self.session = session or TestSession(name="test")
         self.session.set_service(self.service)
 
@@ -117,11 +119,13 @@ class SessionManager:
 
     def start(self) -> None:
         self.writer.start()
+        self.coverage_writer.start()
         atexit.register(self.finish)
 
     def finish(self) -> None:
         atexit.unregister(self.finish)
         self.writer.finish()
+        self.coverage_writer.finish()
 
     def discover_test(
         self,

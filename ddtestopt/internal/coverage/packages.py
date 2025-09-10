@@ -11,7 +11,8 @@ import typing as t
 from pathlib import Path
 from .module import origin
 from .cache import callonce
-#ꙮfrom ddtrace.settings.third_party import config as tp_config
+
+# ꙮfrom ddtrace.settings.third_party import config as tp_config
 
 
 LOG = logging.getLogger(__name__)
@@ -197,8 +198,8 @@ def _third_party_packages() -> set:
 
     return (
         set(decompress(read_binary("ddtestopt.internal.coverage", "third-party.tar.gz")).decode("utf-8").splitlines())
-        #ꙮ | tp_config.includes
-    ) #ꙮ - tp_config.excludes
+        # ꙮ | tp_config.includes
+    )  # ꙮ - tp_config.excludes
 
 
 @cached(maxsize=16384)

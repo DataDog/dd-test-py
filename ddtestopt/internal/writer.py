@@ -257,3 +257,104 @@ def session_to_event(session: TestSession) -> Event:
             "test_session_id": session.session_id,
         },
     )
+
+
+CoverageEvent = Event
+
+
+class TestCoverageWriter:
+    def __init__(self, site: str, api_key: str) -> None:
+        self.site = site
+        self.api_key = api_key
+
+        self.lock = threading.RLock()
+        self.should_finish = threading.Event()
+        self.flush_interval_seconds = 60
+        self.events: t.List[CoverageEvent] = []
+
+        self.api_key = os.environ["DD_API_KEY"]
+        self.connector = BackendConnector(
+            host=f"citestcov-intake.{self.site}",
+            default_headers={"dd-api-key": self.api_key},
+        )
+
+    def put_coverage(self, test_run: TestRun, coverage_data) -> None:
+        event = CoverageEvent(
+            test_session_id=test_run.session_id,
+            test_suite_id=test_run.suite_id,
+            span_id=test_run.span_id,
+            files={pathname: coverage.to_bytes() for pathname, coverage in coverage_data.items()},
+        )
+        self.put_event(event)
+
+    def put_event(self, event: CoverageEvent) -> None:
+        # TODO: compute/estimate payload size as events are inserted, and force a push once we reach a certain size.
+        with self.lock:
+            self.events.append(event)
+
+    def pop_events(self) -> t.List[Event]:
+        with self.lock:
+            events = self.events
+            self.events = []
+
+        return events
+
+    def start(self):
+        self.task = threading.Thread(target=self._periodic_task)
+        self.task.start()
+
+    def finish(self):
+        log.debug("Waiting for writer thread to finish")
+        self.should_finish.set()
+        self.task.join()
+        log.debug("Writer thread finished")
+
+    def _periodic_task(self):
+        while True:
+            self.should_finish.wait(timeout=self.flush_interval_seconds)
+            log.debug("Flushing events in background task")
+            self.flush()
+
+            if self.should_finish.is_set():
+                break
+
+        log.debug("Exiting background task")
+
+    def flush(self):
+        if events := self.pop_events():
+            log.debug("Sending %d events", len(events))
+            self._send_events(events)
+
+    def _send_events(self, events: t.List[CoverageEvent]):
+        boundary = uuid.uuid4().hex
+        boundary_bytes = boundary.encode("utf-8")
+        content_type = f"multipart/form-data; boundary={boundary}"
+
+        coverage_data = msgpack.packb({"version": 2, "coverages": events})
+
+        body_lines = self._build_coverage_attachment(boundary_bytes, coverage_data)
+        body_lines += self._build_json_attachment(boundary_bytes)
+        body_lines += [b"--%s--" % boundary_bytes]
+        body = b"\r\n".join(body_lines)
+
+        response, response_data = self.connector.request(
+            "POST", "/api/v2/citestcov", data=body, headers={"Content-Type": content_type}, send_gzip=True
+        )
+
+    def _build_coverage_attachment(self, boundary_bytes: bytes, coverage_data: bytes):
+        return [
+            b"--%s" % boundary_bytes,
+            b'Content-Disposition: form-data; name="coverage1"; filename="coverage1.msgpack"',
+            b"Content-Type: application/msgpack",
+            b"",
+            coverage_data,
+        ]
+
+    def _build_json_attachment(self, boundary_bytes: bytes) -> t.List[bytes]:
+        return [
+            b"--%s" % boundary_bytes,
+            b'Content-Disposition: form-data; name="event"; filename="event.json"',
+            b"Content-Type: application/json",
+            b"",
+            b'{"dummy":true}',
+        ]

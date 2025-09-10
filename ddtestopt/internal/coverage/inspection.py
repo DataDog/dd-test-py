@@ -12,6 +12,7 @@ from typing import MutableMapping
 from typing import Set
 from typing import cast
 
+
 def _isinstance(obj, types):
     # type: (Any, Union[Type, Tuple[Union[Type, Tuple[Any, ...]], ...]]) -> bool
     # DEV: isinstance falls back to calling __getattribute__ which could cause
