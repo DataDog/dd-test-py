@@ -94,7 +94,6 @@ class SessionManager:
         )
 
         if self.itr_correlation_id:
-            breakpoint()
             self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
 
     def finish_collection(self):
