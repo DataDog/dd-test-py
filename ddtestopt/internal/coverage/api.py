@@ -1,3 +1,9 @@
+"""
+API for code coverage collection for use by ddtestopt.
+
+The rest of ddtestopt should only use the interface exposed in this file to set up code coverage and get coverage data.
+"""
+
 import dataclasses
 import contextlib
 import ddtestopt.internal.coverage.installer

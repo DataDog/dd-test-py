@@ -68,6 +68,8 @@ class SessionManager:
         )
         # TODO: close connection after fetching stuff
 
+        if self.settings.
+
         # Retry handlers must be set up after collection phase for EFD faulty session logic to work.
         self.retry_handlers: t.List[RetryHandler] = []
 

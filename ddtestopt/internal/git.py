@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 import logging
+import random
 import shutil
 import subprocess
 import typing as t
-
+import tempfile
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -110,6 +112,46 @@ class Git:
             GitTag.COMMIT_COMMITTER_DATE: committer_date,
         }
 
+    def get_workspace_path(self) -> str:
+        return self._git_output(["rev-parse", "--show-toplevel"])
+
+    def get_latest_commits(self) -> t.List[str]:
+        output = self._git_output(["log", "--format=%H", "-n", "1000", '--since="1 month ago"'])
+        return output.split("\n")
+
+    def get_filtered_revisions(self, excluded_commits: t.List[str], included_commits: t.List[str]) -> t.List[str]:
+        exclusions = [f"^{sha}" for sha in excluded_commits]
+        output = self._git_output(
+            [
+                "rev-list",
+                "--objects",
+                "--filter=blob:none",
+                '--since="1 month ago"',
+                "--no-object-names",
+                "HEAD",
+                *exclusions,
+                *included_commits,
+            ]
+        )
+        return output.split("\n")
+
+    def pack_objects(self, revisions: t.List[str]):
+        base_name = str(random.randint(1, 1000000))
+        revisions_text = "\n".join(revisions)
+
+        cwd = Path(self.cwd) if self.cwd is not None else Path.cwd()
+        temp_dir_base = Path(tempfile.gettempdir())
+        if cwd.stat().st_dev != temp_dir_base.stat().st_dev:
+            # `git pack-objects` does not work properly when the target is in a different device.
+            # In this case, we create the temporary directory in the current directory as a fallback.
+            temp_dir_base = cwd
+
+        with tempfile.TemporaryDirectory(dir=temp_dir_base) as output_dir:
+            prefix = f"{output_dir}/{base_name}"
+            result = self._call_git(["pack-objects", "--compression=9", "--max-pack-size=3m", prefix], revisions_text)
+            for packfile in Path(output_dir).glob(f"{base_name}*.pack"):
+                yield packfile
+
 
 def get_git_tags():
     try:
@@ -126,3 +168,17 @@ def get_git_tags():
     tags.update(git.get_user_info())
 
     return tags
+
+
+def stuff(api_client: "APIClient"):
+    git = Git()
+    latest_commits = git.get_latest_commits()
+    backend_commits = api_client.get_known_commits(latest_commits)
+    commits_not_in_backend = list(set(latest_commits) - set(backend_commits))
+
+    revisions_to_send = git.get_filtered_revisions(
+        excluded_commits=backend_commits, included_commits=commits_not_in_backend
+    )
+
+    for packfile in git.pack_objects(revisions_to_send):
+        print(packfile)

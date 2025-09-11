@@ -136,6 +136,22 @@ class APIClient:
             log.exception("Failed to parse Test Management tests data")
             return {}
 
+    def get_known_commits(self, latest_commits: t.List[str]) -> t.List[str]:
+        request_data = {
+            "meta": {
+                "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+            },
+            "data": [{"id": sha, "type": "commit"} for sha in latest_commits],
+        }
+
+        try:
+            response, response_data = self.connector.post_json("/api/v2/git/repository/search_commits", request_data)
+            return [item["id"] for item in response_data["data"] if item["type"] == "commit"]
+
+        except:
+            log.exception("Failed to parse search_commits data")
+            return []
+
 
 @dataclass
 class EarlyFlakeDetectionSettings:
@@ -185,18 +201,31 @@ class Settings:
     test_management: TestManagementSettings = field(default_factory=TestManagementSettings)
     known_tests_enabled: bool = False
 
+    coverage_enabled: bool = False
+    skipping_enabled: bool = False
+    require_git: bool = False
+    itr_enabled: bool = False
+
     @classmethod
     def from_attributes(cls, attributes) -> Settings:
         efd_settings = EarlyFlakeDetectionSettings.from_attributes(attributes.get("early_flake_detection"))
         test_management_settings = TestManagementSettings.from_attributes(attributes.get("test_management"))
         atr_enabled = bool(attributes.get("flaky_test_retries_enabled"))
         known_tests_enabled = bool(attributes.get("known_tests_enabled"))
+        coverage_enabled = bool(attributes.get("code_coverage"))
+        skipping_enabled = bool(attributes.get("tests_skipping"))
+        require_git = bool(attributes.get("require_git"))
+        itr_enabled = bool(attributes.get("itr_enabled"))
 
         settings = cls(
             early_flake_detection=efd_settings,
             test_management=test_management_settings,
             auto_test_retries=AutoTestRetriesSettings(enabled=atr_enabled),
             known_tests_enabled=known_tests_enabled,
+            coverage_enabled=coverage_enabled,
+            skipping_enabled=skipping_enabled,
+            require_git=require_git,
+            itr_enabled=itr_enabled,
         )
 
         return settings
