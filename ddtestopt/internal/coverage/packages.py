@@ -3,14 +3,15 @@ from functools import lru_cache as cached
 from functools import singledispatch
 import inspect
 import logging
+from pathlib import Path
 import sys
 import sysconfig
 from types import ModuleType
 import typing as t
 
-from pathlib import Path
-from .module import origin
 from .cache import callonce
+from .module import origin
+
 
 # ꙮfrom ddtrace.settings.third_party import config as tp_config
 

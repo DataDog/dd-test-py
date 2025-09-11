@@ -10,8 +10,8 @@ Inspired by the coverage.py multiprocessing support at
 https://github.com/nedbat/coveragepy/blob/401a63bf08bdfd780b662f64d2dfe3603f2584dd/coverage/multiproc.py
 """
 
-import logging
 import json
+import logging
 import multiprocessing
 from multiprocessing.connection import Connection
 import multiprocessing.process

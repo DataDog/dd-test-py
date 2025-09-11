@@ -1,8 +1,8 @@
 import dis
+import logging
 import sys
 from types import CodeType
 import typing as t
-import logging
 
 from .bytecode_injection import HookType
 from .coverage_lines import CoverageLines

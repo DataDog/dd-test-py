@@ -1,9 +1,9 @@
-import logging
 import abc
 from collections import defaultdict
 from importlib._bootstrap import _init_module_attrs
 from importlib.machinery import ModuleSpec
 from importlib.util import find_spec
+import logging
 from pathlib import Path
 import sys
 from types import CodeType
@@ -12,8 +12,8 @@ from types import ModuleType
 import typing as t
 from weakref import WeakValueDictionary as wvdict
 
-from .utils import get_argument_value
 from .context import WrappingContext
+from .utils import get_argument_value
 
 
 if t.TYPE_CHECKING:

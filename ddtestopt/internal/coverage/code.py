@@ -2,24 +2,24 @@ from collections import defaultdict
 from contextvars import ContextVar
 from copy import deepcopy
 from inspect import getmodule
+import logging
 import os
+from pathlib import Path
 from types import CodeType
 from types import ModuleType
 import typing as t
-import logging
 
-from pathlib import Path
+from .coverage_lines import CoverageLines
 from .instrumentation import instrument_all_lines
-from .report import gen_json_report
-from .report import print_coverage_report
-from .util import collapse_ranges
 from .module import ModuleWatchdog
 from .packages import is_user_code
 from .packages import platlib_path
 from .packages import platstdlib_path
 from .packages import purelib_path
 from .packages import stdlib_path
-from .coverage_lines import CoverageLines
+from .report import gen_json_report
+from .report import print_coverage_report
+from .util import collapse_ranges
 
 
 log = logging.getLogger(__name__)

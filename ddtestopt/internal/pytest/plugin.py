@@ -12,6 +12,8 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestopt.internal.coverage.api import coverage_collection
+from ddtestopt.internal.coverage.api import install_coverage
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.logging import catch_and_log_exceptions
@@ -29,8 +31,7 @@ from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.utils import TestContext
-from ddtestopt.internal.coverage.api import coverage_collection
-from ddtestopt.internal.coverage.api import install_coverage
+
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"

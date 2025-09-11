@@ -13,10 +13,10 @@ Session-level coverage does not need special-casing since the ModuleCodeCollecto
 thread-safe.
 """
 
+import logging
 import pickle  # nosec: B403  -- pickle is only used to serialize coverage data from a spawned thread to the main thread
 from queue import Queue
 import threading
-import logging
 
 from .code import ModuleCodeCollector
 
