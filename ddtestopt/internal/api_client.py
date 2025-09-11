@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
+import json
 import logging
+from pathlib import Path
 import typing as t
 import uuid
 
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.http import BackendConnector
+from ddtestopt.internal.http import FileAttachment
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
@@ -151,6 +154,30 @@ class APIClient:
         except:
             log.exception("Failed to parse search_commits data")
             return []
+
+    def send_git_pack_file(self, packfile: Path) -> None:
+        metadata = {
+            "data": {"id": self.git_tags[GitTag.COMMIT_SHA], "type": "commit"},
+            "meta": {"repository_url": self.git_tags[GitTag.REPOSITORY_URL]},
+        }
+        content = packfile.read_bytes()
+        files = [
+            FileAttachment(
+                name="pushedSha",
+                filename=None,
+                content_type="application/json",
+                data=json.dumps(metadata).encode("utf-8"),
+            ),
+            FileAttachment(
+                name="packfile", filename=packfile.name, content_type="application/octet-stream", data=content
+            ),
+        ]
+        response, response_data = self.connector.post_files(
+            "/api/v2/git/repository/packfile", files=files, send_gzip=False
+        )
+
+        if response.status != 204:
+            log.warning("Failed to upload git pack data: %s %s", response.status, response_data)
 
 
 @dataclass

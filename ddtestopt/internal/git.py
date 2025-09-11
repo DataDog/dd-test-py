@@ -183,3 +183,4 @@ def stuff(api_client: "APIClient"):
 
     for packfile in git.pack_objects(revisions_to_send):
         print(packfile)
+        api_client.send_git_pack_file(packfile)

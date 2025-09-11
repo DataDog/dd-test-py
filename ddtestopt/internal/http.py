@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
 import gzip
 import http.client
+import io
 import json
 import logging
 import threading
 import time
 import typing as t
+import uuid
 
 
 DEFAULT_TIMEOUT_SECONDS = 15.0
@@ -63,3 +68,38 @@ class BackendConnector(threading.local):
             "POST", path=path, data=encoded_data, headers=headers, send_gzip=send_gzip
         )
         return response, json.loads(response_data)
+
+    def post_files(
+        self,
+        path: str,
+        files: t.List[FileAttachment],
+        headers: t.Optional[t.Dict[str, str]] = None,
+        send_gzip: bool = False,
+    ):
+        boundary = uuid.uuid4().hex
+        boundary_bytes = boundary.encode("utf-8")
+        headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"} | (headers or {})
+        body = io.BytesIO()
+
+        for attachment in files:
+            body.write(b"--%s\r\n" % boundary_bytes)
+            body.write(b'Content-Disposition: form-data; name="%s"' % attachment.name.encode("utf-8"))
+            if attachment.filename:
+                body.write(b'; filename="%s"' % attachment.filename.encode("utf-8"))
+            body.write(b"\r\n")
+            body.write(b"Content-Type: %s\r\n" % attachment.content_type.encode("utf-8"))
+            body.write(b"\r\n")
+            body.write(attachment.data)
+            body.write(b"\r\n")
+
+        body.write(b"--%s--\r\n" % boundary_bytes)
+
+        return self.request("POST", path=path, data=body.getvalue(), headers=headers, send_gzip=send_gzip)
+
+
+@dataclass
+class FileAttachment:
+    name: str
+    filename: t.Optional[str]
+    content_type: str
+    data: bytes
