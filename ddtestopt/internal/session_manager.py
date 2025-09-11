@@ -10,6 +10,7 @@ from ddtestopt.internal.constants import DEFAULT_ENV_NAME
 from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestopt.internal.constants import DEFAULT_SITE
 from ddtestopt.internal.git import GitTag
+from ddtestopt.internal.git import Git
 from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
 from ddtestopt.internal.retry_handlers import AttemptToFixHandler
@@ -35,6 +36,7 @@ class SessionManager:
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
         self.collected_tests: t.Set[TestRef] = set()
+        self.itr_correlation_id = None
 
         self.is_user_provided_service: bool
 
@@ -66,6 +68,8 @@ class SessionManager:
         self.test_properties = (
             self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
         )
+        self.upload_git_data_and_get_skippable_tests() # ꙮ
+
         # TODO: close connection after fetching stuff
 
         # Retry handlers must be set up after collection phase for EFD faulty session logic to work.
@@ -88,6 +92,10 @@ class SessionManager:
                 TestTag.ENV: self.env,
             },
         )
+
+        if self.itr_correlation_id:
+            breakpoint()
+            self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
 
     def finish_collection(self):
         self.setup_retry_handlers()
@@ -168,6 +176,24 @@ class SessionManager:
                 log.exception("Error during discovery of test %s", test)
 
         return test_module, test_suite, test
+
+    def upload_git_data_and_get_skippable_tests(self):
+        git = Git()
+        latest_commits = git.get_latest_commits()
+        backend_commits = self.api_client.get_known_commits(latest_commits)
+        commits_not_in_backend = list(set(latest_commits) - set(backend_commits))
+
+        revisions_to_send = git.get_filtered_revisions(
+            excluded_commits=backend_commits, included_commits=commits_not_in_backend
+        )
+
+        for packfile in git.pack_objects(revisions_to_send):
+            self.api_client.send_git_pack_file(packfile)
+
+        response, response_data = self.api_client.get_skippable_tests()
+        print("ꙮꙮꙮꙮꙮꙮꙮ", response_data)
+        self.itr_correlation_id = response_data["meta"]["correlation_id"]
+
 
 
 def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:

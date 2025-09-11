@@ -339,9 +339,8 @@ class TestCoverageWriter:
         body = b"\r\n".join(body_lines)
 
         response, response_data = self.connector.request(
-            "POST", "/api/v2/citestcov", data=body, headers={"Content-Type": content_type}, send_gzip=True
+            "POST", "/api/v2/citestcov", data=body, headers={"Content-Type": content_type}, send_gzip=False
         )
-        breakpoint()
 
     def _build_coverage_attachment(self, boundary_bytes: bytes, coverage_data: bytes):
         return [

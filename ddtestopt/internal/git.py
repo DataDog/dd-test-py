@@ -169,19 +169,3 @@ def get_git_tags():
     tags.update(git.get_user_info())
 
     return tags
-
-
-def stuff(api_client: "APIClient"):
-    git = Git()
-    latest_commits = git.get_latest_commits()
-    backend_commits = api_client.get_known_commits(latest_commits)
-    commits_not_in_backend = list(set(latest_commits) - set(backend_commits))
-
-    revisions_to_send = git.get_filtered_revisions(
-        excluded_commits=backend_commits, included_commits=commits_not_in_backend
-    )
-
-    for packfile in git.pack_objects(revisions_to_send):
-        api_client.send_git_pack_file(packfile)
-
-    print(api_client.get_skippable_tests())
