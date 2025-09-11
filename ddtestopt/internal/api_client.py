@@ -179,6 +179,29 @@ class APIClient:
         if response.status != 204:
             log.warning("Failed to upload git pack data: %s %s", response.status, response_data)
 
+    def get_skippable_tests(self):
+        request_data = {
+            "data": {
+                "id": str(uuid.uuid4()),
+                "type": "test_params",
+                "attributes": {
+                    "service": self.service,
+                    "env": self.env,
+                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+                    "sha": self.git_tags[GitTag.COMMIT_SHA],
+                    "configurations": self.configurations,
+                    "test_level": "test",  # TODO: suite level support
+                },
+            }
+        }
+        try:
+            response, response_data = self.connector.post_json("/api/v2/ci/tests/skippable", request_data)
+            return response, response_data
+
+        except:
+            log.exception("Error getting skippable tests from API")
+            return []
+
 
 @dataclass
 class EarlyFlakeDetectionSettings:
