@@ -143,6 +143,10 @@ class SessionManager:
     ) -> t.Tuple[TestModule, TestSuite, Test]:
         """
         Return the module, suite and test objects for a given test reference, creating them if necessary.
+
+        When a new module, suite or test is discovered, the corresponding `on_new_*` callback is invoked. This can be
+        used to perform test framework specific initialization (such as setting pathnames from data colleced by the
+        framework).
         """
         test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
         if created:
@@ -189,9 +193,9 @@ class SessionManager:
         for packfile in git.pack_objects(revisions_to_send):
             self.api_client.send_git_pack_file(packfile)
 
-        response, response_data = self.api_client.get_skippable_tests()
-        print("ꙮꙮꙮꙮꙮꙮꙮ", response_data)
-        self.itr_correlation_id = response_data["meta"]["correlation_id"]
+        skippable_items, correlation_id = self.api_client.get_skippable_tests()
+        print("ꙮꙮꙮꙮꙮꙮꙮ", skippable_items)
+        self.itr_correlation_id = correlation_id
 
 
 def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:

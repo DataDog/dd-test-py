@@ -179,7 +179,7 @@ class APIClient:
         if response.status != 204:
             log.warning("Failed to upload git pack data: %s %s", response.status, response_data)
 
-    def get_skippable_tests(self):
+    def get_skippable_tests(self) -> t.Tuple[t.List[SuiteRef | TestRef], t.Optional[str]]:
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -196,11 +196,25 @@ class APIClient:
         }
         try:
             response, response_data = self.connector.post_json("/api/v2/ci/tests/skippable", request_data)
-            return response, response_data
+            skippable_items: t.List[SuiteRef | TestRef] = []
+
+            for item in response_data["data"]:
+                if item["type"] in ("test", "suite"):
+                    module_ref = ModuleRef(item["attributes"].get("configurations", {}).get("test.bundle", ""))
+                    suite_ref = SuiteRef(module_ref, item["attributes"].get("suite", ""))
+                    if item["type"] == "suite":
+                        skippable_items.append(suite_ref)
+                    else:
+                        test_ref = TestRef(suite_ref, item["attributes"].get("name", ""))
+                        skippable_items.append(test_ref)
+
+            correlation_id = response_data["meta"]["correlation_id"]
+
+            return skippable_items, correlation_id
 
         except:
             log.exception("Error getting skippable tests from API")
-            return []
+            return [], None
 
 
 @dataclass

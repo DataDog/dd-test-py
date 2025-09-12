@@ -118,7 +118,7 @@ class Git:
 
     def get_latest_commits(self) -> t.List[str]:
         output = self._git_output(["log", "--format=%H", "-n", "1000", '--since="1 month ago"'])
-        return output.split("\n")
+        return output.split("\n") if output else []
 
     def get_filtered_revisions(self, excluded_commits: t.List[str], included_commits: t.List[str]) -> t.List[str]:
         exclusions = [f"^{sha}" for sha in excluded_commits]
