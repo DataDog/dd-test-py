@@ -122,7 +122,7 @@ class TestOptPlugin:
     """
 
     def __init__(self) -> None:
-        self.enable_ddtrace = True  # TODO: make it configurable via command line.
+        self.enable_ddtrace = False  # TODO: make it configurable via command line.
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}

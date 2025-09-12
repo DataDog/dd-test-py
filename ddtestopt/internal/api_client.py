@@ -46,7 +46,7 @@ class APIClient:
                 "id": str(uuid.uuid4()),
                 "type": "ci_app_test_service_libraries_settings",
                 "attributes": {
-                    "test_level": "suite",
+                    "test_level": "test",
                     "service": self.service,
                     "env": self.env,
                     "repository_url": self.git_tags[GitTag.REPOSITORY_URL],

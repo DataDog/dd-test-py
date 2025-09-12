@@ -9,8 +9,8 @@ from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.constants import DEFAULT_ENV_NAME
 from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestopt.internal.constants import DEFAULT_SITE
-from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import Git
+from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
 from ddtestopt.internal.retry_handlers import AttemptToFixHandler
@@ -68,7 +68,7 @@ class SessionManager:
         self.test_properties = (
             self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
         )
-        self.upload_git_data_and_get_skippable_tests() # ꙮ
+        self.upload_git_data_and_get_skippable_tests()  # ꙮ
 
         # TODO: close connection after fetching stuff
 
@@ -192,7 +192,6 @@ class SessionManager:
         response, response_data = self.api_client.get_skippable_tests()
         print("ꙮꙮꙮꙮꙮꙮꙮ", response_data)
         self.itr_correlation_id = response_data["meta"]["correlation_id"]
-
 
 
 def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:

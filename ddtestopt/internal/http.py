@@ -57,6 +57,9 @@ class BackendConnector(threading.local):
         else:
             response_data = response.read()
 
+        log.debug("Request headers %s, data %s", full_headers, data)  # ꙮꙮꙮ
+        log.debug("Response status %s, data %s", response.status, response_data)  # ꙮꙮꙮ
+
         return response, response_data
 
     def post_json(

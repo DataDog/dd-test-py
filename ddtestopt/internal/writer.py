@@ -283,7 +283,9 @@ class TestCoverageWriter:
             test_session_id=test_run.session_id,
             test_suite_id=test_run.suite_id,
             span_id=test_run.span_id,
-            files={pathname: coverage.to_bytes() for pathname, coverage in coverage_data.items()},
+            files=[
+                {"filename": pathname, "bitmap": coverage.to_bytes()} for pathname, coverage in coverage_data.items()
+            ],
         )
         self.put_event(event)
 

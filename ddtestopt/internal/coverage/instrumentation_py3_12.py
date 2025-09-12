@@ -21,7 +21,7 @@ RESUME = dis.opmap["RESUME"]
 RETURN_CONST = dis.opmap["RETURN_CONST"]
 EMPTY_MODULE_BYTES = bytes([RESUME, 0, RETURN_CONST, 0])
 
-_CODE_HOOKS: t.Dict[CodeType, t.Tuple[HookType, str, t.Dict[int, t.Tuple[str, t.Optional[t.Tuple[str]]]]]] = {}
+_CODE_HOOKS: t.Dict[int, t.Tuple[HookType, str, t.Dict[int, t.Tuple[str, t.Optional[t.Tuple[str]]]]]] = {}
 
 COVERAGE_TOOL_NAME = "ddtestopt"
 COVERAGE_TOOL_ID = 4
@@ -41,7 +41,7 @@ def instrument_all_lines(code: CodeType, hook: HookType, path: str, package: str
 
 
 def _line_event_handler(code: CodeType, line: int) -> t.Any:
-    hook, path, import_names = _CODE_HOOKS[code]
+    hook, path, import_names = _CODE_HOOKS[id(code)]
     import_name = import_names.get(line, None)
     return hook((line, path, import_name))
 
@@ -144,7 +144,7 @@ def _instrument_all_lines_with_monitoring(
         lines.update(nested_lines)
 
     # Register the hook and argument for the code object
-    _CODE_HOOKS[code] = (hook, path, import_names)
+    _CODE_HOOKS[id(code)] = (hook, path, import_names)
 
     # Special case for empty modules (eg: __init__.py ):
     # Make sure line 0 is marked as executable, and add package dependency
