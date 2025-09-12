@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
+import json
 import logging
+from pathlib import Path
 import typing as t
 import uuid
 
+from ddtestopt.internal.constants import EMPTY_NAME
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.http import BackendConnector
+from ddtestopt.internal.http import FileAttachment
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
@@ -43,7 +47,7 @@ class APIClient:
                 "id": str(uuid.uuid4()),
                 "type": "ci_app_test_service_libraries_settings",
                 "attributes": {
-                    "test_level": "suite",
+                    "test_level": "test",
                     "service": self.service,
                     "env": self.env,
                     "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
@@ -95,7 +99,7 @@ class APIClient:
             log.exception("Error getting known tests from API")
             return set()
 
-    def get_test_management_tests(self) -> t.Dict[TestRef, TestProperties]:
+    def get_test_management_properties(self) -> t.Dict[TestRef, TestProperties]:
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -135,6 +139,83 @@ class APIClient:
         except:
             log.exception("Failed to parse Test Management tests data")
             return {}
+
+    def get_known_commits(self, latest_commits: t.List[str]) -> t.List[str]:
+        request_data = {
+            "meta": {
+                "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+            },
+            "data": [{"id": sha, "type": "commit"} for sha in latest_commits],
+        }
+
+        try:
+            response, response_data = self.connector.post_json("/api/v2/git/repository/search_commits", request_data)
+            return [item["id"] for item in response_data["data"] if item["type"] == "commit"]
+
+        except:
+            log.exception("Failed to parse search_commits data")
+            return []
+
+    def send_git_pack_file(self, packfile: Path) -> None:
+        metadata = {
+            "data": {"id": self.git_tags[GitTag.COMMIT_SHA], "type": "commit"},
+            "meta": {"repository_url": self.git_tags[GitTag.REPOSITORY_URL]},
+        }
+        content = packfile.read_bytes()
+        files = [
+            FileAttachment(
+                name="pushedSha",
+                filename=None,
+                content_type="application/json",
+                data=json.dumps(metadata).encode("utf-8"),
+            ),
+            FileAttachment(
+                name="packfile", filename=packfile.name, content_type="application/octet-stream", data=content
+            ),
+        ]
+        response, response_data = self.connector.post_files(
+            "/api/v2/git/repository/packfile", files=files, send_gzip=False
+        )
+
+        if response.status != 204:
+            log.warning("Failed to upload git pack data: %s %s", response.status, response_data)
+
+    def get_skippable_tests(self) -> t.Tuple[t.Union[SuiteRef, TestRef], t.Optional[str]]:
+        request_data = {
+            "data": {
+                "id": str(uuid.uuid4()),
+                "type": "test_params",
+                "attributes": {
+                    "service": self.service,
+                    "env": self.env,
+                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+                    "sha": self.git_tags[GitTag.COMMIT_SHA],
+                    "configurations": self.configurations,
+                    "test_level": "test",  # TODO: suite level support
+                },
+            }
+        }
+        try:
+            response, response_data = self.connector.post_json("/api/v2/ci/tests/skippable", request_data)
+            skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
+
+            for item in response_data["data"]:
+                if item["type"] in ("test", "suite"):
+                    module_ref = ModuleRef(item["attributes"].get("configurations", {}).get("test.bundle", EMPTY_NAME))
+                    suite_ref = SuiteRef(module_ref, item["attributes"].get("suite", EMPTY_NAME))
+                    if item["type"] == "suite":
+                        skippable_items.add(suite_ref)
+                    else:
+                        test_ref = TestRef(suite_ref, item["attributes"].get("name", EMPTY_NAME))
+                        skippable_items.add(test_ref)
+
+            correlation_id = response_data["meta"]["correlation_id"]
+
+            return skippable_items, correlation_id
+
+        except:
+            log.exception("Error getting skippable tests from API")
+            return [], None
 
 
 @dataclass
@@ -185,18 +266,31 @@ class Settings:
     test_management: TestManagementSettings = field(default_factory=TestManagementSettings)
     known_tests_enabled: bool = False
 
+    coverage_enabled: bool = False
+    skipping_enabled: bool = False
+    require_git: bool = False
+    itr_enabled: bool = False
+
     @classmethod
     def from_attributes(cls, attributes) -> Settings:
         efd_settings = EarlyFlakeDetectionSettings.from_attributes(attributes.get("early_flake_detection"))
         test_management_settings = TestManagementSettings.from_attributes(attributes.get("test_management"))
         atr_enabled = bool(attributes.get("flaky_test_retries_enabled"))
         known_tests_enabled = bool(attributes.get("known_tests_enabled"))
+        coverage_enabled = bool(attributes.get("code_coverage"))
+        skipping_enabled = bool(attributes.get("tests_skipping"))
+        require_git = bool(attributes.get("require_git"))
+        itr_enabled = bool(attributes.get("itr_enabled"))
 
         settings = cls(
             early_flake_detection=efd_settings,
             test_management=test_management_settings,
             auto_test_retries=AutoTestRetriesSettings(enabled=atr_enabled),
             known_tests_enabled=known_tests_enabled,
+            coverage_enabled=coverage_enabled,
+            skipping_enabled=skipping_enabled,
+            require_git=require_git,
+            itr_enabled=itr_enabled,
         )
 
         return settings

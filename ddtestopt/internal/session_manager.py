@@ -9,6 +9,7 @@ from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.constants import DEFAULT_ENV_NAME
 from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestopt.internal.constants import DEFAULT_SITE
+from ddtestopt.internal.git import Git
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import get_git_tags
 from ddtestopt.internal.platform import get_platform_tags
@@ -16,6 +17,7 @@ from ddtestopt.internal.retry_handlers import AttemptToFixHandler
 from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
 from ddtestopt.internal.retry_handlers import EarlyFlakeDetectionHandler
 from ddtestopt.internal.retry_handlers import RetryHandler
+from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import Test
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRef
@@ -23,6 +25,7 @@ from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
 from ddtestopt.internal.test_data import TestTag
 from ddtestopt.internal.utils import asbool
+from ddtestopt.internal.writer import TestCoverageWriter
 from ddtestopt.internal.writer import TestOptWriter
 
 
@@ -34,6 +37,8 @@ class SessionManager:
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
         self.collected_tests: t.Set[TestRef] = set()
+        self.skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
+        self.itr_correlation_id: t.Optional[str] = None
 
         self.is_user_provided_service: bool
 
@@ -63,14 +68,17 @@ class SessionManager:
         self.settings = self.api_client.get_settings()
         self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
         self.test_properties = (
-            self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
+            self.api_client.get_test_management_properties() if self.settings.test_management.enabled else {}
         )
+        self.upload_git_data_and_get_skippable_tests()  # ꙮ
+
         # TODO: close connection after fetching stuff
 
         # Retry handlers must be set up after collection phase for EFD faulty session logic to work.
         self.retry_handlers: t.List[RetryHandler] = []
 
         self.writer = writer or TestOptWriter(site=self.site, api_key=self.api_key)
+        self.coverage_writer = TestCoverageWriter(site=self.site, api_key=self.api_key)
         self.session = session or TestSession(name="test")
         self.session.set_service(self.service)
 
@@ -86,6 +94,9 @@ class SessionManager:
                 TestTag.ENV: self.env,
             },
         )
+
+        if self.itr_correlation_id:
+            self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
 
     def finish_collection(self):
         self.setup_retry_handlers()
@@ -117,11 +128,13 @@ class SessionManager:
 
     def start(self) -> None:
         self.writer.start()
+        self.coverage_writer.start()
         atexit.register(self.finish)
 
     def finish(self) -> None:
         atexit.unregister(self.finish)
         self.writer.finish()
+        self.coverage_writer.finish()
 
     def discover_test(
         self,
@@ -132,6 +145,10 @@ class SessionManager:
     ) -> t.Tuple[TestModule, TestSuite, Test]:
         """
         Return the module, suite and test objects for a given test reference, creating them if necessary.
+
+        When a new module, suite or test is discovered, the corresponding `on_new_*` callback is invoked. This can be
+        used to perform test framework specific initialization (such as setting pathnames from data colleced by the
+        framework).
         """
         test_module, created = self.session.get_or_create_child(test_ref.suite.module.name)
         if created:
@@ -164,6 +181,21 @@ class SessionManager:
                 log.exception("Error during discovery of test %s", test)
 
         return test_module, test_suite, test
+
+    def upload_git_data_and_get_skippable_tests(self):
+        git = Git()
+        latest_commits = git.get_latest_commits()
+        backend_commits = self.api_client.get_known_commits(latest_commits)
+        commits_not_in_backend = list(set(latest_commits) - set(backend_commits))
+
+        revisions_to_send = git.get_filtered_revisions(
+            excluded_commits=backend_commits, included_commits=commits_not_in_backend
+        )
+
+        for packfile in git.pack_objects(revisions_to_send):
+            self.api_client.send_git_pack_file(packfile)
+
+        self.skippable_items, self.itr_correlation_id = self.api_client.get_skippable_tests()
 
 
 def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:

@@ -12,6 +12,9 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestopt.internal.constants import EMPTY_NAME
+from ddtestopt.internal.coverage.api import coverage_collection
+from ddtestopt.internal.coverage.api import install_coverage
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.logging import catch_and_log_exceptions
@@ -33,6 +36,8 @@ from ddtestopt.internal.utils import TestContext
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
+SKIPPED_BY_ITR_REASON = "Skipped by Datadog Intelligent Test Runner"
+
 
 log = logging.getLogger(__name__)
 
@@ -82,15 +87,15 @@ def nodeid_to_test_ref(nodeid: str) -> TestRef:
     matches = _NODEID_REGEX.match(nodeid)
 
     if matches:
-        module_ref = ModuleRef(matches.group("module") or ".")
-        suite_ref = SuiteRef(module_ref, matches.group("suite") or ".")
+        module_ref = ModuleRef(matches.group("module") or EMPTY_NAME)
+        suite_ref = SuiteRef(module_ref, matches.group("suite") or EMPTY_NAME)
         test_ref = TestRef(suite_ref, matches.group("name"))
         return test_ref
 
     else:
         # Fallback to considering the whole nodeid as the test name.
-        module_ref = ModuleRef(".")
-        suite_ref = SuiteRef(module_ref, ".")
+        module_ref = ModuleRef(EMPTY_NAME)
+        suite_ref = SuiteRef(module_ref, EMPTY_NAME)
         test_ref = TestRef(suite_ref, nodeid)
         return test_ref
 
@@ -120,7 +125,7 @@ class TestOptPlugin:
     """
 
     def __init__(self) -> None:
-        self.enable_ddtrace = True  # TODO: make it configurable via command line.
+        self.enable_ddtrace = False  # TODO: make it configurable via command line.
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
@@ -228,6 +233,8 @@ class TestOptPlugin:
 
         self.tests_by_nodeid[item.nodeid] = test
 
+        if test_ref in self.manager.skippable_items:
+            item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
         if test.is_disabled() and not test.is_attempt_to_fix():
             item.add_marker(pytest.mark.skip(reason=DISABLED_BY_TEST_MANAGEMENT_REASON))
         elif test.is_quarantined() or (test.is_disabled() and test.is_attempt_to_fix()):
@@ -236,7 +243,10 @@ class TestOptPlugin:
             item.user_properties += [("dd_quarantined", True)]
 
         with trace_context(self.enable_ddtrace) as context:
-            yield
+            with coverage_collection() as coverage_data:
+                yield
+
+        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.get_covered_lines())
 
         if not test.test_runs:
             # No test runs: our pytest_runtest_protocol did not run. This can happen if some other plugin (such as
@@ -518,7 +528,13 @@ def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
     setup_logging()
+    setup_coverage_collection()
     yield
+
+
+def setup_coverage_collection():
+    workspace_path = Path.cwd().absolute()  # ꙮ
+    install_coverage(workspace_path)
 
 
 def pytest_configure(config):

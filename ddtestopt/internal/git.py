@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 import logging
+from pathlib import Path
+import random
 import shutil
 import subprocess
+import tempfile
 import typing as t
 
 
@@ -109,6 +112,50 @@ class Git:
             GitTag.COMMIT_COMMITTER_EMAIL: committer_email,
             GitTag.COMMIT_COMMITTER_DATE: committer_date,
         }
+
+    def get_workspace_path(self) -> str:
+        return self._git_output(["rev-parse", "--show-toplevel"])
+
+    def get_latest_commits(self) -> t.List[str]:
+        output = self._git_output(["log", "--format=%H", "-n", "1000", '--since="1 month ago"'])
+        return output.split("\n") if output else []
+
+    def get_filtered_revisions(self, excluded_commits: t.List[str], included_commits: t.List[str]) -> t.List[str]:
+        exclusions = [f"^{sha}" for sha in excluded_commits]
+        output = self._git_output(
+            [
+                "rev-list",
+                "--objects",
+                "--filter=blob:none",
+                '--since="1 month ago"',
+                "--no-object-names",
+                "HEAD",
+                *exclusions,
+                *included_commits,
+            ]
+        )
+        return output.split("\n")
+
+    def pack_objects(self, revisions: t.List[str]):
+        base_name = str(random.randint(1, 1000000))
+        revisions_text = "\n".join(revisions)
+
+        cwd = Path(self.cwd) if self.cwd is not None else Path.cwd()
+        temp_dir_base = Path(tempfile.gettempdir())
+        if cwd.stat().st_dev != temp_dir_base.stat().st_dev:
+            # `git pack-objects` does not work properly when the target is in a different device.
+            # In this case, we create the temporary directory in the current directory as a fallback.
+            temp_dir_base = cwd
+
+        with tempfile.TemporaryDirectory(dir=temp_dir_base) as output_dir:
+            prefix = f"{output_dir}/{base_name}"
+            result = self._call_git(["pack-objects", "--compression=9", "--max-pack-size=3m", prefix], revisions_text)
+            if result.return_code != 0:
+                log.warning("Error calling git pack-objects: %s", result.stderr)
+                return None
+
+            for packfile in Path(output_dir).glob(f"{base_name}*.pack"):
+                yield packfile
 
 
 def get_git_tags():
