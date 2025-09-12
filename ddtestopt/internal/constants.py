@@ -4,3 +4,5 @@ DEFAULT_SITE = "datadoghq.com"
 
 TAG_TRUE = "true"
 TAG_FALSE = "false"
+
+EMPTY_NAME = "."

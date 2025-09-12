@@ -12,6 +12,7 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestopt.internal.constants import EMPTY_NAME
 from ddtestopt.internal.coverage.api import coverage_collection
 from ddtestopt.internal.coverage.api import install_coverage
 from ddtestopt.internal.ddtrace import install_global_trace_filter
@@ -84,15 +85,15 @@ def nodeid_to_test_ref(nodeid: str) -> TestRef:
     matches = _NODEID_REGEX.match(nodeid)
 
     if matches:
-        module_ref = ModuleRef(matches.group("module") or ".")
-        suite_ref = SuiteRef(module_ref, matches.group("suite") or ".")
+        module_ref = ModuleRef(matches.group("module") or EMPTY_NAME)
+        suite_ref = SuiteRef(module_ref, matches.group("suite") or EMPTY_NAME)
         test_ref = TestRef(suite_ref, matches.group("name"))
         return test_ref
 
     else:
         # Fallback to considering the whole nodeid as the test name.
-        module_ref = ModuleRef(".")
-        suite_ref = SuiteRef(module_ref, ".")
+        module_ref = ModuleRef(EMPTY_NAME)
+        suite_ref = SuiteRef(module_ref, EMPTY_NAME)
         test_ref = TestRef(suite_ref, nodeid)
         return test_ref
 

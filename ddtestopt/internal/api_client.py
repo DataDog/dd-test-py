@@ -8,6 +8,7 @@ from pathlib import Path
 import typing as t
 import uuid
 
+from ddtestopt.internal.constants import EMPTY_NAME
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.http import BackendConnector
 from ddtestopt.internal.http import FileAttachment
@@ -200,12 +201,12 @@ class APIClient:
 
             for item in response_data["data"]:
                 if item["type"] in ("test", "suite"):
-                    module_ref = ModuleRef(item["attributes"].get("configurations", {}).get("test.bundle", ""))
-                    suite_ref = SuiteRef(module_ref, item["attributes"].get("suite", ""))
+                    module_ref = ModuleRef(item["attributes"].get("configurations", {}).get("test.bundle", EMPTY_NAME))
+                    suite_ref = SuiteRef(module_ref, item["attributes"].get("suite", EMPTY_NAME))
                     if item["type"] == "suite":
                         skippable_items.append(suite_ref)
                     else:
-                        test_ref = TestRef(suite_ref, item["attributes"].get("name", ""))
+                        test_ref = TestRef(suite_ref, item["attributes"].get("name", EMPTY_NAME))
                         skippable_items.append(test_ref)
 
             correlation_id = response_data["meta"]["correlation_id"]

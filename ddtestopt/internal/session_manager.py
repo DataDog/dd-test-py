@@ -194,7 +194,6 @@ class SessionManager:
             self.api_client.send_git_pack_file(packfile)
 
         skippable_items, correlation_id = self.api_client.get_skippable_tests()
-        print("ꙮꙮꙮꙮꙮꙮꙮ", skippable_items)
         self.itr_correlation_id = correlation_id
 
 
