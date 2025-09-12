@@ -36,6 +36,8 @@ from ddtestopt.internal.utils import TestContext
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
+SKIPPED_BY_ITR_REASON = "Skipped by Datadog Intelligent Test Runner"
+
 
 log = logging.getLogger(__name__)
 
@@ -231,6 +233,8 @@ class TestOptPlugin:
 
         self.tests_by_nodeid[item.nodeid] = test
 
+        if test_ref in self.manager.skippable_items:
+            item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
         if test.is_disabled() and not test.is_attempt_to_fix():
             item.add_marker(pytest.mark.skip(reason=DISABLED_BY_TEST_MANAGEMENT_REASON))
         elif test.is_quarantined() or (test.is_disabled() and test.is_attempt_to_fix()):

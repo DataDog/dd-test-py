@@ -49,7 +49,6 @@ class BackendConnector(threading.local):
         start_time = time.time()
         self.conn.request(method, path, body=data, headers=full_headers)
         elapsed_time = time.time() - start_time
-        log.debug("Request to %s %s took %.3f seconds", method, path, elapsed_time)
 
         response = self.conn.getresponse()
         if response.headers.get("Content-Encoding") == "gzip":
@@ -57,8 +56,9 @@ class BackendConnector(threading.local):
         else:
             response_data = response.read()
 
-        log.debug("Request headers %s, data %s", full_headers, data)  # ꙮꙮꙮ
-        log.debug("Response status %s, data %s", response.status, response_data)  # ꙮꙮꙮ
+        log.debug("Request to %s %s took %.3f seconds", method, path, elapsed_time)
+        # log.debug("Request headers %s, data %s", full_headers, data)
+        # log.debug("Response status %s, data %s", response.status, response_data)
 
         return response, response_data
 

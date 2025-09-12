@@ -99,7 +99,7 @@ class APIClient:
             log.exception("Error getting known tests from API")
             return set()
 
-    def get_test_management_tests(self) -> t.Dict[TestRef, TestProperties]:
+    def get_test_management_properties(self) -> t.Dict[TestRef, TestProperties]:
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -180,7 +180,7 @@ class APIClient:
         if response.status != 204:
             log.warning("Failed to upload git pack data: %s %s", response.status, response_data)
 
-    def get_skippable_tests(self) -> t.Tuple[t.List[SuiteRef | TestRef], t.Optional[str]]:
+    def get_skippable_tests(self) -> t.Tuple[t.Union[SuiteRef, TestRef], t.Optional[str]]:
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -197,17 +197,17 @@ class APIClient:
         }
         try:
             response, response_data = self.connector.post_json("/api/v2/ci/tests/skippable", request_data)
-            skippable_items: t.List[SuiteRef | TestRef] = []
+            skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
 
             for item in response_data["data"]:
                 if item["type"] in ("test", "suite"):
                     module_ref = ModuleRef(item["attributes"].get("configurations", {}).get("test.bundle", EMPTY_NAME))
                     suite_ref = SuiteRef(module_ref, item["attributes"].get("suite", EMPTY_NAME))
                     if item["type"] == "suite":
-                        skippable_items.append(suite_ref)
+                        skippable_items.add(suite_ref)
                     else:
                         test_ref = TestRef(suite_ref, item["attributes"].get("name", EMPTY_NAME))
-                        skippable_items.append(test_ref)
+                        skippable_items.add(test_ref)
 
             correlation_id = response_data["meta"]["correlation_id"]
 

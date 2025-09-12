@@ -17,6 +17,7 @@ from ddtestopt.internal.retry_handlers import AttemptToFixHandler
 from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
 from ddtestopt.internal.retry_handlers import EarlyFlakeDetectionHandler
 from ddtestopt.internal.retry_handlers import RetryHandler
+from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import Test
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRef
@@ -36,7 +37,8 @@ class SessionManager:
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
         self.collected_tests: t.Set[TestRef] = set()
-        self.itr_correlation_id = None
+        self.skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
+        self.itr_correlation_id: t.Optional[str] = None
 
         self.is_user_provided_service: bool
 
@@ -66,7 +68,7 @@ class SessionManager:
         self.settings = self.api_client.get_settings()
         self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
         self.test_properties = (
-            self.api_client.get_test_management_tests() if self.settings.test_management.enabled else {}
+            self.api_client.get_test_management_properties() if self.settings.test_management.enabled else {}
         )
         self.upload_git_data_and_get_skippable_tests()  # ꙮ
 
@@ -193,8 +195,7 @@ class SessionManager:
         for packfile in git.pack_objects(revisions_to_send):
             self.api_client.send_git_pack_file(packfile)
 
-        skippable_items, correlation_id = self.api_client.get_skippable_tests()
-        self.itr_correlation_id = correlation_id
+        self.skippable_items, self.itr_correlation_id = self.api_client.get_skippable_tests()
 
 
 def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:
