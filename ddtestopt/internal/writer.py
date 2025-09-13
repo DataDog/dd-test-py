@@ -1,3 +1,5 @@
+from abc import ABC
+from abc import abstractmethod
 import logging
 import os
 import threading
@@ -27,8 +29,7 @@ TSerializable = t.TypeVar("TSerializable", bound=TestItem)
 
 EventSerializer = t.Callable[[TSerializable], Event]
 
-
-class TestOptWriter:
+class BaseWriter(ABC):
     def __init__(self, site: str, api_key: str) -> None:
         self.site = site
         self.api_key = api_key
@@ -37,40 +38,6 @@ class TestOptWriter:
         self.should_finish = threading.Event()
         self.flush_interval_seconds = 60
         self.events: t.List[Event] = []
-        self.metadata: t.Dict[str, t.Dict[str, str]] = {
-            "*": {
-                "language": "python",
-                "runtime-id": uuid.uuid4().hex,
-                "library_version": "0.0.0",
-                "_dd.origin": "ciapp-test",
-                "_dd.p.dm": "-0",  # what is this?
-            },
-            "test": {
-                # This should be framework specific, but we only support pytest for now.
-                "_dd.library_capabilities.early_flake_detection": "1",
-                "_dd.library_capabilities.auto_test_retries": "1",
-                "_dd.library_capabilities.test_impact_analysis": "1",
-                "_dd.library_capabilities.test_management.quarantine": "1",
-                "_dd.library_capabilities.test_management.disable": "1",
-                "_dd.library_capabilities.test_management.attempt_to_fix": "4",
-            },
-        }
-        self.api_key = os.environ["DD_API_KEY"]
-        self.connector = BackendConnector(
-            host=f"citestcycle-intake.{self.site}",
-            default_headers={"dd-api-key": self.api_key},
-        )
-
-        self.serializers: t.Dict[t.Type[TestItem], EventSerializer] = {
-            TestRun: test_run_to_event,
-            TestSuite: suite_to_event,
-            TestModule: module_to_event,
-            TestSession: session_to_event,
-        }
-
-    def put_item(self, item: TestItem) -> None:
-        event = self.serializers[type(item)](item)
-        self.put_event(event)
 
     def put_event(self, event: Event) -> None:
         # TODO: compute/estimate payload size as events are inserted, and force a push once we reach a certain size.
@@ -83,9 +50,6 @@ class TestOptWriter:
             self.events = []
 
         return events
-
-    def add_metadata(self, event_type: str, metadata: t.Dict[str, str]) -> None:
-        self.metadata[event_type].update(metadata)
 
     def start(self):
         self.task = threading.Thread(target=self._periodic_task)
@@ -113,7 +77,54 @@ class TestOptWriter:
             log.debug("Sending %d events", len(events))
             self._send_events(events)
 
-    def _send_events(self, events: t.List[Event]):
+    @abstractmethod
+    def _send_events(self, events: t.List[Event]) -> None:
+        pass
+
+
+class TestOptWriter(BaseWriter):
+    def __init__(self, site: str, api_key: str) -> None:
+        super().__init__(site=site, api_key=api_key)
+
+        self.metadata: t.Dict[str, t.Dict[str, str]] = {
+            "*": {
+                "language": "python",
+                "runtime-id": uuid.uuid4().hex,
+                "library_version": "0.0.0",
+                "_dd.origin": "ciapp-test",
+                "_dd.p.dm": "-0",  # what is this?
+            },
+            "test": {
+                # This should be framework specific, but we only support pytest for now.
+                "_dd.library_capabilities.early_flake_detection": "1",
+                "_dd.library_capabilities.auto_test_retries": "1",
+                "_dd.library_capabilities.test_impact_analysis": "1",
+                "_dd.library_capabilities.test_management.quarantine": "1",
+                "_dd.library_capabilities.test_management.disable": "1",
+                "_dd.library_capabilities.test_management.attempt_to_fix": "4",
+            },
+        }
+
+        self.connector = BackendConnector(
+            host=f"citestcycle-intake.{self.site}",
+            default_headers={"dd-api-key": self.api_key},
+        )
+
+        self.serializers: t.Dict[t.Type[TestItem], EventSerializer] = {
+            TestRun: test_run_to_event,
+            TestSuite: suite_to_event,
+            TestModule: module_to_event,
+            TestSession: session_to_event,
+        }
+
+    def add_metadata(self, event_type: str, metadata: t.Dict[str, str]) -> None:
+        self.metadata[event_type].update(metadata)
+
+    def put_item(self, item: TestItem) -> None:
+        event = self.serializers[type(item)](item)
+        self.put_event(event)
+
+    def _send_events(self, events: t.List[Event]) -> None:
         payload = {
             "version": 1,
             "metadata": self.metadata,
@@ -123,6 +134,45 @@ class TestOptWriter:
         response, response_data = self.connector.request(
             "POST", "/api/v2/citestcycle", data=pack, headers={"Content-Type": "application/msgpack"}, send_gzip=True
         )
+
+
+class TestCoverageWriter(BaseWriter):
+    def __init__(self, site: str, api_key: str) -> None:
+        super().__init__(site=site, api_key=api_key)
+
+        self.connector = BackendConnector(
+            host=f"citestcov-intake.{self.site}",
+            default_headers={"dd-api-key": self.api_key},
+        )
+
+    def put_coverage(self, test_run: TestRun, coverage_data) -> None:
+        event = Event(
+            test_session_id=test_run.session_id,
+            test_suite_id=test_run.suite_id,
+            span_id=test_run.span_id,
+            files=[
+                {"filename": pathname, "bitmap": coverage.to_bytes()} for pathname, coverage in coverage_data.items()
+            ],
+        )
+        self.put_event(event)
+
+    def _send_events(self, events: t.List[Event]) -> None:
+        files = [
+            FileAttachment(
+                name="coverage1",
+                filename="coverage1.msgpack",
+                content_type="application/msgpack",
+                data=msgpack.packb({"version": 2, "coverages": events}),
+            ),
+            FileAttachment(
+                name="event",
+                filename="event.json",
+                content_type="application/json",
+                data=b'{"dummy":true}',
+            ),
+        ]
+
+        response, response_data = self.connector.post_files("/api/v2/citestcov", files=files, send_gzip=True)
 
 
 def test_run_to_event(test_run: TestRun) -> Event:
@@ -259,90 +309,3 @@ def session_to_event(session: TestSession) -> Event:
             "test_session_id": session.session_id,
         },
     )
-
-
-CoverageEvent = Event
-
-
-class TestCoverageWriter:
-    def __init__(self, site: str, api_key: str) -> None:
-        self.site = site
-        self.api_key = api_key
-
-        self.lock = threading.RLock()
-        self.should_finish = threading.Event()
-        self.flush_interval_seconds = 60
-        self.events: t.List[CoverageEvent] = []
-
-        self.api_key = os.environ["DD_API_KEY"]
-        self.connector = BackendConnector(
-            host=f"citestcov-intake.{self.site}",
-            default_headers={"dd-api-key": self.api_key},
-        )
-
-    def put_coverage(self, test_run: TestRun, coverage_data) -> None:
-        event = CoverageEvent(
-            test_session_id=test_run.session_id,
-            test_suite_id=test_run.suite_id,
-            span_id=test_run.span_id,
-            files=[
-                {"filename": pathname, "bitmap": coverage.to_bytes()} for pathname, coverage in coverage_data.items()
-            ],
-        )
-        self.put_event(event)
-
-    def put_event(self, event: CoverageEvent) -> None:
-        # TODO: compute/estimate payload size as events are inserted, and force a push once we reach a certain size.
-        with self.lock:
-            self.events.append(event)
-
-    def pop_events(self) -> t.List[Event]:
-        with self.lock:
-            events = self.events
-            self.events = []
-
-        return events
-
-    def start(self):
-        self.task = threading.Thread(target=self._periodic_task)
-        self.task.start()
-
-    def finish(self):
-        log.debug("Waiting for writer thread to finish")
-        self.should_finish.set()
-        self.task.join()
-        log.debug("Writer thread finished")
-
-    def _periodic_task(self):
-        while True:
-            self.should_finish.wait(timeout=self.flush_interval_seconds)
-            log.debug("Flushing events in background task")
-            self.flush()
-
-            if self.should_finish.is_set():
-                break
-
-        log.debug("Exiting background task")
-
-    def flush(self):
-        if events := self.pop_events():
-            log.debug("Sending %d events", len(events))
-            self._send_events(events)
-
-    def _send_events(self, events: t.List[CoverageEvent]):
-        files = [
-            FileAttachment(
-                name="coverage1",
-                filename="coverage1.msgpack",
-                content_type="application/msgpack",
-                data=msgpack.packb({"version": 2, "coverages": events}),
-            ),
-            FileAttachment(
-                name="event",
-                filename="event.json",
-                content_type="application/json",
-                data=b'{"dummy":true}',
-            ),
-        ]
-
-        response, response_data = self.connector.post_files("/api/v2/citestcov", files=files, send_gzip=True)
