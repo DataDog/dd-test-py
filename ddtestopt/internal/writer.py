@@ -7,6 +7,7 @@ import uuid
 import msgpack  # type: ignore
 
 from ddtestopt.internal.http import BackendConnector
+from ddtestopt.internal.http import FileAttachment
 from ddtestopt.internal.test_data import TestItem
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRun
@@ -45,6 +46,7 @@ class TestOptWriter:
                 "_dd.p.dm": "-0",  # what is this?
             },
             "test": {
+                # This should be framework specific, but we only support pytest for now.
                 "_dd.library_capabilities.early_flake_detection": "1",
                 "_dd.library_capabilities.auto_test_retries": "1",
                 "_dd.library_capabilities.test_impact_analysis": "1",
@@ -328,36 +330,19 @@ class TestCoverageWriter:
             self._send_events(events)
 
     def _send_events(self, events: t.List[CoverageEvent]):
-        boundary = uuid.uuid4().hex
-        boundary_bytes = boundary.encode("utf-8")
-        content_type = f"multipart/form-data; boundary={boundary}"
-
-        coverage_data = msgpack.packb({"version": 2, "coverages": events})
-
-        body_lines = self._build_coverage_attachment(boundary_bytes, coverage_data)
-        body_lines += self._build_json_attachment(boundary_bytes)
-        body_lines += [b"--%s--" % boundary_bytes]
-        body_lines += [b""]
-        body = b"\r\n".join(body_lines)
-
-        response, response_data = self.connector.request(
-            "POST", "/api/v2/citestcov", data=body, headers={"Content-Type": content_type}, send_gzip=False
-        )
-
-    def _build_coverage_attachment(self, boundary_bytes: bytes, coverage_data: bytes):
-        return [
-            b"--%s" % boundary_bytes,
-            b'Content-Disposition: form-data; name="coverage1"; filename="coverage1.msgpack"',
-            b"Content-Type: application/msgpack",
-            b"",
-            coverage_data,
+        files = [
+            FileAttachment(
+                name="coverage1",
+                filename="coverage1.msgpack",
+                content_type="application/msgpack",
+                data=msgpack.packb({"version": 2, "coverages": events}),
+            ),
+            FileAttachment(
+                name="event",
+                filename="event.json",
+                content_type="application/json",
+                data=b'{"dummy":true}',
+            ),
         ]
 
-    def _build_json_attachment(self, boundary_bytes: bytes) -> t.List[bytes]:
-        return [
-            b"--%s" % boundary_bytes,
-            b'Content-Disposition: form-data; name="event"; filename="event.json"',
-            b"Content-Type: application/json",
-            b"",
-            b'{"dummy":true}',
-        ]
+        response, response_data = self.connector.post_files("/api/v2/citestcov", files=files, send_gzip=True)
