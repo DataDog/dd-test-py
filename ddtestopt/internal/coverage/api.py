@@ -5,6 +5,8 @@ The rest of ddtestopt should only use the interface exposed in this file to set 
 """
 
 import contextlib
+from pathlib import Path
+import typing as t
 
 from ddtestopt.internal.coverage.code import ModuleCodeCollector
 import ddtestopt.internal.coverage.installer
@@ -19,8 +21,15 @@ class CoverageData:
     def __init__(self):
         self._covered_lines = None
 
-    def get_covered_lines(self):
-        return self._covered_lines
+    def get_coverage_bitmaps(self, relative_to: Path) -> t.Iterable[t.Tuple[str, bytes]]:
+        for absolute_path, covered_lines in self._covered_lines.items():
+            try:
+                relative_path = Path(absolute_path).relative_to(relative_to)
+            except ValueError:
+                relative_path = absolute_path
+
+            path_str = f"/{str(relative_path)}"
+            yield path_str, covered_lines.to_bytes()
 
 
 @contextlib.contextmanager

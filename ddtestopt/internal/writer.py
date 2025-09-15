@@ -145,14 +145,12 @@ class TestCoverageWriter(BaseWriter):
             default_headers={"dd-api-key": self.api_key},
         )
 
-    def put_coverage(self, test_run: TestRun, coverage_data) -> None:
+    def put_coverage(self, test_run: TestRun, coverage_bitmaps: t.Iterable[t.Tuple[str, bytes]]) -> None:
         event = Event(
             test_session_id=test_run.session_id,
             test_suite_id=test_run.suite_id,
             span_id=test_run.span_id,
-            files=[
-                {"filename": pathname, "bitmap": coverage.to_bytes()} for pathname, coverage in coverage_data.items()
-            ],
+            files=[{"filename": pathname, "bitmap": bitmap} for pathname, bitmap in coverage_bitmaps],
         )
         self.put_event(event)
 

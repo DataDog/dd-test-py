@@ -17,6 +17,7 @@ from ddtestopt.internal.coverage.api import coverage_collection
 from ddtestopt.internal.coverage.api import install_coverage
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
+from ddtestopt.internal.git import get_workspace_path
 from ddtestopt.internal.logging import catch_and_log_exceptions
 from ddtestopt.internal.logging import setup_logging
 from ddtestopt.internal.retry_handlers import RetryHandler
@@ -246,7 +247,9 @@ class TestOptPlugin:
             with coverage_collection() as coverage_data:
                 yield
 
-        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.get_covered_lines())
+        self.manager.coverage_writer.put_coverage(
+            test.last_test_run, coverage_data.get_coverage_bitmaps(self.manager.workspace_path)
+        )
 
         if not test.test_runs:
             # No test runs: our pytest_runtest_protocol did not run. This can happen if some other plugin (such as
@@ -533,7 +536,7 @@ def pytest_load_initial_conftests(
 
 
 def setup_coverage_collection():
-    workspace_path = Path.cwd().absolute()  # ꙮ
+    workspace_path = get_workspace_path()
     install_coverage(workspace_path)
 
 
