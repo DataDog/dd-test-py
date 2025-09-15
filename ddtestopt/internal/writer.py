@@ -146,11 +146,15 @@ class TestCoverageWriter(BaseWriter):
         )
 
     def put_coverage(self, test_run: TestRun, coverage_bitmaps: t.Iterable[t.Tuple[str, bytes]]) -> None:
+        files = [{"filename": pathname, "bitmap": bitmap} for pathname, bitmap in coverage_bitmaps]
+        if not files:
+            return
+
         event = Event(
             test_session_id=test_run.session_id,
             test_suite_id=test_run.suite_id,
             span_id=test_run.span_id,
-            files=[{"filename": pathname, "bitmap": bitmap} for pathname, bitmap in coverage_bitmaps],
+            files=files,
         )
         self.put_event(event)
 
