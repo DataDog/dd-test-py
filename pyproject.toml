@@ -26,8 +26,7 @@ dependencies = [
 [tool.hatch.envs.test]
 dependencies = [
     "pytest",
-    "coverage[toml]",
-    "pytest-cov",
+    "slipcover",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -35,9 +34,8 @@ python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.test.scripts]
 test = "pytest {args:tests}"
-test-cov = "pytest --cov=ddtestopt --cov-report=html --cov-report=term-missing --cov-report=xml {args:tests}"
-cov-report = "coverage report"
-cov-html = "coverage html"
+test-cov = "python -m slipcover --source ddtestopt --pretty-print -m pytest {args:tests}"
+test-cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest {args:tests}"
 
 [tool.black]
 line-length = 120
