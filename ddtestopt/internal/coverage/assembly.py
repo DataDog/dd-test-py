@@ -95,7 +95,8 @@ class Assembly:
         if label_ident in self._labels:
             raise ValueError("label %s already defined" % label_ident)
 
-        label = self._labels[label_ident] = self._ref_labels.pop(label_ident, None) or bc.Label()
+        existing_label = self._ref_labels.pop(label_ident, None)
+        label = self._labels[label_ident] = existing_label if existing_label is not None else bc.Label()
 
         return label
 
@@ -256,7 +257,7 @@ class Assembly:
     def compile(self, bind_args: t.Optional[t.Dict[str, t.Any]] = None, lineno: t.Optional[int] = None) -> CodeType:
         return self.bind(bind_args, lineno=lineno).to_code()
 
-    def _label_ident(self, label: bc.Label) -> str:
+    def _label_ident(self, label: t.Union[bc.Label, bc.BasicBlock]) -> str:
         return next(ident for ident, l in self._labels.items() if l is label)  # noqa: E741
 
     def dis(self) -> None:
@@ -270,7 +271,7 @@ class Assembly:
             elif isinstance(entry, bc.TryBegin):
                 print(f"try @{self._label_ident(entry.target)} (lasti={entry.push_lasti})")
 
-    def __iter__(self) -> t.Iterator[bc.Instr]:
+    def __iter__(self) -> t.Iterator[t.Union[bc.Instr, bc.Label, bc.TryBegin, bc.TryEnd, bc.SetLineno]]:
         return iter(self._instrs)
 
     def __len__(self) -> int:

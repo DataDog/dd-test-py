@@ -73,7 +73,7 @@ else:
         """
     )
 
-_INJECT_HOOK_OPCODES = [_.name for _ in INJECTION_ASSEMBLY]
+_INJECT_HOOK_OPCODES = [_.name for _ in INJECTION_ASSEMBLY if hasattr(_, "name")]  # type: ignore[union-attr]
 
 
 def _inject_hook(code: Bytecode, hook: HookType, lineno: int, arg: Any) -> None:
@@ -93,15 +93,15 @@ def _inject_hook(code: Bytecode, hook: HookType, lineno: int, arg: Any) -> None:
     instrs = set()
     for i, instr in enumerate(code):
         try:
-            if instr.lineno == last_lineno:
+            if instr.lineno == last_lineno:  # type: ignore[union-attr]
                 continue
-            last_lineno = instr.lineno
+            last_lineno = instr.lineno  # type: ignore[union-attr]
             # Some lines might be implemented across multiple instruction
             # offsets, and sometimes a NOP is used as a placeholder. We skip
             # those to avoid duplicate injections.
-            if instr.lineno == lineno:
-                locs.appendleft((i, instr.name))
-                instrs.add(instr.name)
+            if instr.lineno == lineno:  # type: ignore[union-attr]
+                locs.appendleft((i, instr.name))  # type: ignore[union-attr]
+                instrs.add(instr.name)  # type: ignore[union-attr]
         except AttributeError:
             # pseudo-instruction (e.g. label)
             pass
@@ -120,8 +120,8 @@ def _inject_hook(code: Bytecode, hook: HookType, lineno: int, arg: Any) -> None:
         # just a placeholder.
         locs = deque((i, instr) for i, instr in locs if instr != "NOP")
 
-    for i, instr in locs:
-        if instr.startswith("END_"):
+    for i, instr_name in locs:
+        if instr_name.startswith("END_"):
             # This is the end of a block, e.g. a for loop. We have already
             # instrumented the block on entry, so we skip instrumenting the
             # end as well.
@@ -145,10 +145,11 @@ def _eject_hook(code: Bytecode, hook: HookType, line: int, arg: Any) -> None:
             # DEV: We look at the expected opcode pattern to match the injected
             # hook and we also test for the expected opcode arguments
             if (
-                instr.lineno == line
-                and code[i + _INJECT_HOOK_OPCODE_POS].arg == hook  # bound methods don't like identity comparisons
-                and code[i + _INJECT_ARG_OPCODE_POS].arg is arg
-                and [code[_].name for _ in range(i, i + len(_INJECT_HOOK_OPCODES))] == _INJECT_HOOK_OPCODES
+                instr.lineno == line  # type: ignore[union-attr]
+                and code[i + _INJECT_HOOK_OPCODE_POS].arg == hook  # type: ignore[union-attr]  # bound methods don't like identity comparisons
+                and code[i + _INJECT_ARG_OPCODE_POS].arg is arg  # type: ignore[union-attr]
+                and [code[_].name for _ in range(i, i + len(_INJECT_HOOK_OPCODES)) if hasattr(code[_], "name")]  # type: ignore[union-attr]
+                == _INJECT_HOOK_OPCODES
             ):
                 locs.appendleft(i)
         except AttributeError:
