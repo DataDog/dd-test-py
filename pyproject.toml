@@ -1,9 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "ddtestopt"
 dynamic = ["version"]
+dependencies = [
+    "bytecode>=0.15.0",
+    "msgpack>=1.0.0",
+]
 
 [project.entry-points.pytest11]
 ddtestopt = "ddtestopt.internal.pytest.plugin"
+
+[tool.hatch.version]
+path = "ddtestopt/__init__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest",
+    "coverage[toml]",
+    "pytest-cov",
+]
+
+[tool.hatch.envs.test]
+dependencies = [
+    "pytest",
+    "coverage[toml]",
+    "pytest-cov",
+]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.test.scripts]
+test = "pytest {args:tests}"
+test-cov = "pytest --cov=ddtestopt --cov-report=html --cov-report=term-missing --cov-report=xml {args:tests}"
+cov-report = "coverage report"
+cov-html = "coverage html"
 
 [tool.black]
 line-length = 120
@@ -45,3 +79,24 @@ relative-imports-order = "furthest-to-closest"
 
 [tool.ruff.lint.per-file-ignores]
 "ddtestopt/internal/coverage/*" = ["D"]
+
+[tool.coverage.run]
+source = ["ddtestopt"]
+omit = [
+    "tests/*",
+    "ddtestopt/internal/coverage/third-party.tar.gz",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
