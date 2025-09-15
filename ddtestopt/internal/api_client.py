@@ -180,7 +180,7 @@ class APIClient:
         if response.status != 204:
             log.warning("Failed to upload git pack data: %s %s", response.status, response_data)
 
-    def get_skippable_tests(self) -> t.Tuple[t.Union[SuiteRef, TestRef], t.Optional[str]]:
+    def get_skippable_tests(self) -> t.Tuple[t.Set[t.Union[SuiteRef, TestRef]], t.Optional[str]]:
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -215,7 +215,7 @@ class APIClient:
 
         except:
             log.exception("Error getting skippable tests from API")
-            return [], None
+            return set(), None
 
 
 @dataclass

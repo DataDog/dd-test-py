@@ -1,4 +1,4 @@
-"""Provides functionality for context-based coverage to work across threads
+"""Provides functionality for context-based coverage to work across threads.
 
 Without this, context-based collection in the parent process would not capture code executed by threads (due to the
 parent process' context variables not being shared in threads).
@@ -37,7 +37,7 @@ def _is_patched():
 
 class CoverageCollectingThread(threading.Thread):
     def __init__(self, *args, **kwargs):
-        """Wraps the thread initialization creation to enable coverage collection
+        """Wraps the thread initialization creation to enable coverage collection.
 
         Only enables coverage if the parent process' context-level coverage is enabled.
         """
@@ -49,7 +49,7 @@ class CoverageCollectingThread(threading.Thread):
         thread_init(self, *args, **kwargs)
 
     def _bootstrap_inner(self):
-        """Collect thread-level coverage data in a context and queue it up for the parent process to absorb"""
+        """Collect thread-level coverage data in a context and queue it up for the parent process to absorb."""
         if self._should_cover:
             self._coverage_context = ModuleCodeCollector.CollectInContext()
             self._coverage_context.__enter__()
@@ -68,7 +68,7 @@ class CoverageCollectingThread(threading.Thread):
                 self._coverage_queue.put(covered_lines)
 
     def join(self, *args, **kwargs):
-        """Absorb coverage data from the thread after it's joined"""
+        """Absorb coverage data from the thread after it's joined."""
         thread_join(self, *args, **kwargs)
         if self._should_cover:
             if self._coverage_queue.qsize():

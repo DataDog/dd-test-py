@@ -6,15 +6,22 @@ from functools import singledispatch
 from pathlib import Path
 from types import CodeType
 from types import FunctionType
-from typing import Iterator
-from typing import List
-from typing import MutableMapping
-from typing import Set
-from typing import cast
+from typing import TYPE_CHECKING
 
 
-def _isinstance(obj, types):
-    # type: (Any, Union[Type, Tuple[Union[Type, Tuple[Any, ...]], ...]]) -> bool
+if TYPE_CHECKING:
+    from typing import Any
+    from typing import Iterator
+    from typing import List
+    from typing import MutableMapping
+    from typing import Set
+    from typing import Tuple
+    from typing import Type
+    from typing import Union
+    from typing import cast
+
+
+def _isinstance(obj: Any, types: Union[Type, Tuple[Union[Type, Tuple[Any, ...]], ...]]) -> bool:
     # DEV: isinstance falls back to calling __getattribute__ which could cause
     # side effects.
     return issubclass(type(obj), types)

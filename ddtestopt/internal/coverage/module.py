@@ -692,7 +692,7 @@ class ModuleWatchdog(BaseModuleWatchdog):
     def remove_pre_exec_module_hook(
         cls: t.Type["ModuleWatchdog"], cond: PreExecHookCond, hook: PreExecHookType
     ) -> None:
-        """Register a hook to execute before/instead of exec_module. Only for testing proposes"""
+        """Register a hook to execute before/instead of exec_module. Only for testing proposes."""
         instance = t.cast(ModuleWatchdog, cls._instance)
         instance._pre_exec_module_hooks.remove((cond, hook))
 

@@ -1,4 +1,4 @@
-"""Provides functionality for supporting coverage collection when using multiprocessing
+"""Provides functionality for supporting coverage collection when using multiprocessing.
 
 This module patches the multiprocessing module to install and start coverage collection when new processes are started.
 
@@ -71,7 +71,7 @@ class CoverageCollectingMultiprocess(BaseProcess):
             log.debug("Failed to absorb child coverage data", exc_info=True)
 
     def _bootstrap(self, *args, **kwargs) -> None:
-        """Wraps around the execution of the process to collect coverage data
+        """Wraps around the execution of the process to collect coverage data.
 
         Since this method executes in the child process, it is responsible for writing final coverage data back to the
         parent process. Context-based coverage is not used for processes started by this bootstrap because it is
@@ -145,7 +145,7 @@ class CoverageCollectingMultiprocess(BaseProcess):
 
 
 class Stowaway:
-    """Stowaway is unpickled as part of the child's get_preparation_data() method
+    """Stowaway is unpickled as part of the child's get_preparation_data() method.
 
     This which happens at the start of the process, which is when the ModuleCodeProcessor needs to be installed in order
     to instrument all the code being loaded in the child process.
@@ -197,7 +197,7 @@ def _patch_multiprocessing():
     else:
 
         def get_preparation_data_with_stowaway(name: str) -> t.Dict[str, t.Any]:
-            """Make sure that the ModuleCodeCollector is installed as soon as possible, with the same include paths"""
+            """Make sure that the ModuleCodeCollector is installed as soon as possible, with the same include paths."""
             d = original_get_preparation_data(name)
             include_paths = (
                 [] if ModuleCodeCollector._instance is None else ModuleCodeCollector._instance._include_paths

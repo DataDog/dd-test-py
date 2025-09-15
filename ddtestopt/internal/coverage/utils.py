@@ -32,7 +32,7 @@ def get_argument_value(
     :param kwargs: Keyword arguments
     :param pos: The positional index of the argument if passed in as a positional arg
     :param kw: The name of the keyword if passed in as a keyword argument
-    :return: The value of the target argument
+    :return: The value of the target argument.
     """
     try:
         return kwargs[kw]
@@ -60,7 +60,7 @@ def set_argument_value(
     :param pos: The positional index of the argument
     :param kw: The name of the keyword
     :param value: The new value of the target argument
-    :return: Updated args and kwargs
+    :return: Updated args and kwargs.
     """
     if len(args) > pos:
         args = args[:pos] + (value,) + args[pos + 1 :]

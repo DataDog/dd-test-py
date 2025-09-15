@@ -170,7 +170,7 @@ class ModuleCodeCollector(ModuleWatchdog):
         return covered_lines
 
     def _add_import_time_lines(self, covered_lines):
-        """Modify given covered_lines in place and add lines that were covered at import time"""
+        """Modify given covered_lines in place and add lines that were covered at import time."""
         visited_paths = set()
         to_visit_paths = set(covered_lines.keys())
 
@@ -261,7 +261,7 @@ class ModuleCodeCollector(ModuleWatchdog):
 
     @classmethod
     def get_import_coverage_for_paths(cls, paths: t.Iterable[Path]) -> t.Optional[t.Dict[Path, CoverageLines]]:
-        """Returns import-time coverage data for the given paths"""
+        """Returns import-time coverage data for the given paths."""
         coverages: t.Dict[Path, CoverageLines] = {}
         if cls._instance is None:
             return {}

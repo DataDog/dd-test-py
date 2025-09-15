@@ -26,7 +26,7 @@ _PACKAGE_DISTRIBUTIONS: t.Optional[t.Mapping[str, t.List[str]]] = None
 
 @callonce
 def get_distributions() -> t.Mapping[str, str]:
-    """returns the mapping from distribution name to version for all distributions in a python path"""
+    """Returns the mapping from distribution name to version for all distributions in a python path."""
     import importlib.metadata as importlib_metadata
 
     pkgs = {}
@@ -43,7 +43,7 @@ def get_distributions() -> t.Mapping[str, str]:
 
 
 def get_package_distributions() -> t.Mapping[str, t.List[str]]:
-    """a mapping of importable package names to their distribution name(s)"""
+    """A mapping of importable package names to their distribution name(s)."""
     global _PACKAGE_DISTRIBUTIONS
     if _PACKAGE_DISTRIBUTIONS is None:
         import importlib.metadata as importlib_metadata
@@ -86,7 +86,7 @@ def get_module_distribution_versions(module_name: str) -> t.Optional[t.Tuple[str
 
 @cached(maxsize=1024)
 def get_version_for_package(name: str) -> str:
-    """returns the version of a package"""
+    """Returns the version of a package."""
     import importlib.metadata as importlib_metadata
 
     try:
@@ -229,7 +229,7 @@ def filename_to_package(filename: t.Union[str, Path]) -> t.Optional[Distribution
 
 @cached(maxsize=256)
 def module_to_package(module: ModuleType) -> t.Optional[Distribution]:
-    """Returns the package distribution for a module"""
+    """Returns the package distribution for a module."""
     module_origin = origin(module)
     return filename_to_package(module_origin) if module_origin is not None else None
 
@@ -301,7 +301,7 @@ def _packages_distributions() -> t.Mapping[str, t.List[str]]:
     >>> import collections.abc
     >>> pkgs = packages_distributions()
     >>> all(isinstance(dist, collections.abc.Sequence) for dist in pkgs.values())
-    True
+    True.
     """
     import importlib.metadata as importlib_metadata
 
@@ -339,7 +339,7 @@ def _get_toplevel_name(name) -> str:
     >>> _get_toplevel_name(PackagePath('foo.pth'))
     'foo.pth'
     >>> _get_toplevel_name(PackagePath('foo.dist-info'))
-    'foo.dist-info'
+    'foo.dist-info'.
     """
     return _topmost(name) or (
         # python/typeshed#10328
@@ -386,7 +386,7 @@ def _always_iterable(obj, base_type=(str, bytes)):
     Python considers iterable as iterable:
         >>> obj = 'foo'
         >>> list(always_iterable(obj, base_type=None))
-        ['f', 'o', 'o']
+        ['f', 'o', 'o'].
     """
     if obj is None:
         return iter(())

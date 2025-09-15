@@ -66,6 +66,10 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
             self.start()
 
     def finish(self) -> None:
+        if self.start_ns is None:
+            self.start()  # Ensure we have a start time
+        # After start(), start_ns is guaranteed to be non-None
+        assert self.start_ns is not None
         self.duration_ns = time.time_ns() - self.start_ns
 
     def is_finished(self) -> bool:

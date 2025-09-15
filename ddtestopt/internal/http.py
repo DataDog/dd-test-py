@@ -42,7 +42,7 @@ class BackendConnector(threading.local):
     ) -> t.Any:
         full_headers = self.default_headers | (headers or {})
 
-        if send_gzip:
+        if send_gzip and data is not None:
             data = gzip.compress(data, compresslevel=6)
             full_headers["Content-Encoding"] = "gzip"
 

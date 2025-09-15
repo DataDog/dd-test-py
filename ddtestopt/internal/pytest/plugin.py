@@ -504,6 +504,8 @@ class TestOptPlugin:
         """
         # TODO: handle xfail/xpass.
         reports_dict = self.reports_by_nodeid.pop(nodeid, None)
+        if reports_dict is None:
+            return TestStatus.PASS, {}
 
         for phase in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             report = reports_dict.get(phase)

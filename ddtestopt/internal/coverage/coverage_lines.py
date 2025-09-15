@@ -5,11 +5,18 @@ NOTE: BETA - this API is currently in development and is subject to change.
 import typing as t
 
 
-def _bit_count_compat(_byte: int) -> int:
-    return bin(_byte).count("1")
+def _bit_count_compat(x: int) -> int:
+    return bin(x).count("1")
 
 
-_bit_count: t.Callable[[int], int] = int.bit_count if hasattr(int, "bit_count") else _bit_count_compat
+# Note: bit_count is available on Python 3.10+, we have a compat version for older Python
+if hasattr(int, "bit_count"):
+
+    def _bit_count(x: int) -> int:
+        return x.bit_count()  # type: ignore[attr-defined]
+
+else:
+    _bit_count = _bit_count_compat
 
 
 class CoverageLines:
@@ -51,7 +58,7 @@ class CoverageLines:
         self._lines[lines_byte] |= lines_bit
 
     def to_sorted_list(self) -> t.List[int]:
-        """Returns a sorted list of covered line numbers"""
+        """Returns a sorted list of covered line numbers."""
         lines = []
         for idx, _byte in enumerate(self._lines):
             for _bit in range(8):
@@ -70,7 +77,7 @@ class CoverageLines:
             self._lines[_byte_idx] |= _byte
 
     def to_bytes(self) -> bytes:
-        """This exists as a simple interface in case we ever decide to change the internal lines representation"""
+        """This exists as a simple interface in case we ever decide to change the internal lines representation."""
         return self._lines
 
     @classmethod

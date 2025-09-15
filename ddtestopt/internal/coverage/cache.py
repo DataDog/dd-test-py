@@ -40,7 +40,6 @@ class LFUCache(dict):
         function ``f`` is called on the key to generate it. The return value is
         then stored in the cache and returned to the caller.
         """
-
         _ = super(LFUCache, self).get(key, miss)
         if _ is not miss:
             with self.count_lock:

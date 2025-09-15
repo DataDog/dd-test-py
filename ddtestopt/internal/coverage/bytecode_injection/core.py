@@ -69,7 +69,7 @@ def inject_invocation(injection_context: InjectionContext, path: str, package: s
         code = code.replace(
             co_code=bytes(new_code),
             co_consts=tuple(new_consts),
-            co_linetable=new_linetable,
+            co_linetable=new_linetable,  # type: ignore[call-arg]  # Python 3.10+ feature
             co_stacksize=code.co_stacksize + 4,  # TODO: Compute the value!
         )
 
@@ -167,7 +167,7 @@ def _inject_invocation_nonrecursive(
         return (
             code.co_code,
             list(code.co_consts),
-            code.co_linetable,
+            code.co_linetable,  # type: ignore[attr-defined]  # Python 3.10+ feature
             exception_table,
             [],
         )
@@ -386,7 +386,6 @@ def _generate_adjusted_location_data(
     Generate python version's specific adjusted location data. This is needed to adjust the line number information
     since the format changed notably, for example, between Python 3.10 and 3.11.
     """
-
     if is_python_3_10:
         return _generate_adjusted_location_data_3_10(code, offsets_map, extended_arg_offsets)
     elif is_python_3_11:
@@ -400,7 +399,7 @@ def _generate_adjusted_location_data_3_10(
 ) -> bytes:
     """
     The format of the linetable in python3.10 is detailed here:
-    https://github.com/python/cpython/blob/3.10/Objects/lnotab_notes.txt
+    https://github.com/python/cpython/blob/3.10/Objects/lnotab_notes.txt.
 
     TL;DR: an entry is composed of two bytes:
     - the first one represents the bytecode offset delta. It is unsigned
@@ -422,7 +421,7 @@ def _generate_adjusted_location_data_3_10(
     injection_offset, count_opcode_added = next(offsets_iterator, (None, None))
     extended_arg_offset, count_extended_arg_added = next(extended_arg_iterator, (None, None))
 
-    old_linetable = code.co_linetable
+    old_linetable = code.co_linetable  # type: ignore[attr-defined]  # Python 3.10+ feature
     old_linetable_size = len(old_linetable)
 
     current_offset = 0
@@ -486,12 +485,12 @@ def _generate_adjusted_location_data_3_11(
 ) -> bytes:
     """
     The format of the linetable in python3.11 is detailed here:
-    https://github.com/python/cpython/blob/main/InternalDocs/code_objects.md#format-of-the-locations-table
+    https://github.com/python/cpython/blob/main/InternalDocs/code_objects.md#format-of-the-locations-table.
 
     """
     new_linetable = bytearray()
 
-    orignal_linetable = code.co_linetable
+    orignal_linetable = code.co_linetable  # type: ignore[attr-defined]  # Python 3.10+ feature
     linetable_iter = iter(orignal_linetable)
     ext_arg_offset_iter = iter(sorted(extended_arg_offsets))
     ext_arg_offset, count_extended_arg_added = next(ext_arg_offset_iter, (None, None))
@@ -591,7 +590,7 @@ def _generate_exception_table(
 ) -> bytes:
     """
     For format see:
-    https://github.com/python/cpython/blob/208b0fb645c0e14b0826c0014e74a0b70c58c9d6/InternalDocs/exception_handling.md#format-of-the-exception-table
+    https://github.com/python/cpython/blob/208b0fb645c0e14b0826c0014e74a0b70c58c9d6/InternalDocs/exception_handling.md#format-of-the-exception-table.
     """
     parsed_exception_table = dis._parse_exception_table(code)  # type: ignore[attr-defined]
 
