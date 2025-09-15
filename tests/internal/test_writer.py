@@ -13,10 +13,10 @@ from ddtestopt.internal.writer import BaseWriter
 from ddtestopt.internal.writer import Event
 from ddtestopt.internal.writer import TestCoverageWriter
 from ddtestopt.internal.writer import TestOptWriter
-from ddtestopt.internal.writer import module_to_event
-from ddtestopt.internal.writer import session_to_event
-from ddtestopt.internal.writer import suite_to_event
-from ddtestopt.internal.writer import test_run_to_event
+from ddtestopt.internal.writer import serialize_module
+from ddtestopt.internal.writer import serialize_session
+from ddtestopt.internal.writer import serialize_suite
+from ddtestopt.internal.writer import serialize_test_run
 
 
 class TestEvent:
@@ -389,12 +389,12 @@ class TestSerializationFunctions:
 
         return test_run
 
-    def test_test_run_to_event_pass(self):
+    def test_serialize_test_run_pass(self):
         """Test serializing a passing test run."""
         test_run = self.create_mock_test_run()
         test_run.get_status.return_value = TestStatus.PASS
 
-        event = test_run_to_event(test_run)
+        event = serialize_test_run(test_run)
 
         assert event["version"] == 2
         assert event["type"] == "test"
@@ -423,12 +423,12 @@ class TestSerializationFunctions:
         assert metrics["_dd.py.partial_flush"] == 1
         assert metrics["custom.metric"] == 42
 
-    def test_test_run_to_event_fail(self):
+    def test_serialize_test_run_fail(self):
         """Test serializing a failing test run."""
         test_run = self.create_mock_test_run()
         test_run.get_status.return_value = TestStatus.FAIL
 
-        event = test_run_to_event(test_run)
+        event = serialize_test_run(test_run)
 
         assert event["content"]["error"] == 1  # Fail = error
         assert event["content"]["meta"]["test.status"] == "fail"
@@ -448,11 +448,11 @@ class TestSerializationFunctions:
         suite.get_status.return_value = TestStatus.PASS
         return suite
 
-    def test_suite_to_event(self):
+    def test_serialize_suite(self):
         """Test serializing a test suite."""
         suite = self.create_mock_test_suite()
 
-        event = suite_to_event(suite)
+        event = serialize_suite(suite)
 
         assert event["version"] == 1
         assert event["type"] == "test_suite_end"
@@ -489,11 +489,11 @@ class TestSerializationFunctions:
         module.get_status.return_value = TestStatus.SKIP
         return module
 
-    def test_module_to_event(self):
+    def test_serialize_module(self):
         """Test serializing a test module."""
         module = self.create_mock_test_module()
 
-        event = module_to_event(module)
+        event = serialize_module(module)
 
         assert event["version"] == 1
         assert event["type"] == "test_module_end"
@@ -526,11 +526,11 @@ class TestSerializationFunctions:
         session.get_status.return_value = TestStatus.FAIL
         return session
 
-    def test_session_to_event(self):
+    def test_serialize_session(self):
         """Test serializing a test session."""
         session = self.create_mock_test_session()
 
-        event = session_to_event(session)
+        event = serialize_session(session)
 
         assert event["version"] == 1
         assert event["type"] == "test_session_end"
