@@ -1,7 +1,6 @@
 from abc import ABC
 from abc import abstractmethod
 import logging
-import os
 import threading
 import typing as t
 import uuid
@@ -28,6 +27,7 @@ class Event(dict):
 TSerializable = t.TypeVar("TSerializable", bound=TestItem)
 
 EventSerializer = t.Callable[[TSerializable], Event]
+
 
 class BaseWriter(ABC):
     def __init__(self, site: str, api_key: str) -> None:
