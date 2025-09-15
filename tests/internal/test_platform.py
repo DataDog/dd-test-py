@@ -1,7 +1,9 @@
 """Tests for ddtestopt.internal.platform module."""
 
 import platform
-from ddtestopt.internal.platform import PlatformTag, get_platform_tags
+
+from ddtestopt.internal.platform import PlatformTag
+from ddtestopt.internal.platform import get_platform_tags
 
 
 class TestPlatformTag:

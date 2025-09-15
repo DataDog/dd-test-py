@@ -1,7 +1,9 @@
 """Tests for ddtestopt.internal.utils module."""
 
-import pytest
-from ddtestopt.internal.utils import _gen_item_id, asbool, TestContext, DDTESTOPT_ROOT_SPAN_RESOURCE
+from ddtestopt.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
+from ddtestopt.internal.utils import TestContext
+from ddtestopt.internal.utils import _gen_item_id
+from ddtestopt.internal.utils import asbool
 
 
 class TestGenItemId:
@@ -80,7 +82,7 @@ class TestTestContext:
         span_id = 12345
         trace_id = 67890
         context = TestContext(span_id=span_id, trace_id=trace_id)
-        
+
         assert context.span_id == span_id
         assert context.trace_id == trace_id
 
@@ -89,7 +91,7 @@ class TestTestContext:
         context1 = TestContext(span_id=123, trace_id=456)
         context2 = TestContext(span_id=123, trace_id=456)
         context3 = TestContext(span_id=123, trace_id=789)
-        
+
         assert context1 == context2
         assert context1 != context3
 

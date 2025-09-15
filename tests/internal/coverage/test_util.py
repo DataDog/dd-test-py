@@ -1,6 +1,5 @@
 """Tests for ddtestopt.internal.coverage.util module."""
 
-import pytest
 from ddtestopt.internal.coverage.util import collapse_ranges
 
 
