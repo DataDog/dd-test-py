@@ -47,7 +47,7 @@ _Longrepr = t.Tuple[
     # 1st field: pathname of the test file
     str,
     # 2nd field: line number.
-    t.Optional[int],
+    int,
     # 3rd field: skip reason.
     str,
 ]
@@ -404,8 +404,9 @@ class TestOptPlugin:
             report.outcome = "passed"
         else:
             # TODO: distinguish quarantine vs disabled
-            longrepr: _Longrepr = (str(item.path), item.location[1], "Quarantined")
-            report.longrepr = longrepr  # type: ignore[assignment]  # TODO(@gnufede)
+            line_number = item.location[1] or 0
+            longrepr: _Longrepr = (str(item.path), line_number, "Quarantined")
+            report.longrepr = longrepr
             report.outcome = "skipped"
 
     def _mark_quarantined_test_report_group_as_skipped(self, item: pytest.Item, reports: _ReportGroup) -> None:

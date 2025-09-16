@@ -73,7 +73,7 @@ dependencies = [
 qa = [
     "ruff check ddtestopt/ tests/",
     "black --check ddtestopt/ tests/",
-    "python -m mypy --install-types ddtestopt/ tests/",
+    "python -m mypy ddtestopt/ tests/",
 ]
 fix = [
     "ruff check --fix --unsafe-fixes ddtestopt/ tests/",
