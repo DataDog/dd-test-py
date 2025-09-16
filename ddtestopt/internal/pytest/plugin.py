@@ -13,8 +13,8 @@ import pluggy
 import pytest
 
 from ddtestopt.internal.constants import EMPTY_NAME
-from ddtestopt.internal.coverage.api import coverage_collection
-from ddtestopt.internal.coverage.api import install_coverage
+from ddtestopt.internal.coverage_api import coverage_collection
+from ddtestopt.internal.coverage_api import install_coverage
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.logging import catch_and_log_exceptions
