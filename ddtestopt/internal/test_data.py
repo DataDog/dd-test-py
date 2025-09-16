@@ -49,7 +49,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def __init__(self, name: str, parent: TParentClass):
         self.name = name
         self.children: t.Dict[str, TChildClass] = {}
-        self.start_ns: int = 0
+        self.start_ns: t.Optional[int] = None
         self.duration_ns: t.Optional[int] = None
         self.parent: TParentClass = parent
         self.item_id = _gen_item_id()
@@ -59,16 +59,20 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         self.service: str = DEFAULT_SERVICE_NAME
 
     def seconds_so_far(self):
+        if self.start_ns is None:
+            raise ValueError("seconds_so_far() called before start")
         return (time.time_ns() - self.start_ns) / 1e9
 
-    def start(self, start_ns: int = 0) -> None:
-        self.start_ns = start_ns if start_ns else time.time_ns()
+    def start(self, start_ns: t.Optional[int] = None) -> None:
+        self.start_ns = start_ns if start_ns is not None else time.time_ns()
 
     def ensure_started(self) -> None:
-        if not self.start_ns:
+        if self.start_ns is None:
             self.start()
 
     def finish(self) -> None:
+        if self.start_ns is None:
+            raise ValueError("finish() called before start")
         self.duration_ns = time.time_ns() - self.start_ns
 
     def is_finished(self) -> bool:
@@ -133,15 +137,15 @@ class TestRun(TestItem["Test", t.NoReturn]):
 
     @property
     def suite_id(self) -> str:
-        return self.parent.parent.item_id
+        return str(self.parent.parent.item_id)
 
     @property
     def module_id(self) -> str:
-        return self.parent.parent.parent.item_id
+        return str(self.parent.parent.parent.item_id)
 
     @property
     def session_id(self) -> str:
-        return self.parent.parent.parent.parent.item_id
+        return str(self.parent.parent.parent.parent.item_id)
 
 
 class Test(TestItem["TestSuite", "TestRun"]):
@@ -199,15 +203,15 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
     @property
     def suite_id(self) -> str:
-        return self.parent.item_id
+        return str(self.parent.item_id)
 
     @property
     def module_id(self) -> str:
-        return self.parent.parent.item_id
+        return str(self.parent.parent.item_id)
 
     @property
     def session_id(self) -> str:
-        return self.parent.parent.parent.item_id
+        return str(self.parent.parent.parent.item_id)
 
     def make_test_run(self) -> TestRun:
         test_run = TestRun(name=self.name, parent=self)
@@ -230,15 +234,15 @@ class TestSuite(TestItem["TestModule", "Test"]):
 
     @property
     def suite_id(self) -> str:
-        return self.item_id
+        return str(self.item_id)
 
     @property
     def module_id(self) -> str:
-        return self.parent.item_id
+        return str(self.parent.item_id)
 
     @property
     def session_id(self) -> str:
-        return self.parent.parent.item_id
+        return str(self.parent.parent.item_id)
 
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
@@ -250,11 +254,11 @@ class TestModule(TestItem["TestSession", "TestSuite"]):
 
     @property
     def module_id(self) -> str:
-        return self.item_id
+        return str(self.item_id)
 
     @property
     def session_id(self) -> str:
-        return self.parent.item_id
+        return str(self.parent.item_id)
 
     def set_location(self, module_path: Path) -> None:
         self.module_path = str(module_path)
@@ -269,7 +273,7 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
 
     @property
     def session_id(self) -> str:
-        return self.item_id
+        return str(self.item_id)
 
     def set_session_id(self, session_id: int) -> None:
         self.item_id = session_id
