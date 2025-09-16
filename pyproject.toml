@@ -40,6 +40,24 @@ test-cov = "python -m slipcover --source ddtestopt --pretty-print -m pytest -p n
 # HTML coverage report
 test-cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest -p no:ddtestopt {args:tests}"
 
+
+[tool.hatch.envs.int_test]
+dependencies = [
+    "pytest",
+    "pytest-socket",
+    "flask"
+]
+
+[[tool.hatch.envs.int_test.matrix]]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.int_test.env-vars]
+DD_API_KEY = "foobar"
+
+[tool.hatch.envs.int_test.scripts]
+test = "pytest {args:test_fixtures}"
+
+
 [tool.hatch.envs.qa]
 python = "3.13"
 dependencies = [
