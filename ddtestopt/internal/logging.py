@@ -27,7 +27,7 @@ def setup_logging() -> None:
 def catch_and_log_exceptions() -> t.Callable[[F], F]:
     def decorator(f: F) -> F:
         @wraps(f)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: t.Any, **kwargs: t.Any) -> t.Any:
             try:
                 return f(*args, **kwargs)
             except Exception:

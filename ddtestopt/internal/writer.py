@@ -7,6 +7,7 @@ import uuid
 
 import msgpack  # type: ignore
 
+from ddtestopt.internal.coverage.coverage_lines import CoverageLines
 from ddtestopt.internal.http import BackendConnector
 from ddtestopt.internal.http import FileAttachment
 from ddtestopt.internal.test_data import TestItem
@@ -20,11 +21,11 @@ from ddtestopt.internal.test_data import TestSuite
 log = logging.getLogger(__name__)
 
 
-class Event(dict):
+class Event(dict[str, t.Any]):
     pass
 
 
-TSerializable = t.TypeVar("TSerializable", bound=TestItem)
+TSerializable = t.TypeVar("TSerializable", bound=TestItem[t.Any, t.Any])
 
 EventSerializer = t.Callable[[TSerializable], Event]
 
@@ -112,7 +113,7 @@ class TestOptWriter(BaseWriter):
             default_headers={"dd-api-key": self.api_key},
         )
 
-        self.serializers: t.Dict[t.Type[TestItem], EventSerializer] = {
+        self.serializers: t.Dict[t.Type[TestItem[t.Any, t.Any]], EventSerializer[t.Any]] = {
             TestRun: serialize_test_run,
             TestSuite: serialize_suite,
             TestModule: serialize_module,
@@ -122,7 +123,7 @@ class TestOptWriter(BaseWriter):
     def add_metadata(self, event_type: str, metadata: t.Dict[str, str]) -> None:
         self.metadata[event_type].update(metadata)
 
-    def put_item(self, item: TestItem) -> None:
+    def put_item(self, item: TestItem[t.Any, t.Any]) -> None:
         event = self.serializers[type(item)](item)
         self.put_event(event)
 
@@ -149,7 +150,11 @@ class TestCoverageWriter(BaseWriter):
             default_headers={"dd-api-key": self.api_key},
         )
 
-    def put_coverage(self, test_run: TestRun, coverage_data: t.Iterable[t.Tuple[str, bytes]]) -> None:
+    def put_coverage(self, test_run: TestRun, coverage_data: t.Optional[t.Dict[str, CoverageLines]]) -> None:
+        if coverage_data is None:
+            log.debug("empty coverage data")
+            return
+
         event = Event(
             test_session_id=test_run.session_id,
             test_suite_id=test_run.suite_id,

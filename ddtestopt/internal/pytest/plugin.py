@@ -127,7 +127,7 @@ class TestOptPlugin:
     def __init__(self) -> None:
         self.enable_ddtrace = False  # TODO: make it configurable via command line.
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
-        self.excinfo_by_report: t.Dict[pytest.TestReport, t.Optional[pytest.ExceptionInfo]] = {}
+        self.excinfo_by_report: t.Dict[pytest.TestReport, t.Optional[pytest.ExceptionInfo[t.Any]]] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
         self.is_xdist_worker = False
 
@@ -472,8 +472,8 @@ class TestOptPlugin:
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(
-        self, item: pytest.Item, call: pytest.CallInfo
-    ) -> t.Generator[None, pluggy.Result, None]:
+        self, item: pytest.Item, call: pytest.CallInfo[t.Any]
+    ) -> t.Generator[None, pluggy.Result[t.Any], None]:
         """
         Save report and exception information for later use.
         """
@@ -551,7 +551,7 @@ def setup_coverage_collection() -> None:
     install_coverage(workspace_path)
 
 
-def pytest_configure(config) -> None:
+def pytest_configure(config: pytest.Config) -> None:
     plugin_class = XdistTestOptPlugin if config.pluginmanager.hasplugin("xdist") else TestOptPlugin
 
     try:
@@ -563,7 +563,7 @@ def pytest_configure(config) -> None:
     config.pluginmanager.register(plugin)
 
 
-def _get_exception_tags(excinfo: t.Optional[pytest.ExceptionInfo]) -> t.Dict[str, str]:
+def _get_exception_tags(excinfo: t.Optional[pytest.ExceptionInfo[t.Any]]) -> t.Dict[str, str]:
     if excinfo is None:
         return {}
 

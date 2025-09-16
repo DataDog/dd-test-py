@@ -180,7 +180,7 @@ class Test(TestItem["TestSuite", "TestRun"]):
         if is_attempt_to_fix:
             self.tags[TestTag.IS_ATTEMPT_TO_FIX] = TAG_TRUE
 
-    def set_location(self, path: t.Union[os.PathLike, str], start_line: int) -> None:
+    def set_location(self, path: t.Union[os.PathLike[t.Any], str], start_line: int) -> None:
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
 

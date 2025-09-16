@@ -83,9 +83,9 @@ def _ddtrace_context() -> t.Generator[TestContext, None, None]:
     # TODO: check if this breaks async tests.
     # This seems to be necessary because buggy ddtrace integrations can leave spans
     # unfinished, and spans for subsequent tests will have the wrong parent.
-    ddtrace.tracer.context_provider.activate(None)
+    ddtrace.tracer.context_provider.activate(None)  # type: ignore[attr-defined]
 
-    with ddtrace.tracer.trace(DDTESTOPT_ROOT_SPAN_RESOURCE) as root_span:
+    with ddtrace.tracer.trace(DDTESTOPT_ROOT_SPAN_RESOURCE) as root_span:  # type: ignore[attr-defined]
         yield TestContext(trace_id=root_span.trace_id % (1 << 64), span_id=root_span.span_id % (1 << 64))
 
 

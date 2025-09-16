@@ -10,7 +10,8 @@ except ImportError:
     from ddtrace.filters import TraceFilter  # type: ignore[import-not-found, no-redef]
 
 from ddtestopt.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
-from ddtestopt.internal.writer import Event, TestOptWriter
+from ddtestopt.internal.writer import Event
+from ddtestopt.internal.writer import TestOptWriter
 
 
 class TestOptSpanProcessor(TraceFilter):
