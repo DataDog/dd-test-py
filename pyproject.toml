@@ -64,6 +64,8 @@ dependencies = [
     "black",
     "ruff", 
     "mypy",
+    "pytest-mypy-plugins",
+    "ddtrace",
 ]
 
 [tool.hatch.envs.qa.scripts]
@@ -71,7 +73,7 @@ dependencies = [
 qa = [
     "ruff check ddtestopt/ tests/",
     "black --check ddtestopt/ tests/",
-    "python -m mypy ddtestopt/ tests/",
+    "python -m mypy --install-types ddtestopt/ tests/",
 ]
 fix = [
     "ruff check --fix --unsafe-fixes ddtestopt/ tests/",
@@ -154,7 +156,16 @@ addopts = "--allow-hosts=localhost,127.0.0.1,0.0.0.0,::1"
 
 [tool.mypy]
 python_version = "3.9"  # Target minimum supported version
-ignore_missing_imports = true
+# Turn it up to 11
+# strict = true
+# Don’t hide missing types from third-party libs—fail loudly
+ignore_missing_imports = false
+disallow_any_unimported = true
+# Extra signal / nicer output
+warn_unreachable = true
+warn_unused_configs = true
+show_error_codes = true
+pretty = true
 # Exclude problematic modules for now
 exclude = [
     "build/",

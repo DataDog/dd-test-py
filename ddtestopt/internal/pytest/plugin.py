@@ -47,7 +47,7 @@ _Longrepr = t.Tuple[
     # 1st field: pathname of the test file
     str,
     # 2nd field: line number.
-    int,
+    t.Optional[int],
     # 3rd field: skip reason.
     str,
 ]
@@ -105,7 +105,7 @@ def _get_module_path_from_item(item: pytest.Item) -> Path:
         item_path = getattr(item, "path", None)
         if item_path is not None:
             return item.path.absolute().parent
-        return Path(item.module.__file__).absolute().parent
+        return Path(item.module.__file__).absolute().parent  # type: ignore[attr-defined]  # TODO(@gnufede)
     except Exception:  # noqa: E722
         return Path.cwd()
 
@@ -127,7 +127,7 @@ class TestOptPlugin:
     def __init__(self) -> None:
         self.enable_ddtrace = False  # TODO: make it configurable via command line.
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
-        self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
+        self.excinfo_by_report: t.Dict[pytest.TestReport, t.Optional[pytest.ExceptionInfo]] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
         self.is_xdist_worker = False
 
@@ -202,7 +202,7 @@ class TestOptPlugin:
 
         def _on_new_test(test: Test) -> None:
             path, start_line, _test_name = item.reportinfo()
-            test.set_location(path=path, start_line=start_line)
+            test.set_location(path=path, start_line=start_line or 0)
 
             if parameters := _get_test_parameters_json(item):
                 test.set_parameters(parameters)
@@ -388,19 +388,24 @@ class TestOptPlugin:
         if not self._mark_test_report_as_retry(reports, retry_handler, TestPhase.CALL):
             self._mark_test_report_as_retry(reports, retry_handler, TestPhase.SETUP)
 
-    def _mark_quarantined_test_report_as_skipped(self, item: pytest.Item, report: pytest.TestReport) -> None:
+    def _mark_quarantined_test_report_as_skipped(
+        self, item: pytest.Item, report: t.Optional[pytest.TestReport]
+    ) -> None:
         """
         Modify a test report for a quarantined test to make it look like it was skipped.
         """
         # For junitxml, probably the least confusing way to report a quarantined test is as skipped.
         # In `pytest_runtest_logreport`, we can still identify the test as quarantined via the `dd_quarantined`
         # user property.
+        if report is None:
+            return
+
         if report.when == TestPhase.TEARDOWN:
             report.outcome = "passed"
         else:
             # TODO: distinguish quarantine vs disabled
             longrepr: _Longrepr = (str(item.path), item.location[1], "Quarantined")
-            report.longrepr = longrepr
+            report.longrepr = longrepr  # type: ignore[assignment]  # TODO(@gnufede)
             report.outcome = "skipped"
 
     def _mark_quarantined_test_report_group_as_skipped(self, item: pytest.Item, reports: _ReportGroup) -> None:
@@ -508,7 +513,12 @@ class TestOptPlugin:
             if report.failed:
                 return TestStatus.FAIL, _get_exception_tags(excinfo)
             if report.skipped:
-                return TestStatus.SKIP, {TestTag.SKIP_REASON: str(excinfo.value)}
+                if excinfo is None:
+                    reason = "Unknown skip reason"
+                else:
+                    reason = str(excinfo.value)
+
+                return TestStatus.SKIP, {TestTag.SKIP_REASON: reason}
 
         return TestStatus.PASS, {}
 
@@ -546,7 +556,10 @@ def pytest_configure(config):
         config.pluginmanager.register(XdistHooks())
 
 
-def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:
+def _get_exception_tags(excinfo: t.Optional[pytest.ExceptionInfo]) -> t.Dict[str, str]:
+    if excinfo is None:
+        return {}
+
     max_entries = 30
     buf = StringIO()
     # TODO: handle MAX_SPAN_META_VALUE_LEN
@@ -570,13 +583,13 @@ def _get_user_property(report: pytest.TestReport, user_property: str):
 
 
 def _get_test_parameters_json(item: pytest.Item) -> t.Optional[str]:
-    callspec: t.Optional[pytest.python.CallSpec2] = getattr(item, "callspec", None)
+    callspec: t.Optional[pytest.python.CallSpec2] = getattr(item, "callspec", None)  # type: ignore[name-defined]
 
     if callspec is None:
         return None
 
     parameters: t.Dict[str, t.Dict[str, str]] = {"arguments": {}, "metadata": {}}
-    for param_name, param_val in item.callspec.params.items():
+    for param_name, param_val in item.callspec.params.items():  # type: ignore[attr-defined]
         try:
             parameters["arguments"][param_name] = _encode_test_parameter(param_val)
         except Exception:

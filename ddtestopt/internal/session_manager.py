@@ -95,8 +95,9 @@ class SessionManager:
             },
         )
 
-        if self.itr_correlation_id:
-            self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
+        # # Unreachable code, because this is set to None on line 41
+        # if self.itr_correlation_id:
+        #     self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
 
     def finish_collection(self):
         self.setup_retry_handlers()

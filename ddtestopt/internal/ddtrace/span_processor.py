@@ -2,12 +2,12 @@ import typing as t
 
 
 try:
-    from ddtrace.trace import Span  # type: ignore
-    from ddtrace.trace import TraceFilter  # type: ignore
+    from ddtrace.trace import Span
+    from ddtrace.trace import TraceFilter
 except ImportError:
     # ddtrace 2.x compatibility
-    from ddtrace import Span  # type: ignore
-    from ddtrace.filters import TraceFilter  # type: ignore
+    from ddtrace import Span  # type: ignore[attr-defined, no-redef]
+    from ddtrace.filters import TraceFilter  # type: ignore[import-not-found, no-redef]
 
 from ddtestopt.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
 from ddtestopt.internal.writer import Event

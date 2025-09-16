@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+import os
 from pathlib import Path
 import time
 import typing as t
@@ -179,7 +180,7 @@ class Test(TestItem["TestSuite", "TestRun"]):
         if is_attempt_to_fix:
             self.tags[TestTag.IS_ATTEMPT_TO_FIX] = TAG_TRUE
 
-    def set_location(self, path: Path, start_line: int) -> None:
+    def set_location(self, path: t.Union[os.PathLike, str], start_line: int) -> None:
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
 
