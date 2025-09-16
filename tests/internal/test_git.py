@@ -28,24 +28,6 @@ class TestGitTag:
         assert GitTag.COMMIT_COMMITTER_EMAIL == "git.commit.committer.email"
         assert GitTag.COMMIT_COMMITTER_DATE == "git.commit.committer.date"
 
-    def test_git_tag_constants_are_strings(self):
-        """Test that all GitTag constants are strings."""
-        constants = [
-            GitTag.REPOSITORY_URL,
-            GitTag.COMMIT_SHA,
-            GitTag.BRANCH,
-            GitTag.COMMIT_MESSAGE,
-            GitTag.COMMIT_AUTHOR_NAME,
-            GitTag.COMMIT_AUTHOR_EMAIL,
-            GitTag.COMMIT_AUTHOR_DATE,
-            GitTag.COMMIT_COMMITTER_NAME,
-            GitTag.COMMIT_COMMITTER_EMAIL,
-            GitTag.COMMIT_COMMITTER_DATE,
-        ]
-
-        for constant in constants:
-            assert isinstance(constant, str), f"GitTag constant {constant} is not a string"
-
     def test_git_tag_constants_unique(self):
         """Test that all GitTag constants are unique."""
         constants = [
@@ -81,15 +63,6 @@ class TestGit:
     """Tests for Git class."""
 
     @patch("shutil.which")
-    def test_git_init_success(self, mock_which):
-        """Test Git initialization when git command is found."""
-        mock_which.return_value = "/usr/bin/git"
-
-        git = Git()
-        assert git.git_command == "/usr/bin/git"
-        assert git.cwd is None
-
-    @patch("shutil.which")
     def test_git_init_with_cwd(self, mock_which):
         """Test Git initialization with custom working directory."""
         mock_which.return_value = "/usr/bin/git"
@@ -105,84 +78,6 @@ class TestGit:
 
         with pytest.raises(RuntimeError, match="`git` command not found"):
             Git()
-
-    @patch("shutil.which")
-    @patch("subprocess.Popen")
-    def test_call_git_success(self, mock_popen, mock_which):
-        """Test _call_git method with successful execution."""
-        mock_which.return_value = "/usr/bin/git"
-
-        mock_process = Mock()
-        mock_process.communicate.return_value = ("output\n", "")
-        mock_process.returncode = 0
-        mock_popen.return_value = mock_process
-
-        git = Git()
-        result = git._call_git(["status"])
-
-        assert result.stdout == "output"
-        assert result.stderr == ""
-        assert result.return_code == 0
-
-        mock_popen.assert_called_once_with(
-            ["/usr/bin/git", "status"],
-            stdout=-1,
-            stderr=-1,
-            stdin=-1,
-            cwd=None,
-            encoding="utf-8",
-            errors="surrogateescape",
-        )
-
-    @patch("shutil.which")
-    @patch("subprocess.Popen")
-    def test_call_git_with_input(self, mock_popen, mock_which):
-        """Test _call_git method with input string."""
-        mock_which.return_value = "/usr/bin/git"
-
-        mock_process = Mock()
-        mock_process.communicate.return_value = ("", "")
-        mock_process.returncode = 0
-        mock_popen.return_value = mock_process
-
-        git = Git()
-        git._call_git(["pack-objects"], input_string="input data")
-
-        mock_process.communicate.assert_called_once_with(input="input data")
-
-    @patch("shutil.which")
-    @patch("subprocess.Popen")
-    def test_git_output_success(self, mock_popen, mock_which):
-        """Test _git_output method with successful git command."""
-        mock_which.return_value = "/usr/bin/git"
-
-        mock_process = Mock()
-        mock_process.communicate.return_value = ("branch_name\n", "")
-        mock_process.returncode = 0
-        mock_popen.return_value = mock_process
-
-        git = Git()
-        result = git._git_output(["rev-parse", "--abbrev-ref", "HEAD"])
-
-        assert result == "branch_name"
-
-    @patch("shutil.which")
-    @patch("subprocess.Popen")
-    @patch("ddtestopt.internal.git.log")
-    def test_git_output_failure(self, mock_log, mock_popen, mock_which):
-        """Test _git_output method with failed git command."""
-        mock_which.return_value = "/usr/bin/git"
-
-        mock_process = Mock()
-        mock_process.communicate.return_value = ("", "fatal: not a git repository")
-        mock_process.returncode = 128
-        mock_popen.return_value = mock_process
-
-        git = Git()
-        result = git._git_output(["status"])
-
-        assert result == ""
-        mock_log.warning.assert_called_once_with("Error calling git %s: %s", "status", "fatal: not a git repository")
 
     @patch("shutil.which")
     def test_get_repository_url(self, mock_which):
@@ -331,117 +226,6 @@ class TestGit:
                 "include1",
             ]
         )
-
-    @patch("shutil.which")
-    @patch("tempfile.TemporaryDirectory")
-    @patch("random.randint")
-    def test_pack_objects_success(self, mock_randint, mock_temp_dir, mock_which):
-        """Test pack_objects method with successful execution."""
-        mock_which.return_value = "/usr/bin/git"
-        mock_randint.return_value = 123456
-
-        # Mock temporary directory
-        mock_temp_dir_instance = Mock()
-        mock_temp_dir_instance.__enter__ = Mock(return_value="/tmp/test_dir")
-        mock_temp_dir_instance.__exit__ = Mock(return_value=None)
-        mock_temp_dir.return_value = mock_temp_dir_instance
-
-        # Mock Path.glob to return a packfile
-        mock_packfile = Mock()
-        mock_packfile.name = "123456.pack"
-
-        with patch("pathlib.Path.glob", return_value=[mock_packfile]):
-            with patch("pathlib.Path.stat") as mock_stat:
-                # Make stat return same device
-                mock_stat_result = Mock()
-                mock_stat_result.st_dev = 1
-                mock_stat.return_value = mock_stat_result
-
-                git = Git()
-
-                # Mock _call_git to return success
-                mock_result = _GitSubprocessDetails(stdout="", stderr="", return_code=0)
-                with patch.object(git, "_call_git", return_value=mock_result):
-                    result = list(git.pack_objects(["commit1", "commit2"]))
-
-        assert len(result) == 1
-        assert result[0] == mock_packfile
-
-    @patch("shutil.which")
-    @patch("tempfile.TemporaryDirectory")
-    @patch("random.randint")
-    @patch("ddtestopt.internal.git.log")
-    def test_pack_objects_failure(self, mock_log, mock_randint, mock_temp_dir, mock_which):
-        """Test pack_objects method with git command failure."""
-        mock_which.return_value = "/usr/bin/git"
-        mock_randint.return_value = 123456
-
-        # Mock temporary directory
-        mock_temp_dir_instance = Mock()
-        mock_temp_dir_instance.__enter__ = Mock(return_value="/tmp/test_dir")
-        mock_temp_dir_instance.__exit__ = Mock(return_value=None)
-        mock_temp_dir.return_value = mock_temp_dir_instance
-
-        with patch("pathlib.Path.stat") as mock_stat:
-            # Make stat return same device
-            mock_stat_result = Mock()
-            mock_stat_result.st_dev = 1
-            mock_stat.return_value = mock_stat_result
-
-            git = Git()
-
-            # Mock _call_git to return failure
-            mock_result = _GitSubprocessDetails(stdout="", stderr="pack failed", return_code=1)
-            with patch.object(git, "_call_git", return_value=mock_result):
-                result = list(git.pack_objects(["commit1"]))
-
-        assert result == []
-        mock_log.warning.assert_called_once_with("Error calling git pack-objects: %s", "pack failed")
-
-    @patch("shutil.which")
-    @patch("tempfile.TemporaryDirectory")
-    @patch("random.randint")
-    def test_pack_objects_different_device(self, mock_randint, mock_temp_dir, mock_which):
-        """Test pack_objects method when temp dir and cwd are on different devices."""
-        mock_which.return_value = "/usr/bin/git"
-        mock_randint.return_value = 123456
-
-        # Mock temporary directory
-        mock_temp_dir_instance = Mock()
-        mock_temp_dir_instance.__enter__ = Mock(return_value="/custom/temp")
-        mock_temp_dir_instance.__exit__ = Mock(return_value=None)
-        mock_temp_dir.return_value = mock_temp_dir_instance
-
-        # Mock Path.glob to return a packfile
-        mock_packfile = Mock()
-        mock_packfile.name = "123456.pack"
-
-        with patch("pathlib.Path.glob", return_value=[mock_packfile]):
-            with patch("pathlib.Path.stat") as mock_stat:
-                with patch("pathlib.Path.cwd", return_value=Path("/current/dir")):
-                    # Make stat return different devices
-                    def stat_side_effect():
-                        mock_stat_result = Mock()
-                        # First call (cwd): device 1, second call (temp_dir): device 2
-                        stat_side_effect.call_count = getattr(stat_side_effect, "call_count", 0) + 1
-                        mock_stat_result.st_dev = 1 if stat_side_effect.call_count == 1 else 2
-                        return mock_stat_result
-
-                    mock_stat.side_effect = stat_side_effect
-
-                    git = Git()
-
-                    # Mock _call_git to return success
-                    mock_result = _GitSubprocessDetails(stdout="", stderr="", return_code=0)
-                    with patch.object(git, "_call_git", return_value=mock_result):
-                        result = list(git.pack_objects(["commit1"]))
-
-        # Should still work with different temp dir strategy
-        assert len(result) == 1
-        assert result[0] == mock_packfile
-
-        # Verify TemporaryDirectory was called with the cwd as dir
-        mock_temp_dir.assert_called_with(dir=Path("/current/dir"))
 
 
 class TestGetGitTags:

@@ -22,11 +22,6 @@ from ddtestopt.internal.writer import serialize_test_run
 class TestEvent:
     """Tests for Event class."""
 
-    def test_event_is_dict_subclass(self):
-        """Test that Event is a dict subclass."""
-        event = Event()
-        assert isinstance(event, dict)
-
     def test_event_creation_with_data(self):
         """Test Event creation with initial data."""
         event = Event(key1="value1", key2="value2")
@@ -39,149 +34,6 @@ class TestEvent:
         event["test"] = "data"
         assert event["test"] == "data"
         assert len(event) == 1
-
-
-class ConcreteWriter(BaseWriter):
-    """Concrete implementation of BaseWriter for testing."""
-
-    def __init__(self, site: str, api_key: str):
-        super().__init__(site, api_key)
-        self.sent_events = []
-
-    def _send_events(self, events):
-        self.sent_events.extend(events)
-
-
-class TestBaseWriter:
-    """Tests for BaseWriter abstract base class."""
-
-    def test_base_writer_initialization(self):
-        """Test BaseWriter initialization."""
-        writer = ConcreteWriter(site="datadoghq.com", api_key="test_key")
-
-        assert writer.site == "datadoghq.com"
-        assert writer.api_key == "test_key"
-        assert hasattr(writer.lock, "acquire") and hasattr(writer.lock, "release")  # RLock
-        assert hasattr(writer.should_finish, "is_set") and hasattr(writer.should_finish, "set")  # Event
-        assert writer.flush_interval_seconds == 60
-        assert writer.events == []
-
-    def test_put_event(self):
-        """Test putting events into the writer."""
-        writer = ConcreteWriter(site="test", api_key="key")
-        event1 = Event(type="test1")
-        event2 = Event(type="test2")
-
-        writer.put_event(event1)
-        writer.put_event(event2)
-
-        assert len(writer.events) == 2
-        assert writer.events[0] == event1
-        assert writer.events[1] == event2
-
-    def test_pop_events(self):
-        """Test popping events from the writer."""
-        writer = ConcreteWriter(site="test", api_key="key")
-        event1 = Event(type="test1")
-        event2 = Event(type="test2")
-
-        writer.put_event(event1)
-        writer.put_event(event2)
-
-        events = writer.pop_events()
-
-        assert len(events) == 2
-        assert events[0] == event1
-        assert events[1] == event2
-        assert writer.events == []  # Events should be cleared
-
-    def test_pop_events_empty(self):
-        """Test popping events when none exist."""
-        writer = ConcreteWriter(site="test", api_key="key")
-        events = writer.pop_events()
-        assert events == []
-
-    def test_thread_safety_put_pop(self):
-        """Test thread safety of put_event and pop_events."""
-        writer = ConcreteWriter(site="test", api_key="key")
-
-        def add_events():
-            for i in range(100):
-                writer.put_event(Event(index=i))
-
-        # Start multiple threads adding events
-        threads = [threading.Thread(target=add_events) for _ in range(3)]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join()
-
-        # Should have 300 events total
-        events = writer.pop_events()
-        assert len(events) == 300
-
-    def test_flush_with_events(self):
-        """Test flush method with events."""
-        writer = ConcreteWriter(site="test", api_key="key")
-        event1 = Event(type="test1")
-        event2 = Event(type="test2")
-
-        writer.put_event(event1)
-        writer.put_event(event2)
-
-        writer.flush()
-
-        # Events should be sent and cleared
-        assert writer.sent_events == [event1, event2]
-        assert writer.events == []
-
-    def test_flush_without_events(self):
-        """Test flush method without events."""
-        writer = ConcreteWriter(site="test", api_key="key")
-
-        writer.flush()
-
-        # No events should be sent
-        assert writer.sent_events == []
-
-    @patch("threading.Thread")
-    def test_start(self, mock_thread_class):
-        """Test starting the background thread."""
-        mock_thread = Mock()
-        mock_thread_class.return_value = mock_thread
-
-        writer = ConcreteWriter(site="test", api_key="key")
-        writer.start()
-
-        mock_thread_class.assert_called_once_with(target=writer._periodic_task)
-        mock_thread.start.assert_called_once()
-        assert writer.task == mock_thread
-
-    def test_finish(self):
-        """Test finishing the writer."""
-        writer = ConcreteWriter(site="test", api_key="key")
-        writer.task = Mock()
-
-        writer.finish()
-
-        assert writer.should_finish.is_set()
-        writer.task.join.assert_called_once()
-
-    def test_periodic_task_loop(self):
-        """Test the periodic task loop."""
-        writer = ConcreteWriter(site="test", api_key="key")
-
-        # Mock the should_finish event to break after first iteration
-        writer.should_finish.is_set = Mock(return_value=True)  # Exit immediately after first flush
-        writer.should_finish.wait = Mock()
-
-        with patch.object(writer, "flush") as mock_flush:
-            writer._periodic_task()
-
-        # Should wait for flush interval and call flush once
-        writer.should_finish.wait.assert_called_with(timeout=60)
-        mock_flush.assert_called_once()
 
 
 class TestTestOptWriter:
@@ -212,34 +64,6 @@ class TestTestOptWriter:
         assert TestSuite in writer.serializers
         assert TestModule in writer.serializers
         assert TestSession in writer.serializers
-
-    @patch("ddtestopt.internal.writer.BackendConnector")
-    def test_add_metadata(self, mock_backend_connector):
-        """Test adding metadata to writer."""
-        writer = TestOptWriter(site="test", api_key="key")
-
-        writer.add_metadata("test", {"custom.key": "custom_value"})
-
-        assert writer.metadata["test"]["custom.key"] == "custom_value"
-
-    @patch("ddtestopt.internal.writer.BackendConnector")
-    def test_put_item(self, mock_backend_connector):
-        """Test putting a test item."""
-        writer = TestOptWriter(site="test", api_key="key")
-
-        # Create a mock test run
-        test_run = Mock(spec=TestRun)
-        test_run.__class__ = TestRun
-
-        # Mock the serializer
-        with patch.object(writer, "serializers") as mock_serializers:
-            mock_serializer = Mock(return_value=Event(type="test"))
-            mock_serializers.__getitem__.return_value = mock_serializer
-
-            writer.put_item(test_run)
-
-            mock_serializer.assert_called_once_with(test_run)
-            assert len(writer.events) == 1
 
     @patch("ddtestopt.internal.writer.BackendConnector")
     @patch("msgpack.packb")

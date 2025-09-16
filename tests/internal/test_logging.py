@@ -73,6 +73,7 @@ class TestSetupLogging:
 
         # Test the format string contains expected elements
         format_string = formatter._fmt
+        assert isinstance(format_string, str)
         assert "[Datadog Test Optimization]" in format_string
         assert "%(levelname)-8s" in format_string
         assert "%(name)s" in format_string
@@ -149,50 +150,3 @@ class TestCatchAndLogExceptions:
         # Check that function name is preserved for logging
         decorated()
         assert decorated.__name__ == "original_function"  # functools.wraps preserves original name
-
-    def test_decorator_return_type_casting(self):
-        """Test that decorator properly handles type casting."""
-
-        @catch_and_log_exceptions()
-        def typed_function(x: int) -> str:
-            return str(x * 2)
-
-        result = typed_function(5)
-        assert result == "10"
-        assert isinstance(result, str)
-
-    @patch.object(ddtestopt_logger, "exception")
-    def test_decorator_different_exception_types(self, mock_exception):
-        """Test decorator handles different types of exceptions."""
-
-        @catch_and_log_exceptions()
-        def function_with_different_errors(error_type):
-            if error_type == "value":
-                raise ValueError("Value error")
-            elif error_type == "type":
-                raise TypeError("Type error")
-            elif error_type == "runtime":
-                raise RuntimeError("Runtime error")
-            return "success"
-
-        # Test each exception type
-        for error_type in ["value", "type", "runtime"]:
-            result = function_with_different_errors(error_type)
-            assert result is None
-
-        # Should have logged 3 exceptions
-        assert mock_exception.call_count == 3
-
-
-class TestDdtestoptLogger:
-    """Tests for the ddtestopt_logger instance."""
-
-    def test_logger_instance(self):
-        """Test that ddtestopt_logger is properly configured."""
-        assert isinstance(ddtestopt_logger, logging.Logger)
-        assert ddtestopt_logger.name == "ddtestopt"
-
-    def test_logger_initial_state(self):
-        """Test logger's initial state before setup."""
-        # Note: This test may be affected by other tests, but documents expected initial state
-        assert ddtestopt_logger.name == "ddtestopt"

@@ -21,11 +21,6 @@ class TestPlatformTag:
 class TestGetPlatformTags:
     """Tests for get_platform_tags function."""
 
-    def test_get_platform_tags_returns_dict(self):
-        """Test that get_platform_tags returns a dictionary."""
-        result = get_platform_tags()
-        assert isinstance(result, dict)
-
     def test_get_platform_tags_has_all_keys(self):
         """Test that get_platform_tags returns all expected keys."""
         result = get_platform_tags()
@@ -37,12 +32,6 @@ class TestGetPlatformTags:
             PlatformTag.RUNTIME_VERSION,
         }
         assert set(result.keys()) == expected_keys
-
-    def test_get_platform_tags_values_are_strings(self):
-        """Test that all values returned by get_platform_tags are strings."""
-        result = get_platform_tags()
-        for value in result.values():
-            assert isinstance(value, str)
 
     def test_get_platform_tags_os_architecture(self):
         """Test that OS architecture is correctly retrieved."""

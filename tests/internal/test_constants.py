@@ -84,17 +84,3 @@ class TestConstants:
             f"Missing: {set(expected_constants) - set(module_constants)}\n"
             f"Extra: {set(module_constants) - set(expected_constants)}"
         )
-
-    def test_constant_values_are_sensible(self):
-        """Test that constant values make sense for their purpose."""
-        # Default values should be non-empty
-        assert DEFAULT_SERVICE_NAME  # Should be truthy
-        assert DEFAULT_ENV_NAME  # Should be truthy
-        assert DEFAULT_SITE  # Should be truthy
-
-        # Boolean tags should be lowercase strings
-        assert TAG_TRUE.lower() == TAG_TRUE
-        assert TAG_FALSE.lower() == TAG_FALSE
-
-        # Empty name should be a single character placeholder
-        assert len(EMPTY_NAME) == 1

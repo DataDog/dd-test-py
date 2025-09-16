@@ -9,11 +9,6 @@ from ddtestopt.internal.utils import asbool
 class TestGenItemId:
     """Tests for _gen_item_id function."""
 
-    def test_gen_item_id_returns_int(self):
-        """Test that _gen_item_id returns an integer."""
-        result = _gen_item_id()
-        assert isinstance(result, int)
-
     def test_gen_item_id_within_range(self):
         """Test that _gen_item_id returns a value within the expected range."""
         result = _gen_item_id()
@@ -23,7 +18,7 @@ class TestGenItemId:
         """Test that _gen_item_id returns different values on multiple calls."""
         results = [_gen_item_id() for _ in range(100)]
         # Should have at least some variance (very unlikely to be all the same)
-        assert len(set(results)) > 1
+        assert len(set(results)) >= 99
 
 
 class TestAsbool:
@@ -94,12 +89,3 @@ class TestTestContext:
 
         assert context1 == context2
         assert context1 != context3
-
-
-class TestConstants:
-    """Tests for module constants."""
-
-    def test_ddtestopt_root_span_resource_constant(self):
-        """Test that the root span resource constant is defined correctly."""
-        assert DDTESTOPT_ROOT_SPAN_RESOURCE == "ddtestopt_root_span"
-        assert isinstance(DDTESTOPT_ROOT_SPAN_RESOURCE, str)

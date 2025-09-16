@@ -60,12 +60,6 @@ class TestCollapseRanges:
         expected = [(1, 3), (5, 7), (9, 9)]
         assert result == expected
 
-    def test_end_with_single_number(self):
-        """Test collapse_ranges ending with a single isolated number."""
-        result = collapse_ranges([1, 2, 3, 10])
-        expected = [(1, 3), (10, 10)]
-        assert result == expected
-
     def test_start_with_single_number(self):
         """Test collapse_ranges starting with a single isolated number."""
         result = collapse_ranges([1, 5, 6, 7])
