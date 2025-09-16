@@ -240,8 +240,6 @@ class TestOptPlugin:
             with coverage_collection() as coverage_data:
                 yield
 
-        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.get_covered_lines())
-
         if not test.test_runs:
             # No test runs: our pytest_runtest_protocol did not run. This can happen if some other plugin (such as
             # `flaky` or `rerunfailures`) did it instead, or if there is a user-defined `pytest_runtest_protocol` in
@@ -263,6 +261,8 @@ class TestOptPlugin:
             self.manager.writer.put_item(test_run)
 
         test.finish()
+
+        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.get_covered_lines())
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
@@ -524,7 +524,7 @@ class TestOptPlugin:
         return TestStatus.PASS, {}
 
 
-class XdistHooks(TestOptPlugin):
+class XdistTestOptPlugin(TestOptPlugin):
     @pytest.hookimpl
     def pytest_configure_node(self, node: t.Any) -> None:
         """
@@ -552,9 +552,15 @@ def setup_coverage_collection() -> None:
 
 
 def pytest_configure(config) -> None:
-    config.pluginmanager.register(TestOptPlugin())
-    if config.pluginmanager.hasplugin("xdist"):
-        config.pluginmanager.register(XdistHooks())
+    plugin_class = XdistTestOptPlugin if config.pluginmanager.hasplugin("xdist") else TestOptPlugin
+
+    try:
+        plugin = plugin_class()
+    except Exception:
+        log.exception("Error setting up Test Optimization plugin")
+        return
+
+    config.pluginmanager.register(plugin)
 
 
 def _get_exception_tags(excinfo: t.Optional[pytest.ExceptionInfo]) -> t.Dict[str, str]:
