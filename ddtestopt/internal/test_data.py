@@ -39,8 +39,8 @@ class TestStatus(Enum):
     __test__ = False
 
 
-TParentClass = t.TypeVar("TParentClass", bound="TestItem")
-TChildClass = t.TypeVar("TChildClass", bound="TestItem")
+TParentClass = t.TypeVar("TParentClass", bound="TestItem[t.Any, t.Any]")
+TChildClass = t.TypeVar("TChildClass", bound="TestItem[t.Any, t.Any]")
 
 
 class TestItem(t.Generic[TParentClass, TChildClass]):
