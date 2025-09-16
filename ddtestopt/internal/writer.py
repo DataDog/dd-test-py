@@ -83,6 +83,8 @@ class BaseWriter(ABC):
 
 
 class TestOptWriter(BaseWriter):
+    __test__ = False
+
     def __init__(self, site: str, api_key: str) -> None:
         super().__init__(site=site, api_key=api_key)
 
@@ -137,6 +139,8 @@ class TestOptWriter(BaseWriter):
 
 
 class TestCoverageWriter(BaseWriter):
+    __test__ = False
+
     def __init__(self, site: str, api_key: str) -> None:
         super().__init__(site=site, api_key=api_key)
 
