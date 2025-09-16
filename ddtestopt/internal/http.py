@@ -36,7 +36,7 @@ class BackendConnector(threading.local):
         self,
         method: str,
         path: str,
-        data: t.Optional[bytes],
+        data: bytes,
         headers: t.Optional[t.Dict[str, str]] = None,
         send_gzip: bool = False,
     ) -> t.Any:

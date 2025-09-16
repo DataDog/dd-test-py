@@ -26,16 +26,16 @@ class SuiteRef:
 
 @dataclass(frozen=True)
 class TestRef:
-    __test__ = False
     suite: SuiteRef
     name: str
+    __test__ = False
 
 
 class TestStatus(Enum):
-    __test__ = False
     PASS = "pass"
     FAIL = "fail"
     SKIP = "skip"
+    __test__ = False
 
 
 TParentClass = t.TypeVar("TParentClass", bound="TestItem")
@@ -59,6 +59,8 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         self.service: str = DEFAULT_SERVICE_NAME
 
     def seconds_so_far(self):
+        if self.start_ns is None:
+            raise ValueError("seconds_so_far() called before start")
         return (time.time_ns() - self.start_ns) / 1e9
 
     def start(self, start_ns: t.Optional[int] = None) -> None:
@@ -69,6 +71,8 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
             self.start()
 
     def finish(self) -> None:
+        if self.start_ns is None:
+            raise ValueError("finish() called before start")
         self.duration_ns = time.time_ns() - self.start_ns
 
     def is_finished(self) -> bool:
@@ -132,15 +136,15 @@ class TestRun(TestItem["Test", t.NoReturn]):
         self.trace_id = context.trace_id
 
     @property
-    def suite_id(self) -> str:
+    def suite_id(self) -> int:
         return self.parent.parent.item_id
 
     @property
-    def module_id(self) -> str:
+    def module_id(self) -> int:
         return self.parent.parent.parent.item_id
 
     @property
-    def session_id(self) -> str:
+    def session_id(self) -> int:
         return self.parent.parent.parent.parent.item_id
 
 
@@ -198,15 +202,15 @@ class Test(TestItem["TestSuite", "TestRun"]):
         return TestTag.PARAMETERS in self.tags
 
     @property
-    def suite_id(self) -> str:
+    def suite_id(self) -> int:
         return self.parent.item_id
 
     @property
-    def module_id(self) -> str:
+    def module_id(self) -> int:
         return self.parent.parent.item_id
 
     @property
-    def session_id(self) -> str:
+    def session_id(self) -> int:
         return self.parent.parent.parent.item_id
 
     def make_test_run(self) -> TestRun:
@@ -222,38 +226,38 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
 
 class TestSuite(TestItem["TestModule", "Test"]):
-    __test__ = False
     ChildClass = Test
+    __test__ = False
 
     def __str__(self) -> str:
         return f"{self.parent.name}/{self.name}"
 
     @property
-    def suite_id(self) -> str:
+    def suite_id(self) -> int:
         return self.item_id
 
     @property
-    def module_id(self) -> str:
+    def module_id(self) -> int:
         return self.parent.item_id
 
     @property
-    def session_id(self) -> str:
+    def session_id(self) -> int:
         return self.parent.parent.item_id
 
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
-    __test__ = False
     ChildClass = TestSuite
+    __test__ = False
 
     def __str__(self) -> str:
         return f"{self.name}"
 
     @property
-    def module_id(self) -> str:
+    def module_id(self) -> int:
         return self.item_id
 
     @property
-    def session_id(self) -> str:
+    def session_id(self) -> int:
         return self.parent.item_id
 
     def set_location(self, module_path: Path) -> None:
@@ -261,14 +265,14 @@ class TestModule(TestItem["TestSession", "TestSuite"]):
 
 
 class TestSession(TestItem[t.NoReturn, "TestModule"]):
-    __test__ = False
     ChildClass = TestModule
+    __test__ = False
 
     def __init__(self, name: str):
         super().__init__(name=name, parent=None)  # type: ignore
 
     @property
-    def session_id(self) -> str:
+    def session_id(self) -> int:
         return self.item_id
 
     def set_session_id(self, session_id: int) -> None:
@@ -282,7 +286,6 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
 
 
 class TestTag:
-    __test__ = False
     COMPONENT = "component"
     TEST_COMMAND = "test.command"
     TEST_FRAMEWORK = "test.framework"
@@ -307,3 +310,5 @@ class TestTag:
     HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries"
 
     PARAMETERS = "test.parameters"
+
+    __test__ = False

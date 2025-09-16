@@ -13,8 +13,8 @@ import pluggy
 import pytest
 
 from ddtestopt.internal.constants import EMPTY_NAME
-from ddtestopt.internal.coverage.api import coverage_collection
-from ddtestopt.internal.coverage.api import install_coverage
+from ddtestopt.internal.coverage_api import coverage_collection
+from ddtestopt.internal.coverage_api import install_coverage
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
 from ddtestopt.internal.logging import catch_and_log_exceptions
@@ -497,7 +497,7 @@ class TestOptPlugin:
         the dictionaries.
         """
         # TODO: handle xfail/xpass.
-        reports_dict = self.reports_by_nodeid.pop(nodeid, None)
+        reports_dict = self.reports_by_nodeid.pop(nodeid, {})
 
         for phase in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             report = reports_dict.get(phase)
@@ -579,7 +579,7 @@ def _get_test_parameters_json(item: pytest.Item) -> t.Optional[str]:
     for param_name, param_val in item.callspec.params.items():
         try:
             parameters["arguments"][param_name] = _encode_test_parameter(param_val)
-        except:
+        except Exception:
             parameters["arguments"][param_name] = "Could not encode"
             log.warning("Failed to encode %r", param_name, exc_info=True)
 
