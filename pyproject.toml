@@ -27,6 +27,7 @@ dependencies = [
 dependencies = [
     "pytest",
     "slipcover",
+    "pytest-socket",
 ]
 
 [[tool.hatch.envs.test.matrix]]
@@ -126,6 +127,8 @@ exclude_lines = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = ["ddtestopt", "build", "dist", ".git"]
+# pytest-socket configuration - allow connections to localhost only
+addopts = "--allow-hosts=localhost,127.0.0.1,0.0.0.0,::1"
 
 [tool.mypy]
 python_version = "3.9"  # Target minimum supported version
