@@ -138,7 +138,7 @@ class TestTestCoverageWriter:
             "file2.py": mock_coverage2,
         }
 
-        writer.put_coverage(test_run, coverage_data)
+        writer.put_coverage(test_run, coverage_data.items())
 
         # Check event was created and added
         assert len(writer.events) == 1
