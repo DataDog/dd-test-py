@@ -99,10 +99,10 @@ class SessionManager:
         # if self.itr_correlation_id:
         #     self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
 
-    def finish_collection(self):
+    def finish_collection(self) -> None:
         self.setup_retry_handlers()
 
-    def setup_retry_handlers(self):
+    def setup_retry_handlers(self) -> None:
         if self.settings.test_management.enabled:
             self.retry_handlers.append(AttemptToFixHandler(self))
 
@@ -183,7 +183,7 @@ class SessionManager:
 
         return test_module, test_suite, test
 
-    def upload_git_data_and_get_skippable_tests(self):
+    def upload_git_data_and_get_skippable_tests(self) -> None:
         git = Git()
         latest_commits = git.get_latest_commits()
         backend_commits = self.api_client.get_known_commits(latest_commits)

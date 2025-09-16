@@ -533,7 +533,7 @@ class XdistHooks(TestOptPlugin):
         node.workerinput["dd_session_id"] = self.session.session_id
 
 
-def _make_reports_dict(reports) -> _ReportGroup:
+def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:
     return {report.when: report for report in reports}
 
 
@@ -546,12 +546,12 @@ def pytest_load_initial_conftests(
     yield
 
 
-def setup_coverage_collection():
+def setup_coverage_collection() -> None:
     workspace_path = Path.cwd().absolute()  # ꙮ
     install_coverage(workspace_path)
 
 
-def pytest_configure(config):
+def pytest_configure(config) -> None:
     config.pluginmanager.register(TestOptPlugin())
     if config.pluginmanager.hasplugin("xdist"):
         config.pluginmanager.register(XdistHooks())
@@ -573,7 +573,7 @@ def _get_exception_tags(excinfo: t.Optional[pytest.ExceptionInfo]) -> t.Dict[str
     }
 
 
-def _get_user_property(report: pytest.TestReport, user_property: str):
+def _get_user_property(report: pytest.TestReport, user_property: str) -> t.Optional[t.Any]:
     user_properties = getattr(report, "user_properties", [])  # pytest.CollectReport does not have `user_properties`.
 
     for key, value in user_properties:

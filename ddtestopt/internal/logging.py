@@ -11,7 +11,7 @@ ddtestopt_logger = logging.getLogger("ddtestopt")
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
 
-def setup_logging():
+def setup_logging() -> None:
     ddtestopt_logger.propagate = False
 
     log_level = logging.DEBUG if asbool(os.getenv("DDTESTOPT_DEBUG")) else logging.INFO

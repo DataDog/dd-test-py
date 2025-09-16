@@ -51,17 +51,17 @@ class BaseWriter(ABC):
 
         return events
 
-    def start(self):
+    def start(self) -> None:
         self.task = threading.Thread(target=self._periodic_task)
         self.task.start()
 
-    def finish(self):
+    def finish(self) -> None:
         log.debug("Waiting for writer thread to finish")
         self.should_finish.set()
         self.task.join()
         log.debug("Writer thread finished")
 
-    def _periodic_task(self):
+    def _periodic_task(self) -> None:
         while True:
             self.should_finish.wait(timeout=self.flush_interval_seconds)
             log.debug("Flushing events in background task")
@@ -72,7 +72,7 @@ class BaseWriter(ABC):
 
         log.debug("Exiting background task")
 
-    def flush(self):
+    def flush(self) -> None:
         if events := self.pop_events():
             log.debug("Sending %d events", len(events))
             self._send_events(events)
@@ -149,7 +149,7 @@ class TestCoverageWriter(BaseWriter):
             default_headers={"dd-api-key": self.api_key},
         )
 
-    def put_coverage(self, test_run: TestRun, coverage_data) -> None:
+    def put_coverage(self, test_run: TestRun, coverage_data: t.Iterable[t.Tuple[str, bytes]]) -> None:
         event = Event(
             test_session_id=test_run.session_id,
             test_suite_id=test_run.suite_id,

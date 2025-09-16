@@ -273,7 +273,7 @@ class Settings:
     itr_enabled: bool = False
 
     @classmethod
-    def from_attributes(cls, attributes) -> Settings:
+    def from_attributes(cls, attributes: t.Dict[str, t.Any]) -> Settings:
         efd_settings = EarlyFlakeDetectionSettings.from_attributes(attributes.get("early_flake_detection"))
         test_management_settings = TestManagementSettings.from_attributes(attributes.get("test_management"))
         atr_enabled = bool(attributes.get("flaky_test_retries_enabled"))

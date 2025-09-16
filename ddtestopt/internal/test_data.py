@@ -59,7 +59,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
         self.service: str = DEFAULT_SERVICE_NAME
 
-    def seconds_so_far(self):
+    def seconds_so_far(self) -> float:
         if self.start_ns is None:
             raise ValueError("seconds_so_far() called before start")
         return (time.time_ns() - self.start_ns) / 1e9
