@@ -1,9 +1,84 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "ddtestopt"
 dynamic = ["version"]
+dependencies = [
+    "bytecode>=0.15.0",
+    "msgpack>=1.0.0",
+]
 
 [project.entry-points.pytest11]
 ddtestopt = "ddtestopt.internal.pytest.plugin"
+
+[tool.hatch.version]
+path = "ddtestopt/__init__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest",
+    "coverage[toml]",
+    "pytest-cov",
+]
+
+[tool.hatch.envs.test]
+dependencies = [
+    "pytest",
+    "slipcover",
+    "pytest-socket",
+]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.test.scripts]
+test = "pytest -p no:ddtestopt --ignore=ddtestopt {args:tests}"
+# Coverage with slipcover
+test-cov = "python -m slipcover --source ddtestopt --pretty-print -m pytest -p no:ddtestopt {args:tests}"
+# HTML coverage report
+test-cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest -p no:ddtestopt {args:tests}"
+
+
+[tool.hatch.envs.int_test]
+dependencies = [
+    "pytest",
+    "pytest-socket",
+    "flask"
+]
+
+[[tool.hatch.envs.int_test.matrix]]
+python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+[tool.hatch.envs.int_test.env-vars]
+DD_API_KEY = "foobar"
+
+[tool.hatch.envs.int_test.scripts]
+test = "pytest {args:test_fixtures}"
+
+
+[tool.hatch.envs.qa]
+python = "3.13"
+dependencies = [
+    "black",
+    "ruff", 
+    "mypy",
+]
+
+[tool.hatch.envs.qa.scripts]
+# Combined QA check - runs all code quality tools
+qa = [
+    "ruff check ddtestopt/ tests/",
+    "black --check ddtestopt/ tests/",
+    # "python -m mypy ddtestopt/",  # TODO: Enable when ready to fix type issues
+]
+# Individual commands for specific fixes
+lint = "ruff check {args:ddtestopt/ tests/}"
+lint-fix = "ruff check --fix {args:ddtestopt/ tests/}"
+format = "black {args:ddtestopt/ tests/}"
+format-check = "black --check {args:ddtestopt/ tests/}"
+typecheck = "python -m mypy {args:ddtestopt/}"
 
 [tool.black]
 line-length = 120
@@ -45,3 +120,49 @@ relative-imports-order = "furthest-to-closest"
 
 [tool.ruff.lint.per-file-ignores]
 "ddtestopt/internal/coverage/*" = ["D"]
+
+[tool.coverage.run]
+source = ["ddtestopt"]
+omit = [
+    "tests/*",
+    "ddtestopt/internal/coverage/third-party.tar.gz",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["ddtestopt", "build", "dist", ".git"]
+# pytest-socket configuration - allow connections to localhost only
+addopts = "--allow-hosts=localhost,127.0.0.1,0.0.0.0,::1"
+
+[tool.mypy]
+python_version = "3.9"  # Target minimum supported version
+warn_unused_configs = true
+# Start with lenient settings - can be tightened later
+warn_return_any = false
+disallow_untyped_defs = false
+ignore_missing_imports = true
+allow_untyped_calls = true
+allow_untyped_defs = true
+no_implicit_optional = false
+# Exclude problematic modules for now
+exclude = [
+    "tests/",
+    "build/",
+    "dist/",
+    "ddtestopt/internal/coverage/",  # Complex bytecode manipulation code
+    "ddtestopt/internal/api_client.py",  # Complex API types
+]

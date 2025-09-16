@@ -61,7 +61,7 @@ class Git:
         self.git_command: str = git_command
         self.cwd = cwd
 
-    def _call_git(self, args: t.List[str], input_string: t.Optional[str] = None):
+    def _call_git(self, args: t.List[str], input_string: t.Optional[str] = None) -> _GitSubprocessDetails:
         git_cmd = [self.git_command, *args]
 
         process = subprocess.Popen(
@@ -77,23 +77,23 @@ class Git:
 
         return _GitSubprocessDetails(stdout=stdout.strip(), stderr=stderr.strip(), return_code=process.returncode)
 
-    def _git_output(self, args: t.List[str]):
+    def _git_output(self, args: t.List[str]) -> str:
         result = self._call_git(args)
         if result.return_code != 0:
             log.warning("Error calling git %s: %s", " ".join(args), result.stderr)
-            return None
+            return ""
         return result.stdout
 
-    def get_repository_url(self):
+    def get_repository_url(self) -> str:
         return self._git_output(["ls-remote", "--get-url"])
 
-    def get_commit_sha(self):
+    def get_commit_sha(self) -> str:
         return self._git_output(["rev-parse", "HEAD"])
 
-    def get_branch(self):
+    def get_branch(self) -> str:
         return self._git_output(["rev-parse", "--abbrev-ref", "HEAD"])
 
-    def get_commit_message(self):
+    def get_commit_message(self) -> str:
         return self._git_output(["show", "-s", "--format=%s"])
 
     def get_user_info(self):
@@ -158,7 +158,7 @@ class Git:
                 yield packfile
 
 
-def get_git_tags():
+def get_git_tags() -> t.Dict[str, str]:
     try:
         git = Git()
     except RuntimeError as e:
