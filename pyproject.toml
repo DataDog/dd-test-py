@@ -71,7 +71,7 @@ dependencies = [
 qa = [
     "ruff check ddtestopt/ tests/",
     "black --check ddtestopt/ tests/",
-    # "python -m mypy ddtestopt/",  # TODO: Enable when ready to fix type issues
+    "python -m mypy ddtestopt/",
 ]
 # Individual commands for specific fixes
 lint = "ruff check {args:ddtestopt/ tests/}"
