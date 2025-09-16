@@ -136,16 +136,16 @@ class TestRun(TestItem["Test", t.NoReturn]):
         self.trace_id = context.trace_id
 
     @property
-    def suite_id(self) -> str:
-        return str(self.parent.parent.item_id)
+    def suite_id(self) -> int:
+        return self.parent.parent.item_id
 
     @property
-    def module_id(self) -> str:
-        return str(self.parent.parent.parent.item_id)
+    def module_id(self) -> int:
+        return self.parent.parent.parent.item_id
 
     @property
-    def session_id(self) -> str:
-        return str(self.parent.parent.parent.parent.item_id)
+    def session_id(self) -> int:
+        return self.parent.parent.parent.parent.item_id
 
 
 class Test(TestItem["TestSuite", "TestRun"]):
@@ -202,16 +202,16 @@ class Test(TestItem["TestSuite", "TestRun"]):
         return TestTag.PARAMETERS in self.tags
 
     @property
-    def suite_id(self) -> str:
-        return str(self.parent.item_id)
+    def suite_id(self) -> int:
+        return self.parent.item_id
 
     @property
-    def module_id(self) -> str:
-        return str(self.parent.parent.item_id)
+    def module_id(self) -> int:
+        return self.parent.parent.item_id
 
     @property
-    def session_id(self) -> str:
-        return str(self.parent.parent.parent.item_id)
+    def session_id(self) -> int:
+        return self.parent.parent.parent.item_id
 
     def make_test_run(self) -> TestRun:
         test_run = TestRun(name=self.name, parent=self)
@@ -233,16 +233,16 @@ class TestSuite(TestItem["TestModule", "Test"]):
         return f"{self.parent.name}/{self.name}"
 
     @property
-    def suite_id(self) -> str:
-        return str(self.item_id)
+    def suite_id(self) -> int:
+        return self.item_id
 
     @property
-    def module_id(self) -> str:
-        return str(self.parent.item_id)
+    def module_id(self) -> int:
+        return self.parent.item_id
 
     @property
-    def session_id(self) -> str:
-        return str(self.parent.parent.item_id)
+    def session_id(self) -> int:
+        return self.parent.parent.item_id
 
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
@@ -253,12 +253,12 @@ class TestModule(TestItem["TestSession", "TestSuite"]):
         return f"{self.name}"
 
     @property
-    def module_id(self) -> str:
-        return str(self.item_id)
+    def module_id(self) -> int:
+        return self.item_id
 
     @property
-    def session_id(self) -> str:
-        return str(self.parent.item_id)
+    def session_id(self) -> int:
+        return self.parent.item_id
 
     def set_location(self, module_path: Path) -> None:
         self.module_path = str(module_path)
@@ -272,8 +272,8 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
         super().__init__(name=name, parent=None)  # type: ignore
 
     @property
-    def session_id(self) -> str:
-        return str(self.item_id)
+    def session_id(self) -> int:
+        return self.item_id
 
     def set_session_id(self, session_id: int) -> None:
         self.item_id = session_id
