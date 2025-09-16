@@ -1,6 +1,5 @@
 """Tests for ddtestopt.internal.utils module."""
 
-from ddtestopt.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
 from ddtestopt.internal.utils import TestContext
 from ddtestopt.internal.utils import _gen_item_id
 from ddtestopt.internal.utils import asbool

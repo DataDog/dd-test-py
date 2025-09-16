@@ -1,6 +1,5 @@
 """Tests for ddtestopt.internal.writer module."""
 
-import threading
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -9,7 +8,6 @@ from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
-from ddtestopt.internal.writer import BaseWriter
 from ddtestopt.internal.writer import Event
 from ddtestopt.internal.writer import TestCoverageWriter
 from ddtestopt.internal.writer import TestOptWriter

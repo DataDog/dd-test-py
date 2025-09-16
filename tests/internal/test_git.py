@@ -1,6 +1,5 @@
 """Tests for ddtestopt.internal.git module."""
 
-from pathlib import Path
 from unittest.mock import Mock
 from unittest.mock import patch
 
