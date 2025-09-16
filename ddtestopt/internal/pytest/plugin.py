@@ -497,7 +497,7 @@ class TestOptPlugin:
         the dictionaries.
         """
         # TODO: handle xfail/xpass.
-        reports_dict = self.reports_by_nodeid.pop(nodeid, None)
+        reports_dict = self.reports_by_nodeid.pop(nodeid, {})
 
         for phase in (TestPhase.SETUP, TestPhase.CALL, TestPhase.TEARDOWN):
             report = reports_dict.get(phase)

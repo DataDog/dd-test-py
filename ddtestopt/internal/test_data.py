@@ -26,16 +26,16 @@ class SuiteRef:
 
 @dataclass(frozen=True)
 class TestRef:
-    __test__: bool = False
     suite: SuiteRef
     name: str
+    __test__: bool = False
 
 
 class TestStatus(Enum):
-    __test__: bool = False
     PASS = "pass"
     FAIL = "fail"
     SKIP = "skip"
+    __test__: bool = False
 
 
 TParentClass = t.TypeVar("TParentClass", bound="TestItem")
@@ -49,7 +49,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def __init__(self, name: str, parent: TParentClass):
         self.name = name
         self.children: t.Dict[str, TChildClass] = {}
-        self.start_ns: t.Optional[int] = None
+        self.start_ns: int = 0
         self.duration_ns: t.Optional[int] = None
         self.parent: TParentClass = parent
         self.item_id = _gen_item_id()
@@ -61,11 +61,11 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def seconds_so_far(self):
         return (time.time_ns() - self.start_ns) / 1e9
 
-    def start(self, start_ns: t.Optional[int] = None) -> None:
-        self.start_ns = start_ns if start_ns is not None else time.time_ns()
+    def start(self, start_ns: int = 0) -> None:
+        self.start_ns = start_ns if start_ns else time.time_ns()
 
     def ensure_started(self) -> None:
-        if self.start_ns is None:
+        if not self.start_ns:
             self.start()
 
     def finish(self) -> None:
@@ -222,8 +222,8 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
 
 class TestSuite(TestItem["TestModule", "Test"]):
-    __test__: bool = False
     ChildClass = Test
+    __test__: bool = False
 
     def __str__(self) -> str:
         return f"{self.parent.name}/{self.name}"
@@ -242,8 +242,8 @@ class TestSuite(TestItem["TestModule", "Test"]):
 
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
-    __test__: bool = False
     ChildClass = TestSuite
+    __test__: bool = False
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -261,8 +261,8 @@ class TestModule(TestItem["TestSession", "TestSuite"]):
 
 
 class TestSession(TestItem[t.NoReturn, "TestModule"]):
-    __test__: bool = False
     ChildClass = TestModule
+    __test__: bool = False
 
     def __init__(self, name: str):
         super().__init__(name=name, parent=None)  # type: ignore
@@ -282,7 +282,6 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
 
 
 class TestTag:
-    __test__: bool = False
     COMPONENT = "component"
     TEST_COMMAND = "test.command"
     TEST_FRAMEWORK = "test.framework"
@@ -307,3 +306,5 @@ class TestTag:
     HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries"
 
     PARAMETERS = "test.parameters"
+
+    __test__: bool = False
