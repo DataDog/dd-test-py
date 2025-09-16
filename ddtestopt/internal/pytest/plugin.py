@@ -167,12 +167,6 @@ class TestOptPlugin:
 
         self.manager.finish()
 
-    def pytest_configure_node(self, node: t.Any) -> None:
-        """
-        Pass test session id from the main process to xdist workers.
-        """
-        node.workerinput["dd_session_id"] = self.session.session_id
-
     def pytest_collection_finish(self, session: pytest.Session) -> None:
         """
         Discover modules, suites, and tests that have been selected by pytest.
@@ -519,6 +513,15 @@ class TestOptPlugin:
         return TestStatus.PASS, {}
 
 
+class XdistHooks(TestOptPlugin):
+    @pytest.hookimpl
+    def pytest_configure_node(self, node: t.Any) -> None:
+        """
+        Pass test session id from the main process to xdist workers.
+        """
+        node.workerinput["dd_session_id"] = self.session.session_id
+
+
 def _make_reports_dict(reports) -> _ReportGroup:
     return {report.when: report for report in reports}
 
@@ -539,6 +542,8 @@ def setup_coverage_collection():
 
 def pytest_configure(config):
     config.pluginmanager.register(TestOptPlugin())
+    if config.pluginmanager.hasplugin("xdist"):
+        config.pluginmanager.register(XdistHooks())
 
 
 def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:

@@ -83,6 +83,8 @@ class BaseWriter(ABC):
 
 
 class TestOptWriter(BaseWriter):
+    __test__ = False
+
     def __init__(self, site: str, api_key: str) -> None:
         super().__init__(site=site, api_key=api_key)
 
@@ -111,10 +113,10 @@ class TestOptWriter(BaseWriter):
         )
 
         self.serializers: t.Dict[t.Type[TestItem], EventSerializer] = {
-            TestRun: test_run_to_event,
-            TestSuite: suite_to_event,
-            TestModule: module_to_event,
-            TestSession: session_to_event,
+            TestRun: serialize_test_run,
+            TestSuite: serialize_suite,
+            TestModule: serialize_module,
+            TestSession: serialize_session,
         }
 
     def add_metadata(self, event_type: str, metadata: t.Dict[str, str]) -> None:
@@ -137,6 +139,8 @@ class TestOptWriter(BaseWriter):
 
 
 class TestCoverageWriter(BaseWriter):
+    __test__ = False
+
     def __init__(self, site: str, api_key: str) -> None:
         super().__init__(site=site, api_key=api_key)
 
@@ -175,7 +179,7 @@ class TestCoverageWriter(BaseWriter):
         response, response_data = self.connector.post_files("/api/v2/citestcov", files=files, send_gzip=True)
 
 
-def test_run_to_event(test_run: TestRun) -> Event:
+def serialize_test_run(test_run: TestRun) -> Event:
     return Event(
         version=2,
         type="test",
@@ -216,7 +220,7 @@ def test_run_to_event(test_run: TestRun) -> Event:
     )
 
 
-def suite_to_event(suite: TestSuite) -> Event:
+def serialize_suite(suite: TestSuite) -> Event:
     return Event(
         version=1,
         type="test_suite_end",
@@ -249,7 +253,7 @@ def suite_to_event(suite: TestSuite) -> Event:
     )
 
 
-def module_to_event(module: TestModule) -> Event:
+def serialize_module(module: TestModule) -> Event:
     return Event(
         version=1,
         type="test_module_end",
@@ -281,7 +285,7 @@ def module_to_event(module: TestModule) -> Event:
     )
 
 
-def session_to_event(session: TestSession) -> Event:
+def serialize_session(session: TestSession) -> Event:
     return Event(
         version=1,
         type="test_session_end",
