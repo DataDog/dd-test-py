@@ -26,13 +26,13 @@ class SuiteRef:
 
 @dataclass(frozen=True)
 class TestRef:
-    __test__ = False
+    __test__: bool = False
     suite: SuiteRef
     name: str
 
 
 class TestStatus(Enum):
-    __test__ = False
+    __test__: bool = False
     PASS = "pass"
     FAIL = "fail"
     SKIP = "skip"
@@ -43,7 +43,7 @@ TChildClass = t.TypeVar("TChildClass", bound="TestItem")
 
 
 class TestItem(t.Generic[TParentClass, TChildClass]):
-    __test__ = False
+    __test__: bool = False
     ChildClass: t.Type[TChildClass]
 
     def __init__(self, name: str, parent: TParentClass):
@@ -119,7 +119,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
 
 
 class TestRun(TestItem["Test", t.NoReturn]):
-    __test__ = False
+    __test__: bool = False
 
     def __init__(self, name: str, parent: Test) -> None:
         super().__init__(name=name, parent=parent)
@@ -145,7 +145,7 @@ class TestRun(TestItem["Test", t.NoReturn]):
 
 
 class Test(TestItem["TestSuite", "TestRun"]):
-    __test__ = False
+    __test__: bool = False
     ChildClass = TestRun
 
     def __init__(self, name: str, parent: TestSuite) -> None:
@@ -222,7 +222,7 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
 
 class TestSuite(TestItem["TestModule", "Test"]):
-    __test__ = False
+    __test__: bool = False
     ChildClass = Test
 
     def __str__(self) -> str:
@@ -242,7 +242,7 @@ class TestSuite(TestItem["TestModule", "Test"]):
 
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
-    __test__ = False
+    __test__: bool = False
     ChildClass = TestSuite
 
     def __str__(self) -> str:
@@ -261,7 +261,7 @@ class TestModule(TestItem["TestSession", "TestSuite"]):
 
 
 class TestSession(TestItem[t.NoReturn, "TestModule"]):
-    __test__ = False
+    __test__: bool = False
     ChildClass = TestModule
 
     def __init__(self, name: str):
@@ -282,7 +282,7 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
 
 
 class TestTag:
-    __test__ = False
+    __test__: bool = False
     COMPONENT = "component"
     TEST_COMMAND = "test.command"
     TEST_FRAMEWORK = "test.framework"

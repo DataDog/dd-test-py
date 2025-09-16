@@ -22,6 +22,6 @@ def asbool(value: t.Union[str, bool, None]) -> bool:
 
 @dataclass
 class TestContext:
-    __test__ = False
+    __test__: bool = False
     span_id: int
     trace_id: int
