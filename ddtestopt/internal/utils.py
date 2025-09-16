@@ -24,4 +24,4 @@ def asbool(value: t.Union[str, bool, None]) -> bool:
 class TestContext:
     span_id: int
     trace_id: int
-    __test__: bool = False
+    __test__ = False

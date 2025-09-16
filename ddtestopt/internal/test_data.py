@@ -28,14 +28,14 @@ class SuiteRef:
 class TestRef:
     suite: SuiteRef
     name: str
-    __test__: bool = False
+    __test__ = False
 
 
 class TestStatus(Enum):
     PASS = "pass"
     FAIL = "fail"
     SKIP = "skip"
-    __test__: bool = False
+    __test__ = False
 
 
 TParentClass = t.TypeVar("TParentClass", bound="TestItem")
@@ -43,7 +43,7 @@ TChildClass = t.TypeVar("TChildClass", bound="TestItem")
 
 
 class TestItem(t.Generic[TParentClass, TChildClass]):
-    __test__: bool = False
+    __test__ = False
     ChildClass: t.Type[TChildClass]
 
     def __init__(self, name: str, parent: TParentClass):
@@ -123,7 +123,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
 
 
 class TestRun(TestItem["Test", t.NoReturn]):
-    __test__: bool = False
+    __test__ = False
 
     def __init__(self, name: str, parent: Test) -> None:
         super().__init__(name=name, parent=parent)
@@ -149,7 +149,7 @@ class TestRun(TestItem["Test", t.NoReturn]):
 
 
 class Test(TestItem["TestSuite", "TestRun"]):
-    __test__: bool = False
+    __test__ = False
     ChildClass = TestRun
 
     def __init__(self, name: str, parent: TestSuite) -> None:
@@ -227,7 +227,7 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
 class TestSuite(TestItem["TestModule", "Test"]):
     ChildClass = Test
-    __test__: bool = False
+    __test__ = False
 
     def __str__(self) -> str:
         return f"{self.parent.name}/{self.name}"
@@ -247,7 +247,7 @@ class TestSuite(TestItem["TestModule", "Test"]):
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
     ChildClass = TestSuite
-    __test__: bool = False
+    __test__ = False
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -266,7 +266,7 @@ class TestModule(TestItem["TestSession", "TestSuite"]):
 
 class TestSession(TestItem[t.NoReturn, "TestModule"]):
     ChildClass = TestModule
-    __test__: bool = False
+    __test__ = False
 
     def __init__(self, name: str):
         super().__init__(name=name, parent=None)  # type: ignore
@@ -311,4 +311,4 @@ class TestTag:
 
     PARAMETERS = "test.parameters"
 
-    __test__: bool = False
+    __test__ = False

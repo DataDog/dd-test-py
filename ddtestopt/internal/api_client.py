@@ -247,7 +247,7 @@ class AutoTestRetriesSettings:
 
 @dataclass
 class TestManagementSettings:
-    __test__: bool = False
+    __test__ = False
     enabled: bool = False
     attempt_to_fix_retries: int = 20
 
@@ -303,4 +303,4 @@ class TestProperties:
     disabled: bool = False
     attempt_to_fix: bool = False
 
-    __test__: bool = False
+    __test__ = False
