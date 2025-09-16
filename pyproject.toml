@@ -71,12 +71,12 @@ dependencies = [
 qa = [
     "ruff check ddtestopt/ tests/",
     "black --check ddtestopt/ tests/",
-    "python -m mypy ddtestopt/",
+    "python -m mypy ddtestopt/ tests/",
 ]
 fix = [
     "ruff check --fix --unsafe-fixes ddtestopt/ tests/",
     "black ddtestopt/ tests/",
-    "python -m mypy ddtestopt/",
+    "python -m mypy ddtestopt/ tests/",
 ]
 # Individual commands for specific fixes
 lint = "ruff check {args:ddtestopt/ tests/}"
@@ -109,7 +109,6 @@ lint.ignore = [
     "D105",  # Missing docstring in magic method
     "D107",  # Missing docstring in `__init__`
     "D200",  # One-line docstring should fit on one line
-    "E722",  # Do not use bare `except`
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -155,19 +154,10 @@ addopts = "--allow-hosts=localhost,127.0.0.1,0.0.0.0,::1"
 
 [tool.mypy]
 python_version = "3.9"  # Target minimum supported version
-warn_unused_configs = true
-# Start with lenient settings - can be tightened later
-warn_return_any = false
-disallow_untyped_defs = false
 ignore_missing_imports = true
-allow_untyped_calls = true
-allow_untyped_defs = true
-no_implicit_optional = false
 # Exclude problematic modules for now
 exclude = [
-    "tests/",
     "build/",
     "dist/",
     "ddtestopt/internal/coverage/",  # Complex bytecode manipulation code
-    "ddtestopt/internal/api_client.py",  # Complex API types
 ]

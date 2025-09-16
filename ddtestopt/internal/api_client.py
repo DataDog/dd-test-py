@@ -63,7 +63,7 @@ class APIClient:
             attributes = response_data["data"]["attributes"]
             return Settings.from_attributes(attributes)
 
-        except:
+        except Exception:
             log.exception("Error getting settings from API")
             return Settings()
 
@@ -95,7 +95,7 @@ class APIClient:
 
             return known_test_ids
 
-        except:
+        except Exception:
             log.exception("Error getting known tests from API")
             return set()
 
@@ -136,7 +136,7 @@ class APIClient:
 
             return test_properties
 
-        except:
+        except Exception:
             log.exception("Failed to parse Test Management tests data")
             return {}
 
@@ -152,7 +152,7 @@ class APIClient:
             response, response_data = self.connector.post_json("/api/v2/git/repository/search_commits", request_data)
             return [item["id"] for item in response_data["data"] if item["type"] == "commit"]
 
-        except:
+        except Exception:
             log.exception("Failed to parse search_commits data")
             return []
 
@@ -180,7 +180,7 @@ class APIClient:
         if response.status != 204:
             log.warning("Failed to upload git pack data: %s %s", response.status, response_data)
 
-    def get_skippable_tests(self) -> t.Tuple[t.Union[SuiteRef, TestRef], t.Optional[str]]:
+    def get_skippable_tests(self) -> t.Tuple[t.Set[t.Union[SuiteRef, TestRef]], t.Optional[str]]:
         request_data = {
             "data": {
                 "id": str(uuid.uuid4()),
@@ -213,9 +213,9 @@ class APIClient:
 
             return skippable_items, correlation_id
 
-        except:
+        except Exception:
             log.exception("Error getting skippable tests from API")
-            return [], None
+            return set(), None
 
 
 @dataclass

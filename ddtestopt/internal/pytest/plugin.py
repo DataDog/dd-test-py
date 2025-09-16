@@ -579,7 +579,7 @@ def _get_test_parameters_json(item: pytest.Item) -> t.Optional[str]:
     for param_name, param_val in item.callspec.params.items():
         try:
             parameters["arguments"][param_name] = _encode_test_parameter(param_val)
-        except:
+        except Exception:
             parameters["arguments"][param_name] = "Could not encode"
             log.warning("Failed to encode %r", param_name, exc_info=True)
 

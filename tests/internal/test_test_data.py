@@ -1,5 +1,6 @@
 """Tests for ddtestopt.internal.test_data module."""
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -97,7 +98,7 @@ class TestTestStatus:
 class MockTestItem(TestItem):
     """Mock TestItem for testing."""
 
-    ChildClass = None
+    ChildClass = Any
 
     def __init__(self, name: str, parent=None):
         super().__init__(name, parent)
