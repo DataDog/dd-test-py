@@ -15,7 +15,7 @@ import ddtestopt.internal.coverage.installer
 
 def install_coverage(workspace_path: Path) -> None:
     ddtestopt.internal.coverage.installer.install(include_paths=[workspace_path], collect_import_time_coverage=True)
-    ModuleCodeCollector.start_coverage()
+    ModuleCodeCollector.start_coverage()  # type: ignore[no-untyped-call]
 
 
 class CoverageData:
@@ -27,7 +27,7 @@ class CoverageData:
 
 
 @contextlib.contextmanager
-def coverage_collection() -> t.Generator:
+def coverage_collection() -> t.Generator[CoverageData, None, None]:
     with ModuleCodeCollector.CollectInContext() as coverage_collector:
         coverage_data = CoverageData()
         yield coverage_data

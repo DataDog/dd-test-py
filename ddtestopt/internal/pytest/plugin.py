@@ -105,7 +105,7 @@ def _get_module_path_from_item(item: pytest.Item) -> Path:
         item_path = getattr(item, "path", None)
         if item_path is not None:
             return item.path.absolute().parent
-        return Path(item.module.__file__).absolute().parent
+        return Path(item.module.__file__).absolute().parent  # type: ignore[attr-defined]
     except Exception:  # noqa: E722
         return Path.cwd()
 
@@ -127,7 +127,7 @@ class TestOptPlugin:
     def __init__(self) -> None:
         self.enable_ddtrace = False  # TODO: make it configurable via command line.
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
-        self.excinfo_by_report: t.Dict[pytest.TestReport, pytest.ExceptionInfo] = {}
+        self.excinfo_by_report: t.Dict[pytest.TestReport, t.Optional[pytest.ExceptionInfo[t.Any]]] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
         self.is_xdist_worker = False
 
@@ -202,7 +202,7 @@ class TestOptPlugin:
 
         def _on_new_test(test: Test) -> None:
             path, start_line, _test_name = item.reportinfo()
-            test.set_location(path=path, start_line=start_line)
+            test.set_location(path=path, start_line=start_line or 0)
 
             if parameters := _get_test_parameters_json(item):
                 test.set_parameters(parameters)
@@ -388,18 +388,24 @@ class TestOptPlugin:
         if not self._mark_test_report_as_retry(reports, retry_handler, TestPhase.CALL):
             self._mark_test_report_as_retry(reports, retry_handler, TestPhase.SETUP)
 
-    def _mark_quarantined_test_report_as_skipped(self, item: pytest.Item, report: pytest.TestReport) -> None:
+    def _mark_quarantined_test_report_as_skipped(
+        self, item: pytest.Item, report: t.Optional[pytest.TestReport]
+    ) -> None:
         """
         Modify a test report for a quarantined test to make it look like it was skipped.
         """
         # For junitxml, probably the least confusing way to report a quarantined test is as skipped.
         # In `pytest_runtest_logreport`, we can still identify the test as quarantined via the `dd_quarantined`
         # user property.
+        if report is None:
+            return
+
         if report.when == TestPhase.TEARDOWN:
             report.outcome = "passed"
         else:
             # TODO: distinguish quarantine vs disabled
-            longrepr: _Longrepr = (str(item.path), item.location[1], "Quarantined")
+            line_number = item.location[1] or 0
+            longrepr: _Longrepr = (str(item.path), line_number, "Quarantined")
             report.longrepr = longrepr
             report.outcome = "skipped"
 
@@ -466,8 +472,8 @@ class TestOptPlugin:
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(
-        self, item: pytest.Item, call: pytest.CallInfo
-    ) -> t.Generator[None, pluggy.Result, None]:
+        self, item: pytest.Item, call: pytest.CallInfo[t.Any]
+    ) -> t.Generator[None, pluggy.Result[t.Any], None]:
         """
         Save report and exception information for later use.
         """
@@ -508,7 +514,12 @@ class TestOptPlugin:
             if report.failed:
                 return TestStatus.FAIL, _get_exception_tags(excinfo)
             if report.skipped:
-                return TestStatus.SKIP, {TestTag.SKIP_REASON: str(excinfo.value)}
+                if excinfo is None:
+                    reason = "Unknown skip reason"
+                else:
+                    reason = str(excinfo.value)
+
+                return TestStatus.SKIP, {TestTag.SKIP_REASON: reason}
 
         return TestStatus.PASS, {}
 
@@ -522,7 +533,7 @@ class XdistTestOptPlugin(TestOptPlugin):
         node.workerinput["dd_session_id"] = self.session.session_id
 
 
-def _make_reports_dict(reports) -> _ReportGroup:
+def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:
     return {report.when: report for report in reports}
 
 
@@ -535,12 +546,12 @@ def pytest_load_initial_conftests(
     yield
 
 
-def setup_coverage_collection():
+def setup_coverage_collection() -> None:
     workspace_path = Path.cwd().absolute()  # ꙮ
     install_coverage(workspace_path)
 
 
-def pytest_configure(config):
+def pytest_configure(config: pytest.Config) -> None:
     plugin_class = XdistTestOptPlugin if config.pluginmanager.hasplugin("xdist") else TestOptPlugin
 
     try:
@@ -552,7 +563,10 @@ def pytest_configure(config):
     config.pluginmanager.register(plugin)
 
 
-def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:
+def _get_exception_tags(excinfo: t.Optional[pytest.ExceptionInfo[t.Any]]) -> t.Dict[str, str]:
+    if excinfo is None:
+        return {}
+
     max_entries = 30
     buf = StringIO()
     # TODO: handle MAX_SPAN_META_VALUE_LEN
@@ -565,7 +579,7 @@ def _get_exception_tags(excinfo: pytest.ExceptionInfo) -> t.Dict[str, str]:
     }
 
 
-def _get_user_property(report: pytest.TestReport, user_property: str):
+def _get_user_property(report: pytest.TestReport, user_property: str) -> t.Optional[t.Any]:
     user_properties = getattr(report, "user_properties", [])  # pytest.CollectReport does not have `user_properties`.
 
     for key, value in user_properties:
@@ -576,13 +590,13 @@ def _get_user_property(report: pytest.TestReport, user_property: str):
 
 
 def _get_test_parameters_json(item: pytest.Item) -> t.Optional[str]:
-    callspec: t.Optional[pytest.python.CallSpec2] = getattr(item, "callspec", None)
+    callspec: t.Optional[pytest.python.CallSpec2] = getattr(item, "callspec", None)  # type: ignore[name-defined]
 
     if callspec is None:
         return None
 
     parameters: t.Dict[str, t.Dict[str, str]] = {"arguments": {}, "metadata": {}}
-    for param_name, param_val in item.callspec.params.items():
+    for param_name, param_val in item.callspec.params.items():  # type: ignore[attr-defined]
         try:
             parameters["arguments"][param_name] = _encode_test_parameter(param_val)
         except Exception:
