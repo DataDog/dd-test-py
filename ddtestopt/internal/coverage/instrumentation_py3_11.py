@@ -61,6 +61,18 @@ class Branch:
         return abs(self.end.offset - self.start.offset - 2) >> 1
 
 
+def _retarget_jump_targets(jump_instr: Instruction, ext_instr: Instruction) -> None:
+    targets = jump_instr.targets
+    if not targets:
+        return
+    for target in targets:
+        if target.end is not jump_instr:
+            raise ValueError("Invalid target")
+        target.end = ext_instr
+    ext_instr.targets.extend(targets)
+    targets.clear()
+
+
 EXTENDED_ARG = dis.EXTENDED_ARG
 NO_OFFSET = -1
 
@@ -428,13 +440,7 @@ def instrument_all_lines(code: CodeType, hook: HookType, path: str, package: str
                     # If the jump instruction was a target of another jump,
                     # make the latest EXTENDED_ARG instruction the target
                     # of that jump.
-                    if jump_instr.targets:
-                        for target in jump_instr.targets:
-                            if target.end is not jump_instr:
-                                raise ValueError("Invalid target")
-                            target.end = ext_instr
-                        ext_instr.targets.extend(jump_instr.targets)
-                        jump_instr.targets.clear()
+                    _retarget_jump_targets(jump_instr, ext_instr)
                 new_arg >>= 8
 
             # Check if we added any EXTENDED_ARGs because we would have to
