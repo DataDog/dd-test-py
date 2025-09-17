@@ -11,7 +11,7 @@ ddtestopt_logger = logging.getLogger("ddtestopt")
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
 
-def setup_logging():
+def setup_logging() -> None:
     ddtestopt_logger.propagate = False
 
     log_level = logging.DEBUG if asbool(os.getenv("DDTESTOPT_DEBUG")) else logging.INFO
@@ -27,7 +27,7 @@ def setup_logging():
 def catch_and_log_exceptions() -> t.Callable[[F], F]:
     def decorator(f: F) -> F:
         @wraps(f)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: t.Any, **kwargs: t.Any) -> t.Any:
             try:
                 return f(*args, **kwargs)
             except Exception:

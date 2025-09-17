@@ -2,19 +2,20 @@ import typing as t
 
 
 try:
-    from ddtrace.trace import Span  # type: ignore
-    from ddtrace.trace import TraceFilter  # type: ignore
+    from ddtrace.trace import Span
+    from ddtrace.trace import TraceFilter
 except ImportError:
     # ddtrace 2.x compatibility
-    from ddtrace import Span  # type: ignore
-    from ddtrace.filters import TraceFilter  # type: ignore
+    from ddtrace import Span  # type: ignore[attr-defined, no-redef]
+    from ddtrace.filters import TraceFilter  # type: ignore[import-not-found, no-redef]
 
 from ddtestopt.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
 from ddtestopt.internal.writer import Event
+from ddtestopt.internal.writer import TestOptWriter
 
 
 class TestOptSpanProcessor(TraceFilter):
-    def __init__(self, writer):
+    def __init__(self, writer: TestOptWriter) -> None:
         self.writer = writer
 
     def process_trace(self, trace: t.List[Span]) -> t.Optional[t.List[Span]]:

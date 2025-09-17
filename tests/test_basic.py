@@ -1,7 +1,7 @@
 """Basic test to ensure the package imports correctly."""
 
 
-def test_import_ddtestopt():
+def test_import_ddtestopt() -> None:
     """Test that the main package can be imported."""
     import ddtestopt
 

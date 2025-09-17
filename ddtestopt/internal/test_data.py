@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+import os
 from pathlib import Path
 import time
 import typing as t
@@ -38,8 +39,8 @@ class TestStatus(Enum):
     __test__ = False
 
 
-TParentClass = t.TypeVar("TParentClass", bound="TestItem")
-TChildClass = t.TypeVar("TChildClass", bound="TestItem")
+TParentClass = t.TypeVar("TParentClass", bound="TestItem[t.Any, t.Any]")
+TChildClass = t.TypeVar("TChildClass", bound="TestItem[t.Any, t.Any]")
 
 
 class TestItem(t.Generic[TParentClass, TChildClass]):
@@ -58,7 +59,7 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
         self.metrics: t.Dict[str, t.Union[int, float]] = {}
         self.service: str = DEFAULT_SERVICE_NAME
 
-    def seconds_so_far(self):
+    def seconds_so_far(self) -> float:
         if self.start_ns is None:
             raise ValueError("seconds_so_far() called before start")
         return (time.time_ns() - self.start_ns) / 1e9
@@ -179,7 +180,7 @@ class Test(TestItem["TestSuite", "TestRun"]):
         if is_attempt_to_fix:
             self.tags[TestTag.IS_ATTEMPT_TO_FIX] = TAG_TRUE
 
-    def set_location(self, path: Path, start_line: int) -> None:
+    def set_location(self, path: t.Union[os.PathLike[t.Any], str], start_line: int) -> None:
         self.tags["test.source.file"] = str(path)
         self.metrics["test.source.start"] = start_line
 

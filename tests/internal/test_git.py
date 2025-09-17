@@ -14,7 +14,7 @@ from ddtestopt.internal.git import get_git_tags
 class TestGitTag:
     """Tests for GitTag constants."""
 
-    def test_git_tag_constants(self):
+    def test_git_tag_constants(self) -> None:
         """Test that GitTag constants are correctly defined."""
         assert GitTag.REPOSITORY_URL == "git.repository_url"
         assert GitTag.COMMIT_SHA == "git.commit.sha"
@@ -27,7 +27,7 @@ class TestGitTag:
         assert GitTag.COMMIT_COMMITTER_EMAIL == "git.commit.committer.email"
         assert GitTag.COMMIT_COMMITTER_DATE == "git.commit.committer.date"
 
-    def test_git_tag_constants_unique(self):
+    def test_git_tag_constants_unique(self) -> None:
         """Test that all GitTag constants are unique."""
         constants = [
             GitTag.REPOSITORY_URL,
@@ -49,7 +49,7 @@ class TestGitTag:
 class TestGitSubprocessDetails:
     """Tests for _GitSubprocessDetails dataclass."""
 
-    def test_git_subprocess_details_creation(self):
+    def test_git_subprocess_details_creation(self) -> None:
         """Test that _GitSubprocessDetails can be created with required fields."""
         details = _GitSubprocessDetails(stdout="output", stderr="error", return_code=0)
 
@@ -62,7 +62,7 @@ class TestGit:
     """Tests for Git class."""
 
     @patch("shutil.which")
-    def test_git_init_with_cwd(self, mock_which):
+    def test_git_init_with_cwd(self, mock_which: Mock) -> None:
         """Test Git initialization with custom working directory."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -71,7 +71,7 @@ class TestGit:
         assert git.cwd == "/custom/path"
 
     @patch("shutil.which")
-    def test_git_init_git_not_found(self, mock_which):
+    def test_git_init_git_not_found(self, mock_which: Mock) -> None:
         """Test Git initialization when git command is not found."""
         mock_which.return_value = None
 
@@ -79,7 +79,7 @@ class TestGit:
             Git()
 
     @patch("shutil.which")
-    def test_get_repository_url(self, mock_which):
+    def test_get_repository_url(self, mock_which: Mock) -> None:
         """Test get_repository_url method."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -91,7 +91,7 @@ class TestGit:
         mock_git_output.assert_called_once_with(["ls-remote", "--get-url"])
 
     @patch("shutil.which")
-    def test_get_commit_sha(self, mock_which):
+    def test_get_commit_sha(self, mock_which: Mock) -> None:
         """Test get_commit_sha method."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -103,7 +103,7 @@ class TestGit:
         mock_git_output.assert_called_once_with(["rev-parse", "HEAD"])
 
     @patch("shutil.which")
-    def test_get_branch(self, mock_which):
+    def test_get_branch(self, mock_which: Mock) -> None:
         """Test get_branch method."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -115,7 +115,7 @@ class TestGit:
         mock_git_output.assert_called_once_with(["rev-parse", "--abbrev-ref", "HEAD"])
 
     @patch("shutil.which")
-    def test_get_commit_message(self, mock_which):
+    def test_get_commit_message(self, mock_which: Mock) -> None:
         """Test get_commit_message method."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -127,7 +127,7 @@ class TestGit:
         mock_git_output.assert_called_once_with(["show", "-s", "--format=%s"])
 
     @patch("shutil.which")
-    def test_get_user_info_success(self, mock_which):
+    def test_get_user_info_success(self, mock_which: Mock) -> None:
         """Test get_user_info method with valid output."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -151,7 +151,7 @@ class TestGit:
         assert result == expected
 
     @patch("shutil.which")
-    def test_get_user_info_no_output(self, mock_which):
+    def test_get_user_info_no_output(self, mock_which: Mock) -> None:
         """Test get_user_info method with no output."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -162,7 +162,7 @@ class TestGit:
         assert result == {}
 
     @patch("shutil.which")
-    def test_get_workspace_path(self, mock_which):
+    def test_get_workspace_path(self, mock_which: Mock) -> None:
         """Test get_workspace_path method."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -174,7 +174,7 @@ class TestGit:
         mock_git_output.assert_called_once_with(["rev-parse", "--show-toplevel"])
 
     @patch("shutil.which")
-    def test_get_latest_commits_success(self, mock_which):
+    def test_get_latest_commits_success(self, mock_which: Mock) -> None:
         """Test get_latest_commits method with commits."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -188,7 +188,7 @@ class TestGit:
         mock_git_output.assert_called_once_with(["log", "--format=%H", "-n", "1000", '--since="1 month ago"'])
 
     @patch("shutil.which")
-    def test_get_latest_commits_no_output(self, mock_which):
+    def test_get_latest_commits_no_output(self, mock_which: Mock) -> None:
         """Test get_latest_commits method with no commits."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -199,7 +199,7 @@ class TestGit:
         assert result == []
 
     @patch("shutil.which")
-    def test_get_filtered_revisions(self, mock_which):
+    def test_get_filtered_revisions(self, mock_which: Mock) -> None:
         """Test get_filtered_revisions method."""
         mock_which.return_value = "/usr/bin/git"
 
@@ -231,7 +231,7 @@ class TestGetGitTags:
     """Tests for get_git_tags function."""
 
     @patch("ddtestopt.internal.git.Git")
-    def test_get_git_tags_success(self, mock_git_class):
+    def test_get_git_tags_success(self, mock_git_class: Mock) -> None:
         """Test get_git_tags with successful Git operations."""
         mock_git = Mock()
         mock_git.get_repository_url.return_value = "https://github.com/user/repo.git"
@@ -254,7 +254,7 @@ class TestGetGitTags:
 
     @patch("ddtestopt.internal.git.Git")
     @patch("ddtestopt.internal.git.log")
-    def test_get_git_tags_git_not_available(self, mock_log, mock_git_class):
+    def test_get_git_tags_git_not_available(self, mock_log: Mock, mock_git_class: Mock) -> None:
         """Test get_git_tags when Git is not available."""
         mock_git_class.side_effect = RuntimeError("git command not found")
 

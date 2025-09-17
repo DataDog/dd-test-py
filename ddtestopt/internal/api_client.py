@@ -273,9 +273,13 @@ class Settings:
     itr_enabled: bool = False
 
     @classmethod
-    def from_attributes(cls, attributes) -> Settings:
-        efd_settings = EarlyFlakeDetectionSettings.from_attributes(attributes.get("early_flake_detection"))
-        test_management_settings = TestManagementSettings.from_attributes(attributes.get("test_management"))
+    def from_attributes(cls, attributes: t.Dict[str, t.Any]) -> Settings:
+        efd_attributes: t.Dict[str, t.Any] = t.cast(t.Dict[str, t.Any], attributes.get("early_flake_detection"))
+        test_management_attributes: t.Dict[str, t.Any] = t.cast(t.Dict[str, t.Any], attributes.get("test_management"))
+        efd_settings = EarlyFlakeDetectionSettings.from_attributes(efd_attributes)
+        test_management_settings = TestManagementSettings.from_attributes(
+            test_management_attributes=test_management_attributes
+        )
         atr_enabled = bool(attributes.get("flaky_test_retries_enabled"))
         known_tests_enabled = bool(attributes.get("known_tests_enabled"))
         coverage_enabled = bool(attributes.get("code_coverage"))
