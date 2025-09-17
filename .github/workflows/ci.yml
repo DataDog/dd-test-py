@@ -53,3 +53,53 @@ jobs:
       
     - name: Run tests
       run: hatch run test.py${{ matrix.python-version }}-${{ matrix.pytest-version }}:test
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: qa  # Only run if QA job passes
+    env:
+      MINIMUM_COVERAGE: 43
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        
+    - name: Install Hatch
+      run: pip install hatch
+      
+    - name: Run coverage tests
+      id: coverage
+      run: |
+        # Run coverage and capture output
+        coverage_output=$(hatch run 'test.py3.13-8.4.*:test-cov' 2>&1)
+        echo "$coverage_output"
+        
+        # Extract coverage percentage from the last line
+        coverage_percent=$(echo "$coverage_output" | tail -1 | grep -o '[0-9]\+$')
+        
+        echo "Coverage: ${coverage_percent}%"
+        echo "coverage_percent=${coverage_percent}" >> $GITHUB_OUTPUT
+        
+        # Check if coverage meets minimum threshold
+        if [ "$coverage_percent" -lt "$MINIMUM_COVERAGE" ]; then
+          echo "❌ Coverage ${coverage_percent}% is below minimum threshold of ${MINIMUM_COVERAGE}%"
+          exit 1
+        else
+          echo "✅ Coverage ${coverage_percent}% meets minimum threshold of ${MINIMUM_COVERAGE}%"
+        fi
+        
+    - name: Coverage Summary
+      if: always()
+      run: |
+        echo "## Coverage Report 📊" >> $GITHUB_STEP_SUMMARY
+        echo "- **Current Coverage:** ${{ steps.coverage.outputs.coverage_percent }}%" >> $GITHUB_STEP_SUMMARY
+        echo "- **Minimum Required:** ${{ env.MINIMUM_COVERAGE }}%" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.coverage.outputs.coverage_percent }}" -ge "${{ env.MINIMUM_COVERAGE }}" ]; then
+          echo "- **Status:** ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Status:** ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+        fi
