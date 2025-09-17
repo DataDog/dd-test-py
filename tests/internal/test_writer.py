@@ -3,7 +3,6 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from ddtestopt.internal.coverage.coverage_lines import CoverageLines
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
@@ -128,18 +127,12 @@ class TestTestCoverageWriter:
         test_run.suite_id = 456
         test_run.span_id = 789
 
-        # Mock coverage data
-        mock_coverage1 = Mock()
-        mock_coverage1.to_bytes.return_value = b"coverage1_bytes"
-        mock_coverage2 = Mock()
-        mock_coverage2.to_bytes.return_value = b"coverage2_bytes"
-
-        coverage_data: dict[str, CoverageLines] = {
-            "file1.py": mock_coverage1,
-            "file2.py": mock_coverage2,
+        coverage_data: dict[str, bytes] = {
+            "file1.py": b"coverage1_bytes",
+            "file2.py": b"coverage2_bytes",
         }
 
-        writer.put_coverage(test_run, coverage_data)
+        writer.put_coverage(test_run, coverage_data.items())
 
         # Check event was created and added
         assert len(writer.events) == 1
