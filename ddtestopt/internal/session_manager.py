@@ -200,7 +200,7 @@ class SessionManager:
 
         self.skippable_items, self.itr_correlation_id = self.api_client.get_skippable_tests()
 
-    def should_skip_test(self, test_ref: TestRef) -> bool:
+    def is_skippable_test(self, test_ref: TestRef) -> bool:
         if not self.settings.skipping_enabled:
             return False
 
