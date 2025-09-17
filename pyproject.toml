@@ -16,22 +16,25 @@ ddtestopt = "ddtestopt.internal.pytest.plugin"
 [tool.hatch.version]
 path = "ddtestopt/__init__.py"
 
-[tool.hatch.envs.default]
-dependencies = [
-    "pytest",
-    "coverage[toml]",
-    "pytest-cov",
-]
-
 [tool.hatch.envs.test]
 dependencies = [
-    "pytest",
     "slipcover",
     "pytest-socket",
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+python = ["3.9", "3.10", "3.11"]
+pytest = ["7.2.0", "8.1.2", "8.4.*"]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.12", "3.13"]
+pytest = ["8.1.2", "8.4.*"]
+
+[tool.hatch.envs.test.overrides]
+matrix.pytest.dependencies = [
+  "pytest=={matrix:pytest}"
+]
+
 
 [tool.hatch.envs.test.scripts]
 test = "pytest -p no:ddtestopt --ignore=ddtestopt {args:tests}"
