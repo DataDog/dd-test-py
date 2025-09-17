@@ -22,8 +22,18 @@ class CoverageData:
     def __init__(self) -> None:
         self._covered_lines: t.Optional[t.Dict[str, CoverageLines]] = None
 
-    def get_covered_lines(self) -> t.Optional[t.Dict[str, CoverageLines]]:
-        return self._covered_lines
+    def get_coverage_bitmaps(self, relative_to: Path) -> t.Iterable[t.Tuple[str, bytes]]:
+        if not self._covered_lines:
+            return
+
+        for absolute_path, covered_lines in self._covered_lines.items():
+            try:
+                relative_path = Path(absolute_path).relative_to(relative_to)
+            except ValueError:
+                continue  # covered file does not belong to current repo
+
+            path_str = f"/{relative_path}"
+            yield path_str, covered_lines.to_bytes()
 
 
 @contextlib.contextmanager

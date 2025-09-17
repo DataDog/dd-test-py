@@ -12,6 +12,7 @@ from ddtestopt.internal.constants import DEFAULT_SITE
 from ddtestopt.internal.git import Git
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.git import get_git_tags
+from ddtestopt.internal.git import get_workspace_path
 from ddtestopt.internal.platform import get_platform_tags
 from ddtestopt.internal.retry_handlers import AttemptToFixHandler
 from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
@@ -36,6 +37,7 @@ class SessionManager:
     def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None) -> None:
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
+        self.workspace_path = get_workspace_path()
         self.collected_tests: t.Set[TestRef] = set()
         self.skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
         self.itr_correlation_id: t.Optional[str] = None
