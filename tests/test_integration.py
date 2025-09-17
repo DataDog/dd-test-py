@@ -84,7 +84,6 @@ class TestFeaturesWithMocking:
         """
         )
 
-        expected_retry_messages = 2
         # Mock all the API and environment dependencies
         with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
             # Set up mock API client
@@ -119,7 +118,7 @@ class TestFeaturesWithMocking:
 
                         # Set environment variables for retry configuration
                         monkeypatch.setenv("DD_API_KEY", "test-key")
-                        monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", str(expected_retry_messages))
+                        monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
 
                         # Run pytest with the ddtestopt plugin enabled
                         result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
@@ -138,15 +137,10 @@ class TestFeaturesWithMocking:
         assert "test_passes" in output
 
         # Verify that retries happened - should see "RETRY FAILED (Auto Test Retries)" messages
-        # We configured DD_CIVISIBILITY_FLAKY_RETRY_COUNT=2, but the plugin shows 3 retry attempts
-
-        # This includes the initial attempt marked as a retry
-        expected_retry_messages += 1
-
+        # DEV: We configured DD_CIVISIBILITY_FLAKY_RETRY_COUNT=2
+        # BUT the plugin will show 3 retry attempts (as it includes the initial attempt)
         retry_messages = output.count("RETRY FAILED (Auto Test Retries)")
-        assert (
-            retry_messages == expected_retry_messages
-        ), f"Expected {expected_retry_messages} retry messages, got {retry_messages}"
+        assert retry_messages == 3, f"Expected 3 retry messages, got {retry_messages}"
 
         # Should see the final summary mentioning dd_retry
         assert "dd_retry" in output
