@@ -97,13 +97,14 @@ class SessionManager:
             },
         )
 
-        if self.itr_correlation_id:
-            self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
+        # # Unreachable code, because this is set to None on line 41
+        # if self.itr_correlation_id:
+        #     self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
 
-    def finish_collection(self):
+    def finish_collection(self) -> None:
         self.setup_retry_handlers()
 
-    def setup_retry_handlers(self):
+    def setup_retry_handlers(self) -> None:
         if self.settings.test_management.enabled:
             self.retry_handlers.append(AttemptToFixHandler(self))
 
@@ -156,14 +157,14 @@ class SessionManager:
         if created:
             try:
                 on_new_module(test_module)
-            except:
+            except Exception:
                 log.exception("Error during discovery of module %s", test_module)
 
         test_suite, created = test_module.get_or_create_child(test_ref.suite.name)
         if created:
             try:
                 on_new_suite(test_suite)
-            except:
+            except Exception:
                 log.exception("Error during discovery of suite %s", test_suite)
 
         test, created = test_suite.get_or_create_child(test_ref.name)
@@ -179,12 +180,12 @@ class SessionManager:
                     is_attempt_to_fix=test_properties.attempt_to_fix,
                 )
                 on_new_test(test)
-            except:
+            except Exception:
                 log.exception("Error during discovery of test %s", test)
 
         return test_module, test_suite, test
 
-    def upload_git_data_and_get_skippable_tests(self):
+    def upload_git_data_and_get_skippable_tests(self) -> None:
         git = Git()
         latest_commits = git.get_latest_commits()
         backend_commits = self.api_client.get_known_commits(latest_commits)

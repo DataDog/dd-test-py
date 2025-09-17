@@ -96,7 +96,7 @@ class Git:
     def get_commit_message(self) -> str:
         return self._git_output(["show", "-s", "--format=%s"])
 
-    def get_user_info(self):
+    def get_user_info(self) -> t.Dict[str, str]:
         output = self._git_output(
             ["show", "-s", "--format=%an|||%ae|||%ad|||%cn|||%ce|||%cd", "--date=format:%Y-%m-%dT%H:%M:%S%z"]
         )
@@ -136,7 +136,7 @@ class Git:
         )
         return output.split("\n")
 
-    def pack_objects(self, revisions: t.List[str]):
+    def pack_objects(self, revisions: t.List[str]) -> t.Iterable[Path]:
         base_name = str(random.randint(1, 1000000))
         revisions_text = "\n".join(revisions)
 

@@ -6,7 +6,7 @@ import typing as t
 DDTESTOPT_ROOT_SPAN_RESOURCE = "ddtestopt_root_span"
 
 
-def _gen_item_id():
+def _gen_item_id() -> int:
     return random.randint(1, (1 << 64) - 1)
 
 
@@ -22,6 +22,6 @@ def asbool(value: t.Union[str, bool, None]) -> bool:
 
 @dataclass
 class TestContext:
-    __test__ = False
     span_id: int
     trace_id: int
+    __test__ = False

@@ -70,7 +70,7 @@ class AutoTestRetriesHandler(RetryHandler):
         self.max_tests_to_retry_per_session = int(os.getenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "1000"))
         self.max_retries_per_test = int(os.getenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "5"))
 
-    def get_pretty_name(self):
+    def get_pretty_name(self) -> str:
         return "Auto Test Retries"
 
     def should_apply(self, test: Test) -> bool:
@@ -95,7 +95,7 @@ class AutoTestRetriesHandler(RetryHandler):
 
 
 class EarlyFlakeDetectionHandler(RetryHandler):
-    def get_pretty_name(self):
+    def get_pretty_name(self) -> str:
         return "Early Flake Detection"
 
     def should_apply(self, test: Test) -> bool:
@@ -104,7 +104,7 @@ class EarlyFlakeDetectionHandler(RetryHandler):
         # EFD. But this would be more complex, and for now replicating dd-trace-py's behavior is Fine™.
         return test.is_new() and not test.has_parameters()
 
-    def should_retry(self, test: Test):
+    def should_retry(self, test: Test) -> bool:
         seconds_so_far = test.seconds_so_far()
         retries_so_far = len(test.test_runs) - 1  # Initial attempt does not count.
         efd_settings = self.session_manager.settings.early_flake_detection
@@ -147,7 +147,7 @@ class EarlyFlakeDetectionHandler(RetryHandler):
 
 
 class AttemptToFixHandler(RetryHandler):
-    def get_pretty_name(self):
+    def get_pretty_name(self) -> str:
         return "Attempt to Fix"
 
     def should_apply(self, test: Test) -> bool:

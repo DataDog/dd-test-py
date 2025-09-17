@@ -9,17 +9,18 @@ from pathlib import Path
 import typing as t
 
 from ddtestopt.internal.coverage.code import ModuleCodeCollector
+from ddtestopt.internal.coverage.coverage_lines import CoverageLines
 import ddtestopt.internal.coverage.installer
 
 
-def install_coverage(workspace_path):
+def install_coverage(workspace_path: Path) -> None:
     ddtestopt.internal.coverage.installer.install(include_paths=[workspace_path], collect_import_time_coverage=True)
-    ModuleCodeCollector.start_coverage()
+    ModuleCodeCollector.start_coverage()  # type: ignore[no-untyped-call]
 
 
 class CoverageData:
-    def __init__(self):
-        self._covered_lines = None
+    def __init__(self) -> None:
+        self._covered_lines: t.Optional[t.Dict[str, CoverageLines]] = None
 
     def get_coverage_bitmaps(self, relative_to: Path) -> t.Iterable[t.Tuple[str, bytes]]:
         for absolute_path, covered_lines in self._covered_lines.items():
@@ -33,7 +34,7 @@ class CoverageData:
 
 
 @contextlib.contextmanager
-def coverage_collection():
+def coverage_collection() -> t.Generator[CoverageData, None, None]:
     with ModuleCodeCollector.CollectInContext() as coverage_collector:
         coverage_data = CoverageData()
         yield coverage_data

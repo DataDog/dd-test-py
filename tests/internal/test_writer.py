@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from ddtestopt.internal.coverage.coverage_lines import CoverageLines
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
@@ -20,13 +21,13 @@ from ddtestopt.internal.writer import serialize_test_run
 class TestEvent:
     """Tests for Event class."""
 
-    def test_event_creation_with_data(self):
+    def test_event_creation_with_data(self) -> None:
         """Test Event creation with initial data."""
         event = Event(key1="value1", key2="value2")
         assert event["key1"] == "value1"
         assert event["key2"] == "value2"
 
-    def test_event_dict_operations(self):
+    def test_event_dict_operations(self) -> None:
         """Test that Event supports dict operations."""
         event = Event()
         event["test"] = "data"
@@ -38,7 +39,7 @@ class TestTestOptWriter:
     """Tests for TestOptWriter class."""
 
     @patch("ddtestopt.internal.writer.BackendConnector")
-    def test_testopt_writer_initialization(self, mock_backend_connector):
+    def test_testopt_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestOptWriter initialization."""
         mock_connector = Mock()
         mock_backend_connector.return_value = mock_connector
@@ -65,7 +66,7 @@ class TestTestOptWriter:
 
     @patch("ddtestopt.internal.writer.BackendConnector")
     @patch("msgpack.packb")
-    def test_send_events(self, mock_packb, mock_backend_connector):
+    def test_send_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending events to backend."""
         mock_connector = Mock()
         mock_backend_connector.return_value = mock_connector
@@ -100,7 +101,7 @@ class TestTestCoverageWriter:
     """Tests for TestCoverageWriter class."""
 
     @patch("ddtestopt.internal.writer.BackendConnector")
-    def test_coverage_writer_initialization(self, mock_backend_connector):
+    def test_coverage_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestCoverageWriter initialization."""
         mock_connector = Mock()
         mock_backend_connector.return_value = mock_connector
@@ -117,7 +118,7 @@ class TestTestCoverageWriter:
         )
 
     @patch("ddtestopt.internal.writer.BackendConnector")
-    def test_put_coverage(self, mock_backend_connector):
+    def test_put_coverage(self, mock_backend_connector: Mock) -> None:
         """Test putting coverage data."""
         writer = TestCoverageWriter(site="test", api_key="key")
 
@@ -133,7 +134,7 @@ class TestTestCoverageWriter:
         mock_coverage2 = Mock()
         mock_coverage2.to_bytes.return_value = b"coverage2_bytes"
 
-        coverage_data = {
+        coverage_data: dict[str, CoverageLines] = {
             "file1.py": mock_coverage1,
             "file2.py": mock_coverage2,
         }
@@ -150,7 +151,7 @@ class TestTestCoverageWriter:
 
     @patch("ddtestopt.internal.writer.BackendConnector")
     @patch("msgpack.packb")
-    def test_send_coverage_events(self, mock_packb, mock_backend_connector):
+    def test_send_coverage_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending coverage events."""
         mock_connector = Mock()
         mock_backend_connector.return_value = mock_connector
@@ -183,7 +184,7 @@ class TestTestCoverageWriter:
 class TestSerializationFunctions:
     """Tests for event serialization functions."""
 
-    def create_mock_test_run(self):
+    def create_mock_test_run(self) -> Mock:
         """Create a mock TestRun with required attributes."""
         test_run = Mock(spec=TestRun)
         test_run.trace_id = 111
@@ -211,7 +212,7 @@ class TestSerializationFunctions:
 
         return test_run
 
-    def test_serialize_test_run_pass(self):
+    def test_serialize_test_run_pass(self) -> None:
         """Test serializing a passing test run."""
         test_run = self.create_mock_test_run()
         test_run.get_status.return_value = TestStatus.PASS
@@ -245,7 +246,7 @@ class TestSerializationFunctions:
         assert metrics["_dd.py.partial_flush"] == 1
         assert metrics["custom.metric"] == 42
 
-    def test_serialize_test_run_fail(self):
+    def test_serialize_test_run_fail(self) -> None:
         """Test serializing a failing test run."""
         test_run = self.create_mock_test_run()
         test_run.get_status.return_value = TestStatus.FAIL
@@ -255,7 +256,7 @@ class TestSerializationFunctions:
         assert event["content"]["error"] == 1  # Fail = error
         assert event["content"]["meta"]["test.status"] == "fail"
 
-    def create_mock_test_suite(self):
+    def create_mock_test_suite(self) -> Mock:
         """Create a mock TestSuite."""
         suite = Mock(spec=TestSuite)
         suite.service = "test_service"
@@ -270,7 +271,7 @@ class TestSerializationFunctions:
         suite.get_status.return_value = TestStatus.PASS
         return suite
 
-    def test_serialize_suite(self):
+    def test_serialize_suite(self) -> None:
         """Test serializing a test suite."""
         suite = self.create_mock_test_suite()
 
@@ -296,7 +297,7 @@ class TestSerializationFunctions:
         # Check the correlation ID is present
         assert "itr_correlation_id" in event["content"]
 
-    def create_mock_test_module(self):
+    def create_mock_test_module(self) -> Mock:
         """Create a mock TestModule."""
         module = Mock(spec=TestModule)
         module.service = "test_service"
@@ -311,7 +312,7 @@ class TestSerializationFunctions:
         module.get_status.return_value = TestStatus.SKIP
         return module
 
-    def test_serialize_module(self):
+    def test_serialize_module(self) -> None:
         """Test serializing a test module."""
         module = self.create_mock_test_module()
 
@@ -335,7 +336,7 @@ class TestSerializationFunctions:
         assert meta["type"] == "test_module_end"
         assert meta["module.custom"] == "module_value"
 
-    def create_mock_test_session(self):
+    def create_mock_test_session(self) -> Mock:
         """Create a mock TestSession."""
         session = Mock(spec=TestSession)
         session.service = "test_service"
@@ -348,7 +349,7 @@ class TestSerializationFunctions:
         session.get_status.return_value = TestStatus.FAIL
         return session
 
-    def test_serialize_session(self):
+    def test_serialize_session(self) -> None:
         """Test serializing a test session."""
         session = self.create_mock_test_session()
 

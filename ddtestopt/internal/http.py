@@ -36,10 +36,10 @@ class BackendConnector(threading.local):
         self,
         method: str,
         path: str,
-        data: t.Optional[bytes],
+        data: bytes,
         headers: t.Optional[t.Dict[str, str]] = None,
         send_gzip: bool = False,
-    ) -> t.Any:
+    ) -> t.Tuple[http.client.HTTPResponse, bytes]:
         full_headers = self.default_headers | (headers or {})
 
         if send_gzip:
@@ -78,7 +78,7 @@ class BackendConnector(threading.local):
         files: t.List[FileAttachment],
         headers: t.Optional[t.Dict[str, str]] = None,
         send_gzip: bool = False,
-    ):
+    ) -> t.Tuple[http.client.HTTPResponse, bytes]:
         boundary = uuid.uuid4().hex
         boundary_bytes = boundary.encode("utf-8")
         headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"} | (headers or {})

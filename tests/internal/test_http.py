@@ -11,12 +11,12 @@ from ddtestopt.internal.http import FileAttachment
 class TestBackendConnector:
     """Tests for BackendConnector class."""
 
-    def test_constants(self):
+    def test_constants(self) -> None:
         """Test module constants."""
         assert DEFAULT_TIMEOUT_SECONDS == 15.0
 
     @patch("http.client.HTTPSConnection")
-    def test_init_default_parameters(self, mock_https_connection):
+    def test_init_default_parameters(self, mock_https_connection: Mock) -> None:
         """Test BackendConnector initialization with default parameters."""
         connector = BackendConnector(host="api.example.com")
 
@@ -25,7 +25,7 @@ class TestBackendConnector:
 
     @patch("http.client.HTTPSConnection")
     @patch("uuid.uuid4")
-    def test_post_files_multiple_files(self, mock_uuid, mock_https_connection):
+    def test_post_files_multiple_files(self, mock_uuid: Mock, mock_https_connection: Mock) -> None:
         """Test post_files method with multiple files."""
         # Setup mocks
         mock_uuid_obj = Mock()
