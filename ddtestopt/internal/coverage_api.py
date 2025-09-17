@@ -30,9 +30,9 @@ class CoverageData:
             try:
                 relative_path = Path(absolute_path).relative_to(relative_to)
             except ValueError:
-                relative_path = absolute_path
+                continue  # covered file does not belong to current repo
 
-            path_str = f"/{str(relative_path)}"
+            path_str = f"/{relative_path}"
             yield path_str, covered_lines.to_bytes()
 
 
