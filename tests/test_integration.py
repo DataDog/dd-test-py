@@ -84,6 +84,7 @@ class TestFeaturesWithMocking:
         """
         )
 
+        expected_retry_messages = 2
         # Mock all the API and environment dependencies
         with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
             # Set up mock API client
@@ -118,7 +119,7 @@ class TestFeaturesWithMocking:
 
                         # Set environment variables for retry configuration
                         monkeypatch.setenv("DD_API_KEY", "test-key")
-                        monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
+                        monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", str(expected_retry_messages))
 
                         # Run pytest with the ddtestopt plugin enabled
                         result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
@@ -138,9 +139,14 @@ class TestFeaturesWithMocking:
 
         # Verify that retries happened - should see "RETRY FAILED (Auto Test Retries)" messages
         # We configured DD_CIVISIBILITY_FLAKY_RETRY_COUNT=2, but the plugin shows 3 retry attempts
-        # This may include the initial attempt being marked as a retry in some cases
+
+        # This includes the initial attempt marked as a retry
+        expected_retry_messages += 1
+
         retry_messages = output.count("RETRY FAILED (Auto Test Retries)")
-        assert retry_messages == 3, f"Expected 3 retry messages, got {retry_messages}"
+        assert (
+            retry_messages == expected_retry_messages
+        ), f"Expected {expected_retry_messages} retry messages, got {retry_messages}"
 
         # Should see the final summary mentioning dd_retry
         assert "dd_retry" in output
@@ -227,14 +233,14 @@ class TestFeaturesWithMocking:
         # Check the output for EFD retry indicators
         output = result.stdout.str()
 
-        # Look for test execution lines
-        assert "test_new_flaky" in output
-        assert "test_known_test" in output
-
         # Verify that EFD retries happened - should see "RETRY FAILED (Early Flake Detection)" messages
-        # EFD retries based on test duration - we see 4 retries in the output
-        efd_retry_messages = output.count("RETRY FAILED (Early Flake Detection)")
-        assert efd_retry_messages == 4, f"Expected 4 EFD retry messages, got {efd_retry_messages}"
+        flaky_efd_retry_messages = output.count("test_efd.py::test_new_flaky RETRY FAILED (Early Flake Detection)")
+        assert flaky_efd_retry_messages == 4, f"Expected 4 EFD retry messages, got {flaky_efd_retry_messages}"
+
+        known_test_efd_retry_messages = output.count(
+            "test_efd.py::test_known_test RETRY FAILED (Early Flake Detection)"
+        )
+        assert known_test_efd_retry_messages == 0, f"Expected 0 EFD retry messages, got {known_test_efd_retry_messages}"
 
         # Should see the final summary mentioning dd_retry
         assert "dd_retry" in output

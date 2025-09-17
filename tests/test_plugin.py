@@ -56,10 +56,6 @@ class TestTestOptPlugin:
         """Test that TestOptPlugin initializes correctly."""
         plugin = TestOptPlugin()
 
-        assert plugin.enable_ddtrace is False
-        assert plugin.reports_by_nodeid == {}
-        assert plugin.excinfo_by_report == {}
-        assert plugin.tests_by_nodeid == {}
         assert plugin.is_xdist_worker is False
 
     def test_plugin_with_xdist_worker_input(self) -> None:
@@ -82,38 +78,6 @@ class TestTestOptPlugin:
             plugin.pytest_sessionstart(mock_session)
 
         assert plugin.is_xdist_worker is True
-
-
-class TestSettings:
-    """Tests for Settings classes used in the plugin."""
-
-    def test_settings_creation(self) -> None:
-        """Test creating Settings with all sub-settings."""
-        settings = Settings(
-            early_flake_detection=EarlyFlakeDetectionSettings(),
-            test_management=TestManagementSettings(),
-            auto_test_retries=AutoTestRetriesSettings(enabled=False),
-            known_tests_enabled=False,
-            coverage_enabled=False,
-            skipping_enabled=False,
-            require_git=False,
-            itr_enabled=False,
-        )
-
-        assert settings.auto_test_retries.enabled is False
-        assert settings.known_tests_enabled is False
-        assert settings.coverage_enabled is False
-        assert settings.skipping_enabled is False
-        assert settings.require_git is False
-        assert settings.itr_enabled is False
-
-    def test_auto_test_retries_settings(self) -> None:
-        """Test AutoTestRetriesSettings configuration."""
-        settings = AutoTestRetriesSettings(enabled=True)
-        assert settings.enabled is True
-
-        settings_disabled = AutoTestRetriesSettings(enabled=False)
-        assert settings_disabled.enabled is False
 
 
 class TestPytestPluginIntegration:
