@@ -263,7 +263,9 @@ class TestOptPlugin:
 
         test.finish()
 
-        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.get_covered_lines())
+        self.manager.coverage_writer.put_coverage(
+            test.last_test_run, coverage_data.get_coverage_bitmaps(relative_to=self.manager.workspace_path)
+        )
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()

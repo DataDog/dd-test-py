@@ -23,6 +23,9 @@ class CoverageData:
         self._covered_lines: t.Optional[t.Dict[str, CoverageLines]] = None
 
     def get_coverage_bitmaps(self, relative_to: Path) -> t.Iterable[t.Tuple[str, bytes]]:
+        if not self._covered_lines:
+            return
+
         for absolute_path, covered_lines in self._covered_lines.items():
             try:
                 relative_path = Path(absolute_path).relative_to(relative_to)

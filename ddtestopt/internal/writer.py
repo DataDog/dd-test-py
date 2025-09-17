@@ -7,7 +7,6 @@ import uuid
 
 import msgpack  # type: ignore
 
-from ddtestopt.internal.coverage.coverage_lines import CoverageLines
 from ddtestopt.internal.http import BackendConnector
 from ddtestopt.internal.http import FileAttachment
 from ddtestopt.internal.test_data import TestItem
