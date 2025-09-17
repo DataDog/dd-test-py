@@ -115,6 +115,7 @@ class TestPhase:
     SETUP = "setup"
     CALL = "call"
     TEARDOWN = "teardown"
+    __test__ = False
 
 
 _ReportGroup = t.Dict[str, pytest.TestReport]
@@ -124,6 +125,8 @@ class TestOptPlugin:
     """
     pytest plugin for test optimization.
     """
+
+    __test__ = False
 
     def __init__(self) -> None:
         self.enable_ddtrace = False  # TODO: make it configurable via command line.
