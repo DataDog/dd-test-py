@@ -173,3 +173,10 @@ def get_git_tags() -> t.Dict[str, str]:
     tags.update(git.get_user_info())
 
     return tags
+
+
+def get_workspace_path() -> Path:
+    try:
+        return Path(Git().get_workspace_path()).absolute()
+    except RuntimeError:
+        return Path.cwd()

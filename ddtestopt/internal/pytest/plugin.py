@@ -17,6 +17,7 @@ from ddtestopt.internal.coverage_api import coverage_collection
 from ddtestopt.internal.coverage_api import install_coverage
 from ddtestopt.internal.ddtrace import install_global_trace_filter
 from ddtestopt.internal.ddtrace import trace_context
+from ddtestopt.internal.git import get_workspace_path
 from ddtestopt.internal.logging import catch_and_log_exceptions
 from ddtestopt.internal.logging import setup_logging
 from ddtestopt.internal.retry_handlers import RetryHandler
@@ -262,7 +263,9 @@ class TestOptPlugin:
 
         test.finish()
 
-        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.get_covered_lines())
+        self.manager.coverage_writer.put_coverage(
+            test.last_test_run, coverage_data.get_coverage_bitmaps(relative_to=self.manager.workspace_path)
+        )
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
@@ -547,7 +550,7 @@ def pytest_load_initial_conftests(
 
 
 def setup_coverage_collection() -> None:
-    workspace_path = Path.cwd().absolute()  # ꙮ
+    workspace_path = get_workspace_path()
     install_coverage(workspace_path)
 
 

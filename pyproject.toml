@@ -74,13 +74,13 @@ dependencies = [
 [tool.hatch.envs.qa.scripts]
 # Combined QA check - runs all code quality tools
 qa = [
-    "ruff check ddtestopt/ tests/",
     "black --check ddtestopt/ tests/",
+    "ruff check ddtestopt/ tests/",
     "python -m mypy ddtestopt/ tests/",
 ]
 fix = [
-    "ruff check --fix --unsafe-fixes ddtestopt/ tests/",
     "black ddtestopt/ tests/",
+    "ruff check --fix --unsafe-fixes ddtestopt/ tests/",
     "python -m mypy ddtestopt/ tests/",
 ]
 # Individual commands for specific fixes
