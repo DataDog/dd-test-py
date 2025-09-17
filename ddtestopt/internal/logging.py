@@ -16,7 +16,6 @@ def setup_logging() -> None:
 
     log_level = logging.DEBUG if asbool(os.getenv("DDTESTOPT_DEBUG")) else logging.INFO
     ddtestopt_logger.setLevel(log_level)
-    ddtestopt_logger.propagate = False
 
     handler = logging.StreamHandler()
     handler.setFormatter(
