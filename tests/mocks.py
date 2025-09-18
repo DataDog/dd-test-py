@@ -156,8 +156,6 @@ class SessionManagerMockBuilder:
         NOTE: This creates the SessionManager with mocked dependencies during initialization.
         The mocks are cleaned up after creation, so this assumes SessionManager doesn't
         make further API calls after __init__.
-
-        For persistent mocks during SessionManager usage, use build_real_with_persistent_mocks().
         """
         if test_env is None:
             test_env = MockDefaults.test_environment()
@@ -195,63 +193,6 @@ class SessionManagerMockBuilder:
                 session_manager.skippable_items = self._skippable_items
 
                 return session_manager
-
-    def build_real_with_persistent_mocks(
-        self, test_env: t.Optional[t.Dict[str, str]] = None
-    ) -> t.ContextManager[SessionManager]:
-        """Build a real SessionManager with persistent mocked dependencies.
-
-        Returns a context manager that yields the SessionManager with active mocks.
-
-        Usage:
-            with builder.build_real_with_persistent_mocks() as session_manager:
-                # Use session_manager here - mocks are active
-                result = session_manager.some_method()
-        """
-        from contextlib import contextmanager
-
-        @contextmanager
-        def _session_manager_context() -> t.Generator[SessionManager, None, None]:
-            if test_env is None:
-                env = MockDefaults.test_environment()
-            else:
-                env = test_env
-
-            with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-                # Configure API client mock
-                mock_client = Mock()
-                mock_client.get_settings.return_value = self._settings
-                mock_client.get_known_tests.return_value = self._known_tests
-                mock_client.get_test_management_properties.return_value = self._test_properties
-                mock_client.get_known_commits.return_value = self._known_commits
-                mock_client.send_git_pack_file.return_value = None
-                mock_client.get_skippable_tests.return_value = (self._skippable_items, None)
-                mock_api_client.return_value = mock_client
-
-                # Mock other dependencies
-                patches: t.List[t.ContextManager[t.Any]] = [
-                    patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}),
-                    patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={}),
-                    patch("ddtestopt.internal.session_manager.Git"),
-                    patch.dict(os.environ, env),
-                ]
-
-                with patches[0], patches[1], patches[2] as mock_git, patches[3]:
-                    # Configure Git mock
-                    mock_git_instance = Mock()
-                    mock_git_instance.get_latest_commits.return_value = []
-                    mock_git_instance.get_filtered_revisions.return_value = []
-                    mock_git_instance.pack_objects.return_value = iter([])
-                    mock_git.return_value = mock_git_instance
-
-                    # Create session manager and yield it with active mocks
-                    test_session = MockDefaults.test_session()
-                    session_manager = SessionManager(session=test_session)
-                    session_manager.skippable_items = self._skippable_items
-
-                    yield session_manager
-
-        return _session_manager_context()
 
 
 class TestMockBuilder:
