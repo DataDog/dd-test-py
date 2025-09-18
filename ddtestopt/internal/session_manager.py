@@ -200,6 +200,12 @@ class SessionManager:
 
         self.skippable_items, self.itr_correlation_id = self.api_client.get_skippable_tests()
 
+    def is_skippable_test(self, test_ref: TestRef) -> bool:
+        if not self.settings.skipping_enabled:
+            return False
+
+        return test_ref in self.skippable_items or test_ref.suite in self.skippable_items
+
 
 def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:
     repo_name = git_tags.get(GitTag.REPOSITORY_URL)
