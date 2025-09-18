@@ -31,6 +31,14 @@ from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
 
 
+def get_mock_git_instance() -> Mock:
+    mock_git_instance = Mock()
+    mock_git_instance.get_latest_commits.return_value = []
+    mock_git_instance.get_filtered_revisions.return_value = []
+    mock_git_instance.pack_objects.return_value = iter([])
+    return mock_git_instance
+
+
 class MockDefaults:
     """Centralized default configurations for mocks."""
 
@@ -137,14 +145,6 @@ class SessionManagerMockBuilder:
         mock_manager.workspace_path = self._workspace_path
         mock_manager.retry_handlers = self._retry_handlers
 
-        # Configure methods
-        def mock_is_skippable_test(test_ref: TestRef) -> bool:
-            if not mock_manager.settings.skipping_enabled:
-                return False
-            return test_ref in self._skippable_items or test_ref.suite in self._skippable_items
-
-        mock_manager.is_skippable_test = mock_is_skippable_test
-        mock_manager.discover_test.return_value = (Mock(), Mock(), Mock())
         mock_manager.writer = Mock()
         mock_manager.coverage_writer = Mock()
 
@@ -171,21 +171,11 @@ class SessionManagerMockBuilder:
             mock_client.get_skippable_tests.return_value = (self._skippable_items, None)
             mock_api_client.return_value = mock_client
 
-            # Mock other dependencies
-            patches: t.List[t.ContextManager[t.Any]] = [
-                patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}),
-                patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={}),
-                patch("ddtestopt.internal.session_manager.Git"),
-                patch.dict(os.environ, test_env),
-            ]
-
-            with patches[0], patches[1], patches[2] as mock_git, patches[3]:
-                # Configure Git mock
-                mock_git_instance = Mock()
-                mock_git_instance.get_latest_commits.return_value = []
-                mock_git_instance.get_filtered_revisions.return_value = []
-                mock_git_instance.pack_objects.return_value = iter([])
-                mock_git.return_value = mock_git_instance
+            with patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}), patch(
+                "ddtestopt.internal.session_manager.get_platform_tags", return_value={}
+            ), patch("ddtestopt.internal.session_manager.Git", return_value=get_mock_git_instance()), patch.dict(
+                os.environ, test_env
+            ):
 
                 # Create session manager
                 test_session = MockDefaults.test_session()
@@ -723,13 +713,7 @@ def setup_standard_mocks() -> t.ContextManager[t.Any]:
         "ddtestopt.internal.session_manager",
         get_git_tags=Mock(return_value={}),
         get_platform_tags=Mock(return_value={}),
-        Git=Mock(
-            return_value=Mock(
-                get_latest_commits=Mock(return_value=[]),
-                get_filtered_revisions=Mock(return_value=[]),
-                pack_objects=Mock(return_value=iter([])),
-            )
-        ),
+        Git=Mock(return_value=get_mock_git_instance()),
     )
 
 
@@ -746,13 +730,7 @@ def network_mocks() -> t.ContextManager[t.Any]:
                 "ddtestopt.internal.session_manager",
                 get_git_tags=Mock(return_value={}),
                 get_platform_tags=Mock(return_value={}),
-                Git=Mock(
-                    return_value=Mock(
-                        get_latest_commits=Mock(return_value=[]),
-                        get_filtered_revisions=Mock(return_value=[]),
-                        pack_objects=Mock(return_value=iter([])),
-                    )
-                ),
+                Git=Mock(return_value=get_mock_git_instance()),
             )
         )
 
