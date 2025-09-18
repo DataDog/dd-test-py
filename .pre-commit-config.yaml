@@ -14,5 +14,5 @@ repos:
         name: tests
         entry: hatch
         language: system
-        args: ["run", "test.py3.13-8.1.2:test"]
+        args: ["run", "test.py3.13-8.1.2:test", "-m", "not slow"]
         pass_filenames: false
