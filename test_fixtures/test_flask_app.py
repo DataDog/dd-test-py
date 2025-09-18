@@ -1,4 +1,3 @@
-
 from flask import Flask
 from flask import jsonify
 import pytest
@@ -6,9 +5,11 @@ import pytest
 
 app = Flask(__name__)
 
+
 @app.route("/hello/<int:post_id>")
 def hello(post_id):
     return jsonify({"id": post_id})
+
 
 if __name__ == "__main__":
     app.run(debug=True)
