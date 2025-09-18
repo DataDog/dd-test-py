@@ -9,8 +9,8 @@ import typing as t
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import pytest
 from _pytest.reports import TestReport
+import pytest
 
 from ddtestopt.internal.pytest.plugin import DISABLED_BY_TEST_MANAGEMENT_REASON
 from ddtestopt.internal.pytest.plugin import SKIPPED_BY_ITR_REASON
