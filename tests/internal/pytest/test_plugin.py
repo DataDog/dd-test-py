@@ -10,12 +10,8 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
+from _pytest.reports import TestReport
 
-from ddtestopt.internal.api_client import AutoTestRetriesSettings
-from ddtestopt.internal.api_client import EarlyFlakeDetectionSettings
-from ddtestopt.internal.api_client import Settings
-from ddtestopt.internal.api_client import TestManagementSettings
-from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.pytest.plugin import DISABLED_BY_TEST_MANAGEMENT_REASON
 from ddtestopt.internal.pytest.plugin import SKIPPED_BY_ITR_REASON
 from ddtestopt.internal.pytest.plugin import TestOptPlugin
@@ -26,93 +22,10 @@ from ddtestopt.internal.pytest.plugin import _get_module_path_from_item
 from ddtestopt.internal.pytest.plugin import _get_test_parameters_json
 from ddtestopt.internal.pytest.plugin import _get_user_property
 from ddtestopt.internal.pytest.plugin import nodeid_to_test_ref
-from ddtestopt.internal.session_manager import SessionManager
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import TestRef
-
-
-def create_mock_session_manager(
-    skipping_enabled: bool = True,
-    skippable_items: t.Optional[t.Set[t.Union[TestRef, SuiteRef]]] = None,
-    test_properties: t.Optional[t.Dict[TestRef, TestProperties]] = None,
-) -> Mock:
-    """Create a standardized mock SessionManager for unit tests."""
-    if skippable_items is None:
-        skippable_items = set()
-    if test_properties is None:
-        test_properties = {}
-
-    mock_manager = Mock(spec=SessionManager)
-
-    # Mock the settings
-    mock_manager.settings = Settings(
-        early_flake_detection=EarlyFlakeDetectionSettings(),
-        test_management=TestManagementSettings(),
-        auto_test_retries=AutoTestRetriesSettings(),
-        known_tests_enabled=False,
-        coverage_enabled=False,
-        skipping_enabled=skipping_enabled,
-        require_git=False,
-        itr_enabled=False,
-    )
-
-    mock_manager.skippable_items = skippable_items
-    mock_manager.test_properties = test_properties
-
-    # Implement the is_skippable_test method logic
-    def mock_is_skippable_test(test_ref: TestRef) -> bool:
-        if not mock_manager.settings.skipping_enabled:
-            return False
-        return test_ref in skippable_items or test_ref.suite in skippable_items
-
-    mock_manager.is_skippable_test = mock_is_skippable_test
-
-    # Mock other required methods
-    mock_manager.discover_test.return_value = (Mock(), Mock(), Mock())
-    mock_manager.writer = Mock()
-    mock_manager.coverage_writer = Mock()
-    mock_manager.workspace_path = "/fake/workspace"
-    mock_manager.retry_handlers = []
-
-    return mock_manager
-
-
-def create_mock_test(
-    test_ref: TestRef,
-    is_attempt_to_fix: bool = False,
-    is_disabled: bool = False,
-    is_quarantined: bool = False,
-) -> Mock:
-    """Create a mock Test object with the specified properties."""
-    mock_test = Mock()
-    mock_test.ref = test_ref
-    mock_test.is_attempt_to_fix.return_value = is_attempt_to_fix
-    mock_test.is_disabled.return_value = is_disabled
-    mock_test.is_quarantined.return_value = is_quarantined
-    mock_test.test_runs = []
-    mock_test.start_ns = 1000000000
-    mock_test.last_test_run = Mock()
-    return mock_test
-
-
-def create_mock_pytest_item(nodeid: str, **kwargs: t.Any) -> Mock:
-    """Create a mock pytest.Item with the specified nodeid."""
-    mock_item = Mock()
-    mock_item.nodeid = nodeid
-    mock_item.add_marker = Mock()
-    mock_item.reportinfo.return_value = ("/fake/path.py", 10, "test_name")
-    mock_item.path = Mock()
-    mock_item.path.absolute.return_value.parent = "/fake"
-    mock_item.user_properties = []
-    mock_item.keywords = {}
-    mock_item.location = ("/fake/path.py", 10, "test_name")
-
-    # Add any additional attributes
-    for key, value in kwargs.items():
-        setattr(mock_item, key, value)
-
-    return mock_item
+from tests.mocks import TestDataFactory
+from tests.mocks import mocked_test
+from tests.mocks import pytest_item_mock
+from tests.mocks import session_manager_mock
 
 
 # =============================================================================
@@ -125,20 +38,18 @@ class TestSkippingAndITRFeatures:
 
     def test_skippable_test_without_attempt_to_fix_gets_skipped(self) -> None:
         """Test that a skippable test that is NOT attempt_to_fix gets skipped."""
-        # Create test references
-        module_ref = ModuleRef("test_module")
-        suite_ref = SuiteRef(module_ref, "test_suite.py")
-        test_ref = TestRef(suite_ref, "test_function")
+        # Create test references using TestDataFactory
+        test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
 
         # Create plugin and mock dependencies
         plugin = TestOptPlugin()
 
         # Create mock session manager with test in skippable_items
-        mock_manager = create_mock_session_manager(skipping_enabled=True, skippable_items={test_ref})
+        mock_manager = session_manager_mock().with_skipping_enabled(True).with_skippable_items({test_ref}).build_mock()
         plugin.manager = mock_manager
 
         # Create mock test that is NOT attempt_to_fix
-        mock_test = create_mock_test(test_ref, is_attempt_to_fix=False)
+        mock_test = mocked_test(test_ref).as_attempt_to_fix(False).build()
         mock_module = Mock()
         mock_suite = Mock()
         mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
@@ -147,7 +58,7 @@ class TestSkippingAndITRFeatures:
         plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
 
         # Create mock pytest item
-        mock_item = create_mock_pytest_item("test_module/test_suite.py::test_function")
+        mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
         with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
@@ -165,20 +76,18 @@ class TestSkippingAndITRFeatures:
 
     def test_skippable_test_with_attempt_to_fix_not_skipped(self) -> None:
         """Test that a skippable test that IS attempt_to_fix does NOT get skipped."""
-        # Create test references
-        module_ref = ModuleRef("test_module")
-        suite_ref = SuiteRef(module_ref, "test_suite.py")
-        test_ref = TestRef(suite_ref, "test_function")
+        # Create test references using TestDataFactory
+        test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
 
         # Create plugin and mock dependencies
         plugin = TestOptPlugin()
 
         # Create mock session manager with test in skippable_items
-        mock_manager = create_mock_session_manager(skipping_enabled=True, skippable_items={test_ref})
+        mock_manager = session_manager_mock().with_skipping_enabled(True).with_skippable_items({test_ref}).build_mock()
         plugin.manager = mock_manager
 
         # Create mock test that IS attempt_to_fix
-        mock_test = create_mock_test(test_ref, is_attempt_to_fix=True)
+        mock_test = mocked_test(test_ref).as_attempt_to_fix(True).build()
         mock_module = Mock()
         mock_suite = Mock()
         mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
@@ -187,7 +96,7 @@ class TestSkippingAndITRFeatures:
         plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
 
         # Create mock pytest item
-        mock_item = create_mock_pytest_item("test_module/test_suite.py::test_function")
+        mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
         with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
@@ -210,22 +119,24 @@ class TestSkippingAndITRFeatures:
 
     def test_suite_level_skipping_works(self) -> None:
         """Test that tests from a skippable suite get skipped."""
-        # Create test references
-        module_ref = ModuleRef("test_module")
-        suite_ref = SuiteRef(module_ref, "test_suite.py")
-        test_ref = TestRef(suite_ref, "test_function")
+        # Create test references using TestDataFactory
+        test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
+        suite_ref = test_ref.suite
 
         # Create plugin and mock dependencies
         plugin = TestOptPlugin()
 
         # Create mock session manager with SUITE in skippable_items (not individual test)
-        mock_manager = create_mock_session_manager(
-            skipping_enabled=True, skippable_items={suite_ref}  # Suite is skippable, not individual test
+        mock_manager = (
+            session_manager_mock()
+            .with_skipping_enabled(True)
+            .with_skippable_items({suite_ref})  # Suite is skippable, not individual test
+            .build_mock()
         )
         plugin.manager = mock_manager
 
         # Create mock test that is NOT attempt_to_fix
-        mock_test = create_mock_test(test_ref, is_attempt_to_fix=False)
+        mock_test = mocked_test(test_ref).as_attempt_to_fix(False).build()
         mock_module = Mock()
         mock_suite = Mock()
         mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
@@ -234,7 +145,7 @@ class TestSkippingAndITRFeatures:
         plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
 
         # Create mock pytest item
-        mock_item = create_mock_pytest_item("test_module/test_suite.py::test_function")
+        mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
         with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
@@ -252,18 +163,16 @@ class TestSkippingAndITRFeatures:
 
     def test_disabled_test_management_features(self) -> None:
         """Test test management features like disabled and quarantined tests."""
-        # Create test references
-        module_ref = ModuleRef("test_module")
-        suite_ref = SuiteRef(module_ref, "test_suite.py")
-        test_ref = TestRef(suite_ref, "test_function")
+        # Create test references using TestDataFactory
+        test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
 
         # Create plugin and mock dependencies
         plugin = TestOptPlugin()
-        mock_manager = create_mock_session_manager()
+        mock_manager = session_manager_mock().build_mock()
         plugin.manager = mock_manager
 
         # Create mock test that is disabled but NOT attempt_to_fix
-        mock_test = create_mock_test(test_ref, is_disabled=True, is_attempt_to_fix=False)
+        mock_test = mocked_test(test_ref).as_disabled(True).as_attempt_to_fix(False).build()
         mock_module = Mock()
         mock_suite = Mock()
         mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
@@ -272,7 +181,7 @@ class TestSkippingAndITRFeatures:
         plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
 
         # Create mock pytest item
-        mock_item = create_mock_pytest_item("test_module/test_suite.py::test_function")
+        mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
         with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
@@ -332,8 +241,7 @@ class TestSessionManagement:
         mock_session.config = mock_config
 
         # Mock the session manager and other dependencies
-        with patch("ddtestopt.internal.pytest.plugin.SessionManager") as mock_session_manager:
-            mock_session_manager.return_value = Mock()
+        with patch("ddtestopt.internal.pytest.plugin.SessionManager", return_value=Mock()):
             plugin.pytest_sessionstart(mock_session)
 
         assert plugin.is_xdist_worker is True
@@ -476,7 +384,7 @@ class TestHelperFunctions:
 
         result = _get_module_path_from_item(mock_item)
 
-        assert result == "/some/path"
+        assert str(result) == "/some/path"
 
     def test_get_module_path_from_item_with_module(self) -> None:
         """Test _get_module_path_from_item when item has module.__file__."""
@@ -560,7 +468,7 @@ class TestHelperFunctions:
         # Should return valid JSON
         import json
 
-        parsed = json.loads(result)
+        parsed = json.loads(result or "{}")
         assert "arguments" in parsed
         assert "metadata" in parsed
         # Values are encoded using repr(), so strings get quotes
@@ -605,7 +513,7 @@ class TestPrivateMethods:
             "teardown": Mock(longrepr="teardown error"),
         }
 
-        result = plugin._extract_longrepr(reports)
+        result = plugin._extract_longrepr(t.cast(t.Dict[str, TestReport], reports))
         assert result == "call error"
 
     def test_extract_longrepr_setup_fallback(self) -> None:
@@ -617,7 +525,7 @@ class TestPrivateMethods:
             "teardown": Mock(longrepr="teardown error"),
         }
 
-        result = plugin._extract_longrepr(reports)
+        result = plugin._extract_longrepr(t.cast(t.Dict[str, TestReport], reports))
         assert result == "setup error"
 
     def test_extract_longrepr_no_errors(self) -> None:
@@ -630,7 +538,7 @@ class TestPrivateMethods:
             "teardown": Mock(longrepr=None),
         }
 
-        result = plugin._extract_longrepr(reports)
+        result = plugin._extract_longrepr(t.cast(t.Dict[str, TestReport], reports))
         assert result is None
 
     def test_check_applicable_retry_handlers_found(self) -> None:
@@ -677,7 +585,7 @@ class TestPrivateMethods:
         """Test quarantined test report modification for call phase."""
         plugin = TestOptPlugin()
 
-        mock_item = create_mock_pytest_item("test_file.py::test_name")
+        mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_report = Mock()
         mock_report.when = "call"
 
@@ -690,7 +598,7 @@ class TestPrivateMethods:
         """Test quarantined test report modification for teardown phase."""
         plugin = TestOptPlugin()
 
-        mock_item = create_mock_pytest_item("test_file.py::test_name")
+        mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_report = Mock()
         mock_report.when = "teardown"
 
@@ -702,7 +610,7 @@ class TestPrivateMethods:
         """Test quarantined test report modification with None report."""
         plugin = TestOptPlugin()
 
-        mock_item = create_mock_pytest_item("test_file.py::test_name")
+        mock_item = pytest_item_mock("test_file.py::test_name").build()
 
         # Should not raise exception
         plugin._mark_quarantined_test_report_as_skipped(mock_item, None)
@@ -795,7 +703,7 @@ class TestReportAndLoggingMethods:
         mock_report.user_properties = []
         reports = {"call": mock_report}
 
-        result = plugin._mark_test_report_as_retry(reports, mock_handler, "call")
+        result = plugin._mark_test_report_as_retry(t.cast(t.Dict[str, TestReport], reports), mock_handler, "call")
 
         assert result is True
         assert mock_report.outcome == "dd_retry"
@@ -807,9 +715,9 @@ class TestReportAndLoggingMethods:
         plugin = TestOptPlugin()
 
         mock_handler = Mock()
-        reports = {}
+        reports: t.Dict[str, Mock] = {}
 
-        result = plugin._mark_test_report_as_retry(reports, mock_handler, "call")
+        result = plugin._mark_test_report_as_retry(t.cast(t.Dict[str, TestReport], reports), mock_handler, "call")
 
         assert result is False
 
@@ -827,7 +735,7 @@ class TestReportAndLoggingMethods:
             "call": mock_call_report,
         }
 
-        plugin._mark_test_reports_as_retry(reports, mock_handler)
+        plugin._mark_test_reports_as_retry(t.cast(t.Dict[str, TestReport], reports), mock_handler)
 
         # Should only mark call report
         assert mock_call_report.outcome == "dd_retry"
@@ -846,7 +754,7 @@ class TestReportAndLoggingMethods:
             "teardown": Mock(),
         }
 
-        plugin._mark_test_reports_as_retry(reports, mock_handler)
+        plugin._mark_test_reports_as_retry(t.cast(t.Dict[str, TestReport], reports), mock_handler)
 
         # Should mark setup report
         assert mock_setup_report.outcome == "dd_retry"
@@ -859,7 +767,7 @@ class TestQuarantineHandling:
         """Test quarantine group marking when call report exists."""
         plugin = TestOptPlugin()
 
-        mock_item = create_mock_pytest_item("test_file.py::test_name")
+        mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_call = Mock()
         mock_setup = Mock()
         mock_teardown = Mock()
@@ -870,7 +778,7 @@ class TestQuarantineHandling:
             "teardown": mock_teardown,
         }
 
-        plugin._mark_quarantined_test_report_group_as_skipped(mock_item, reports)
+        plugin._mark_quarantined_test_report_group_as_skipped(mock_item, t.cast(t.Dict[str, TestReport], reports))
 
         # Call should be marked as skipped, others as passed
         assert mock_call.outcome == "skipped"
@@ -881,7 +789,7 @@ class TestQuarantineHandling:
         """Test quarantine group marking when call report is missing."""
         plugin = TestOptPlugin()
 
-        mock_item = create_mock_pytest_item("test_file.py::test_name")
+        mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_setup = Mock()
         mock_teardown = Mock()
 
@@ -890,7 +798,7 @@ class TestQuarantineHandling:
             "teardown": mock_teardown,
         }
 
-        plugin._mark_quarantined_test_report_group_as_skipped(mock_item, reports)
+        plugin._mark_quarantined_test_report_group_as_skipped(mock_item, t.cast(t.Dict[str, TestReport], reports))
 
         # Setup should be marked as skipped, teardown as passed
         assert mock_setup.outcome == "skipped"

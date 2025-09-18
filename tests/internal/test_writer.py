@@ -15,6 +15,11 @@ from ddtestopt.internal.writer import serialize_module
 from ddtestopt.internal.writer import serialize_session
 from ddtestopt.internal.writer import serialize_suite
 from ddtestopt.internal.writer import serialize_test_run
+from tests.mocks import TestDataFactory
+from tests.mocks import mock_test_module
+from tests.mocks import mock_test_run
+from tests.mocks import mock_test_session
+from tests.mocks import mock_test_suite
 
 
 class TestEvent:
@@ -179,29 +184,24 @@ class TestSerializationFunctions:
 
     def create_mock_test_run(self) -> Mock:
         """Create a mock TestRun with required attributes."""
-        test_run = Mock(spec=TestRun)
+        test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
+        test_run = mock_test_run(test_ref).with_passing().with_timing(1000000000, 500000000).build()
+
+        # Add additional test-specific attributes not covered by the builder
         test_run.trace_id = 111
         test_run.span_id = 222
         test_run.service = "test_service"
         test_run.name = "test_function"
-        test_run.start_ns = 1000000000
-        test_run.duration_ns = 500000000
         test_run.session_id = 333
         test_run.module_id = 444
         test_run.suite_id = 555
         test_run.tags = {"custom.tag": "value"}
         test_run.metrics = {"custom.metric": 42}
 
-        # Mock the nested parent structure: TestRun -> TestSuite -> TestModule -> TestSession
-        test_run.parent = Mock()  # TestSuite
+        # Enhance parent hierarchy with additional test-specific attributes
         test_run.parent.tags = {"suite.tag": "suite_value"}
-        test_run.parent.parent = Mock()  # TestModule
         test_run.parent.parent.name = "TestClass"  # test.suite
-        test_run.parent.parent.parent = Mock()  # TestSession
-        test_run.parent.parent.parent.name = "test_session"  # test.module
         test_run.parent.parent.parent.module_path = "/path/to/test_module.py"
-
-        test_run.get_status.return_value = TestStatus.PASS
 
         return test_run
 
@@ -251,17 +251,18 @@ class TestSerializationFunctions:
 
     def create_mock_test_suite(self) -> Mock:
         """Create a mock TestSuite."""
-        suite = Mock(spec=TestSuite)
+        suite_ref = TestDataFactory.create_suite_ref("test_module", "test_suite.py")
+        suite = mock_test_suite(suite_ref).with_timing(2000000000, 1500000000).build()
+
+        # Add additional test-specific attributes not covered by the builder
         suite.service = "test_service"
         suite.name = "TestSuite"
-        suite.start_ns = 2000000000
-        suite.duration_ns = 1500000000
         suite.session_id = 666
         suite.module_id = 777
         suite.suite_id = 888
         suite.tags = {"suite.custom": "suite_value"}
         suite.metrics = {"suite.metric": 100}
-        suite.get_status.return_value = TestStatus.PASS
+
         return suite
 
     def test_serialize_suite(self) -> None:
@@ -292,17 +293,18 @@ class TestSerializationFunctions:
 
     def create_mock_test_module(self) -> Mock:
         """Create a mock TestModule."""
-        module = Mock(spec=TestModule)
+        module_ref = TestDataFactory.create_module_ref("test_module")
+        module = mock_test_module(module_ref).with_status(TestStatus.SKIP).with_timing(3000000000, 2500000000).build()
+
+        # Add additional test-specific attributes not covered by the builder
         module.service = "test_service"
         module.name = "test_module"
         module.module_path = "/path/to/test_module.py"
-        module.start_ns = 3000000000
-        module.duration_ns = 2500000000
         module.session_id = 999
         module.module_id = 1111
         module.tags = {"module.custom": "module_value"}
         module.metrics = {"module.metric": 200}
-        module.get_status.return_value = TestStatus.SKIP
+
         return module
 
     def test_serialize_module(self) -> None:
@@ -331,15 +333,16 @@ class TestSerializationFunctions:
 
     def create_mock_test_session(self) -> Mock:
         """Create a mock TestSession."""
-        session = Mock(spec=TestSession)
+        session = (
+            mock_test_session("test_session").with_status(TestStatus.FAIL).with_timing(4000000000, 3500000000).build()
+        )
+
+        # Add additional test-specific attributes not covered by the builder
         session.service = "test_service"
-        session.name = "test_session"
-        session.start_ns = 4000000000
-        session.duration_ns = 3500000000
         session.session_id = 2222
         session.tags = {"session.custom": "session_value"}
         session.metrics = {"session.metric": 300}
-        session.get_status.return_value = TestStatus.FAIL
+
         return session
 
     def test_serialize_session(self) -> None:

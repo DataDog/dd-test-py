@@ -88,7 +88,7 @@ lint = "ruff check {args:ddtestopt/ tests/}"
 lint-fix = "ruff check --fix {args:ddtestopt/ tests/}"
 format = "black {args:ddtestopt/ tests/}"
 format-check = "black --check {args:ddtestopt/ tests/}"
-typecheck = "python -m mypy {args:ddtestopt/}"
+typecheck = "python -m mypy {args:ddtestopt/ tests/}"
 
 [tool.black]
 line-length = 120
