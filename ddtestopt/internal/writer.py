@@ -153,14 +153,15 @@ class TestCoverageWriter(BaseWriter):
         files = [{"filename": pathname, "bitmap": bitmap} for pathname, bitmap in coverage_bitmaps]
         if not files:
             return
-
-        event = Event(
-            test_session_id=test_run.session_id,
-            test_suite_id=test_run.suite_id,
-            span_id=test_run.span_id,
-            files=files,
-        )
-        self.put_event(event)
+        else:
+            event = Event(
+                test_session_id=test_run.session_id,
+                test_suite_id=test_run.suite_id,
+                span_id=test_run.span_id,
+                files=files,
+            )
+            self.put_event(event)
+            return
 
     def _send_events(self, events: t.List[Event]) -> None:
         files = [
