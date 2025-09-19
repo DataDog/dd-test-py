@@ -19,7 +19,7 @@ jobs:
         python-version: "3.13"
         
     - name: Install Hatch
-      run: pip install hatch
+      run: pip install "click==8.2.1" "hatch==1.14.1"
       
     - name: Run QA checks
       run: hatch run qa:qa
@@ -49,10 +49,10 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install Hatch
-      run: pip install hatch
-      
+      run: pip install "click==8.2.1" "hatch==1.14.1"
+
     - name: Run tests
-      run: hatch run test.py${{ matrix.python-version }}-${{ matrix.pytest-version }}:test
+      run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
 
   coverage:
     name: Code Coverage
@@ -69,13 +69,13 @@ jobs:
         python-version: "3.13"
         
     - name: Install Hatch
-      run: pip install hatch
-      
+      run: pip install "click==8.2.1" "hatch==1.14.1"
+
     - name: Run coverage tests
       id: coverage
       run: |
         # Run coverage and capture output
-        coverage_output=$(hatch run 'test.py3.13-8.4.*:test-cov' 2>&1)
+        coverage_output=$(hatch test -c 2>&1)
         echo "$coverage_output"
         
         # Extract coverage percentage from the last line

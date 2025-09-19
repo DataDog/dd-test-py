@@ -1,0 +1,18 @@
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: hatch-qa-fix
+        name: lint
+        entry: hatch
+        language: system
+        types: [python]
+        args: ["run", "qa:fix", "--"]
+        pass_filenames: true
+
+      - id: tests
+        name: tests
+        entry: hatch
+        language: system
+        args: ["test", "-m", "not slow"]
+        pass_filenames: false

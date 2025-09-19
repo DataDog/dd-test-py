@@ -16,33 +16,46 @@ ddtestopt = "ddtestopt.internal.pytest.plugin"
 [tool.hatch.version]
 path = "ddtestopt/__init__.py"
 
-[tool.hatch.envs.test]
-dependencies = [
-    "slipcover",
-    "pytest-socket",
-]
 
-[[tool.hatch.envs.test.matrix]]
+[tool.hatch.envs.hatch-test]
+dependencies = [
+  "slipcover",
+  "pytest-socket",
+  "pytest-randomly~=3.15",
+  "pytest-rerunfailures~=14.0",
+  "pytest-xdist[psutil]~=3.5",
+]
+extra-dependencies = [
+  "pytest-memray",
+  "ddtrace"
+]
+randomize = true
+parallel = true
+retries = 2
+retry-delay = 1
+
+[tool.hatch.envs.hatch-test.env-vars]
+PYTEST_ADDOPTS = "--ignore=ddtestopt"
+
+[[tool.hatch.envs.hatch-test.matrix]]
+python = ["3.13", "3.12"]
+pytest = ["8.1.2", "8.4.*"]
+
+[[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.9", "3.10", "3.11"]
 pytest = ["7.2.0", "8.1.2", "8.4.*"]
 
-[[tool.hatch.envs.test.matrix]]
-python = ["3.12", "3.13"]
-pytest = ["8.1.2", "8.4.*"]
-
-[tool.hatch.envs.test.overrides]
+[tool.hatch.envs.hatch-test.overrides]
 matrix.pytest.dependencies = [
   "pytest=={matrix:pytest}"
 ]
 
-
-[tool.hatch.envs.test.scripts]
-test = "pytest -p no:ddtestopt --ignore=ddtestopt {args:tests}"
-# Coverage with slipcover
-test-cov = "python -m slipcover --source ddtestopt --pretty-print -m pytest -p no:ddtestopt {args:tests}"
-# HTML coverage report
-test-cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest -p no:ddtestopt {args:tests}"
-
+[tool.hatch.envs.hatch-test.scripts]
+run = "pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
+run-cov = "python -m slipcover --source ddtestopt --pretty-print -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
+cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
+cov-combine = "true"
+cov-report = "true"
 
 [tool.hatch.envs.int_test]
 dependencies = [
