@@ -35,7 +35,7 @@ retries = 2
 retry-delay = 1
 
 [tool.hatch.envs.hatch-test.env-vars]
-PYTEST_ADDOPTS = "--ddtrace --ignore=ddtestopt"
+PYTEST_ADDOPTS = "--ignore=ddtestopt"
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.13", "3.12"]
