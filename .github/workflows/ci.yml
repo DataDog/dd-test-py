@@ -56,6 +56,8 @@ jobs:
       env:
         PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
         DD_API_KEY: ${{ secrets.DD_API_KEY }}
+        DD_TRACE_DEBUG: ${{ DD_TRACE_DEBUG }}
+        DD_CIVISIBILITY_AGENTLESS_ENABLED: ${{ DD_CIVISIBILITY_AGENTLESS_ENABLED }}
 
   coverage:
     name: Code Coverage
