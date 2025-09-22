@@ -16,15 +16,6 @@ ddtestopt = "ddtestopt.internal.pytest.plugin"
 [tool.hatch.version]
 path = "ddtestopt/__init__.py"
 
-[tool.hatch.env]
-requires = [
-    "hatch-pip-compile"
-]
-
-[tool.hatch.envs.default]
-type = "pip-compile"
-pip-compile-hashes = true
-
 
 [tool.hatch.envs.hatch-test]
 dependencies = [
