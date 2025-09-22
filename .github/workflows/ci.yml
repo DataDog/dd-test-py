@@ -52,13 +52,12 @@ jobs:
       run: pip install "click<=8.2.1" "hatch==1.14.1"
 
     - name: Run tests
-      run: |
-        echo DD_TRACE_DEBUG
-        echo $DD_TRACE_DEBUG
-        hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
+      run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
       env:
         PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
         DD_API_KEY: ${{ secrets.DD_API_KEY }}
+        DD_TRACE_DEBUG: ${{ env.DD_TRACE_DEBUG }}
+        DD_CIVISIBILITY_AGENTLESS_ENABLED: ${{ env.DD_CIVISIBILITY_AGENTLESS_ENABLED }}
 
   coverage:
     name: Code Coverage
