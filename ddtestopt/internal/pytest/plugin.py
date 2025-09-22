@@ -38,6 +38,7 @@ from ddtestopt.internal.utils import TestContext
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
 SKIPPED_BY_ITR_REASON = "Skipped by Datadog Intelligent Test Runner"
+ITR_UNSKIPPABLE_REASON = "datadog_itr_unskippable"
 
 
 log = logging.getLogger(__name__)
@@ -211,6 +212,9 @@ class TestOptPlugin:
             if parameters := _get_test_parameters_json(item):
                 test.set_parameters(parameters)
 
+            if _is_test_unskippable(item):
+                test.mark_unskippable()
+
         return self.manager.discover_test(
             test_ref,
             on_new_module=_on_new_module,
@@ -231,8 +235,13 @@ class TestOptPlugin:
 
         self.tests_by_nodeid[item.nodeid] = test
 
-        if self.manager.is_skippable_test(test_ref) and not test.is_attempt_to_fix():
-            item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
+        if self.manager.is_skippable_test(test_ref):
+            if test.is_unskippable():
+                test.mark_forced_run()
+            elif test.is_attempt_to_fix():
+                pass  # if the test is an attempt-to-fix, behave as it if were not selected for skipping.
+            else:
+                item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
 
         if test.is_disabled() and not test.is_attempt_to_fix():
             item.add_marker(pytest.mark.skip(reason=DISABLED_BY_TEST_MANAGEMENT_REASON))
@@ -622,3 +631,22 @@ def _encode_test_parameter(parameter: t.Any) -> str:
     # if the representation includes an id() we'll remove it
     # because it isn't constant across executions
     return re.sub(r" at 0[xX][0-9a-fA-F]+", "", param_repr)
+
+
+def _get_skipif_condition(marker: pytest.Mark) -> t.Any:
+    # DEV: pytest allows the condition to be a string to be evaluated. We currently don't support this.
+    if marker.args:
+        condition = marker.args[0]
+    elif marker.kwargs:
+        condition = marker.kwargs.get("condition")
+    else:
+        condition = True  # `skipif` with no condition is equivalent to plain `skip`.
+
+    return condition
+
+
+def _is_test_unskippable(item: pytest.Item) -> bool:
+    return any(
+        (_get_skipif_condition(marker) is False and marker.kwargs.get("reason") == ITR_UNSKIPPABLE_REASON)
+        for marker in item.iter_markers(name="skipif")
+    )

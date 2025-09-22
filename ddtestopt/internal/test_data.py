@@ -122,6 +122,22 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def set_tags(self, tags: t.Dict[str, str]) -> None:
         self.tags.update(tags)
 
+    def mark_unskippable(self) -> None:
+        self.tags[TestTag.ITR_UNSKIPPABLE] = TAG_TRUE
+        if self.parent:
+            self.parent.mark_unskippable()
+
+    def is_unskippable(self) -> bool:
+        return self.tags.get(TestTag.ITR_UNSKIPPABLE) == TAG_TRUE
+
+    def mark_forced_run(self) -> None:
+        self.tags[TestTag.ITR_FORCED_RUN] = TAG_TRUE
+        if self.parent:
+            self.parent.mark_forced_run()
+
+    def is_forced_run(self) -> bool:
+        return self.tags.get(TestTag.ITR_FORCED_RUN) == TAG_TRUE
+
 
 class TestRun(TestItem["Test", t.NoReturn]):
     __test__ = False
@@ -311,5 +327,8 @@ class TestTag:
     HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries"
 
     PARAMETERS = "test.parameters"
+
+    ITR_UNSKIPPABLE = "test.itr.unskippable"
+    ITR_FORCED_RUN = "test.itr.forced_run"
 
     __test__ = False
