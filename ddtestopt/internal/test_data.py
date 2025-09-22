@@ -39,6 +39,11 @@ class TestStatus(Enum):
     __test__ = False
 
 
+class ITRSkippingLevel(Enum):
+    SUITE = "suite"
+    TEST = "test"
+
+
 TParentClass = t.TypeVar("TParentClass", bound="TestItem[t.Any, t.Any]")
 TChildClass = t.TypeVar("TChildClass", bound="TestItem[t.Any, t.Any]")
 
@@ -122,6 +127,8 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def set_tags(self, tags: t.Dict[str, str]) -> None:
         self.tags.update(tags)
 
+    # ITR tags.
+
     def mark_unskippable(self) -> None:
         self.tags[TestTag.ITR_UNSKIPPABLE] = TAG_TRUE
         if self.parent:
@@ -138,6 +145,14 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def is_forced_run(self) -> bool:
         return self.tags.get(TestTag.ITR_FORCED_RUN) == TAG_TRUE
 
+    def mark_skipped_by_itr(self) -> None:
+        self.tags[TestTag.SKIPPED_BY_ITR] = TAG_TRUE
+        if self.parent:
+            self.parent.mark_forced_run()
+
+    def is_skipped_by_itr(self) -> bool:
+        return self.tags.get(TestTag.SKIPPED_BY_ITR) == TAG_TRUE
+
 
 class TestRun(TestItem["Test", t.NoReturn]):
     __test__ = False
@@ -148,21 +163,14 @@ class TestRun(TestItem["Test", t.NoReturn]):
         self.trace_id: t.Optional[int] = None
         self.attempt_number: int = 0
 
+        self.test = parent
+        self.suite = parent.parent
+        self.module = self.suite.parent
+        self.session = self.module.parent
+
     def set_context(self, context: TestContext) -> None:
         self.span_id = context.span_id
         self.trace_id = context.trace_id
-
-    @property
-    def suite_id(self) -> int:
-        return self.parent.parent.item_id
-
-    @property
-    def module_id(self) -> int:
-        return self.parent.parent.parent.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.parent.parent.parent.item_id
 
 
 class Test(TestItem["TestSuite", "TestRun"]):
@@ -173,6 +181,10 @@ class Test(TestItem["TestSuite", "TestRun"]):
         super().__init__(name=name, parent=parent)
 
         self.test_runs: t.List[TestRun] = []
+
+        self.suite = parent
+        self.module = self.suite.parent
+        self.session = self.module.parent
 
     def __str__(self) -> str:
         return f"{self.parent.parent.name}/{self.parent.name}::{self.name}"
@@ -218,18 +230,6 @@ class Test(TestItem["TestSuite", "TestRun"]):
     def has_parameters(self) -> bool:
         return TestTag.PARAMETERS in self.tags
 
-    @property
-    def suite_id(self) -> int:
-        return self.parent.item_id
-
-    @property
-    def module_id(self) -> int:
-        return self.parent.parent.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.parent.parent.item_id
-
     def make_test_run(self) -> TestRun:
         test_run = TestRun(name=self.name, parent=self)
         test_run.attempt_number = len(self.test_runs)
@@ -246,36 +246,25 @@ class TestSuite(TestItem["TestModule", "Test"]):
     ChildClass = Test
     __test__ = False
 
+    def __init__(self, name: str, parent: TestModule) -> None:
+        super().__init__(name=name, parent=parent)
+        self.module = parent
+        self.session = self.module.parent
+
     def __str__(self) -> str:
         return f"{self.parent.name}/{self.name}"
-
-    @property
-    def suite_id(self) -> int:
-        return self.item_id
-
-    @property
-    def module_id(self) -> int:
-        return self.parent.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.parent.item_id
 
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
     ChildClass = TestSuite
     __test__ = False
 
+    def __init__(self, name: str, parent: TestSession) -> None:
+        super().__init__(name=name, parent=parent)
+        self.session = parent
+
     def __str__(self) -> str:
         return f"{self.name}"
-
-    @property
-    def module_id(self) -> int:
-        return self.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.item_id
 
     def set_location(self, module_path: Path) -> None:
         self.module_path = str(module_path)
@@ -288,10 +277,6 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
     def __init__(self, name: str):
         super().__init__(name=name, parent=None)  # type: ignore
 
-    @property
-    def session_id(self) -> int:
-        return self.item_id
-
     def set_session_id(self, session_id: int) -> None:
         self.item_id = session_id
 
@@ -300,6 +285,9 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
         self.test_command = test_command
         self.test_framework = test_framework
         self.test_framework_version = test_framework_version
+
+    def set_itr_skipping_level(self, itr_skipping_level: ITRSkippingLevel) -> None:
+        self.itr_skipping_level = itr_skipping_level
 
 
 class TestTag:
@@ -330,5 +318,6 @@ class TestTag:
 
     ITR_UNSKIPPABLE = "test.itr.unskippable"
     ITR_FORCED_RUN = "test.itr.forced_run"
+    SKIPPED_BY_ITR = "test.skipped_by_itr"
 
     __test__ = False

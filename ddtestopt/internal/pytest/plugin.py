@@ -235,13 +235,7 @@ class TestOptPlugin:
 
         self.tests_by_nodeid[item.nodeid] = test
 
-        if self.manager.is_skippable_test(test_ref):
-            if test.is_unskippable():
-                test.mark_forced_run()
-            elif test.is_attempt_to_fix():
-                pass  # if the test is an attempt-to-fix, behave as it if were not selected for skipping.
-            else:
-                item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
+        self._handle_itr(item, test_ref, test)
 
         if test.is_disabled() and not test.is_attempt_to_fix():
             item.add_marker(pytest.mark.skip(reason=DISABLED_BY_TEST_MANAGEMENT_REASON))
@@ -539,6 +533,21 @@ class TestOptPlugin:
 
         return TestStatus.PASS, {}
 
+    def _handle_itr(self, item: pytest.Item, test_ref: TestRef, test: Test) -> None:
+        if not self.manager.is_skippable_test(test_ref):
+            return
+
+        if test.is_unskippable():
+            test.mark_forced_run()
+            return
+
+        if test.is_attempt_to_fix():
+            # if the test is an attempt-to-fix, behave as it if were not selected for skipping.
+            return
+
+        item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
+        test.mark_skipped_by_itr()
+
 
 class XdistTestOptPlugin(TestOptPlugin):
     @pytest.hookimpl
@@ -546,7 +555,7 @@ class XdistTestOptPlugin(TestOptPlugin):
         """
         Pass test session id from the main process to xdist workers.
         """
-        node.workerinput["dd_session_id"] = self.session.session_id
+        node.workerinput["dd_session_id"] = self.session.item_id
 
 
 def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:

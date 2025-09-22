@@ -155,8 +155,8 @@ class TestCoverageWriter(BaseWriter):
             return
 
         event = Event(
-            test_session_id=test_run.session_id,
-            test_suite_id=test_run.suite_id,
+            test_session_id=test_run.session.item_id,
+            test_suite_id=test_run.suite.item_id,
             span_id=test_run.span_id,
             files=files,
         )
@@ -196,14 +196,14 @@ def serialize_test_run(test_run: TestRun) -> Event:
             "start": test_run.start_ns,
             "duration": test_run.duration_ns,
             "meta": {
-                **test_run.parent.tags,
+                **test_run.test.tags,
                 **test_run.tags,
                 "span.kind": "test",
-                "test.module": test_run.parent.parent.parent.name,
-                "test.module_path": test_run.parent.parent.parent.module_path,
+                "test.module": test_run.module.name,
+                "test.module_path": test_run.module.module_path,
                 "test.name": test_run.name,
                 "test.status": test_run.get_status().value,
-                "test.suite": test_run.parent.parent.name,
+                "test.suite": test_run.suite.name,
                 "test.type": "test",
                 "type": "test",
             },
@@ -215,9 +215,9 @@ def serialize_test_run(test_run: TestRun) -> Event:
                 **test_run.metrics,
             },
             "type": "test",
-            "test_session_id": test_run.session_id,
-            "test_module_id": test_run.module_id,
-            "test_suite_id": test_run.suite_id,
+            "test_session_id": test_run.session.item_id,
+            "test_module_id": test_run.module.item_id,
+            "test_suite_id": test_run.suite.item_id,
         },
     )
 
@@ -247,9 +247,9 @@ def serialize_suite(suite: TestSuite) -> Event:
                 **suite.metrics,
             },
             "type": "test_suite_end",
-            "test_session_id": suite.session_id,
-            "test_module_id": suite.module_id,
-            "test_suite_id": suite.suite_id,
+            "test_session_id": suite.session.item_id,
+            "test_module_id": suite.module.item_id,
+            "test_suite_id": suite.item_id,
             "itr_correlation_id": "9b237bb3f20ae3a2463e084cfb09219d",  # ꙮ
         },
     )
@@ -281,8 +281,8 @@ def serialize_module(module: TestModule) -> Event:
                 **module.metrics,
             },
             "type": "test_module_end",
-            "test_session_id": module.session_id,
-            "test_module_id": module.module_id,
+            "test_session_id": module.session.item_id,
+            "test_module_id": module.item_id,
         },
     )
 
@@ -312,6 +312,6 @@ def serialize_session(session: TestSession) -> Event:
                 **session.metrics,
             },
             "type": "test_session_end",
-            "test_session_id": session.session_id,
+            "test_session_id": session.item_id,
         },
     )

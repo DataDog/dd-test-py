@@ -814,7 +814,7 @@ class TestXdistPlugin:
 
         # Mock session with session_id
         plugin.session = Mock()
-        plugin.session.session_id = "test-session-123"
+        plugin.session.item_id = "test-session-123"
 
         # Mock node
         mock_node = Mock()

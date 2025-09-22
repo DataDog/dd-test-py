@@ -18,6 +18,7 @@ from ddtestopt.internal.retry_handlers import AttemptToFixHandler
 from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
 from ddtestopt.internal.retry_handlers import EarlyFlakeDetectionHandler
 from ddtestopt.internal.retry_handlers import RetryHandler
+from ddtestopt.internal.test_data import ITRSkippingLevel
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import Test
 from ddtestopt.internal.test_data import TestModule
@@ -41,6 +42,7 @@ class SessionManager:
         self.collected_tests: t.Set[TestRef] = set()
         self.skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
         self.itr_correlation_id: t.Optional[str] = None
+        self.itr_skipping_level = ITRSkippingLevel.TEST
 
         self.is_user_provided_service: bool
 
@@ -65,6 +67,7 @@ class SessionManager:
             service=self.service,
             env=self.env,
             git_tags=self.git_tags,
+            itr_skipping_level=self.itr_skipping_level,
             configurations=self.platform_tags,
         )
         self.settings = self.api_client.get_settings()
@@ -72,9 +75,14 @@ class SessionManager:
         self.test_properties = (
             self.api_client.get_test_management_properties() if self.settings.test_management.enabled else {}
         )
-        self.upload_git_data_and_get_skippable_tests()  # ꙮ
 
-        # TODO: close connection after fetching stuff
+        self.upload_git_data()
+        self.skippable_items, self.itr_correlation_id = self.api_client.get_skippable_tests()
+        if self.settings.require_git:
+            # Fetch settings again after uploading git data, as it may change ITR settings.
+            self.settings = self.api_client.get_settings()
+
+        self.api_client.close()
 
         # Retry handlers must be set up after collection phase for EFD faulty session logic to work.
         self.retry_handlers: t.List[RetryHandler] = []
@@ -83,6 +91,7 @@ class SessionManager:
         self.coverage_writer = TestCoverageWriter(site=self.site, api_key=self.api_key)
         self.session = session or TestSession(name="test")
         self.session.set_service(self.service)
+        self.session.set_itr_skipping_level(self.itr_skipping_level)
 
         self.writer.add_metadata("*", self.git_tags)
         self.writer.add_metadata("*", self.platform_tags)
@@ -97,9 +106,9 @@ class SessionManager:
             },
         )
 
-        # # Unreachable code, because this is set to None on line 41
-        # if self.itr_correlation_id:
-        #     self.writer.add_metadata("test", {"itr_correlation_id": self.itr_correlation_id})
+        if self.itr_correlation_id:
+            itr_event = "test" if self.itr_skipping_level == ITRSkippingLevel.TEST else "test_suite_end"
+            self.writer.add_metadata(itr_event, {"itr_correlation_id": self.itr_correlation_id})
 
     def finish_collection(self) -> None:
         self.setup_retry_handlers()
@@ -185,7 +194,7 @@ class SessionManager:
 
         return test_module, test_suite, test
 
-    def upload_git_data_and_get_skippable_tests(self) -> None:
+    def upload_git_data(self) -> None:
         git = Git()
         latest_commits = git.get_latest_commits()
         backend_commits = self.api_client.get_known_commits(latest_commits)
@@ -197,8 +206,6 @@ class SessionManager:
 
         for packfile in git.pack_objects(revisions_to_send):
             self.api_client.send_git_pack_file(packfile)
-
-        self.skippable_items, self.itr_correlation_id = self.api_client.get_skippable_tests()
 
     def is_skippable_test(self, test_ref: TestRef) -> bool:
         if not self.settings.skipping_enabled:
