@@ -51,7 +51,7 @@ matrix.pytest.dependencies = [
 ]
 
 [tool.hatch.envs.hatch-test.scripts]
-run = "pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt ${CI_PYTEST_ADDOPTS} {args:tests}"
+run = "pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt $CI_PYTEST_ADDOPTS {args:tests}"
 run-cov = "python -m slipcover --source ddtestopt --pretty-print -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
 cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
 cov-combine = "true"
