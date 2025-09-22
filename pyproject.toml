@@ -89,8 +89,8 @@ qa = [
     "python -m mypy ddtestopt/ tests/",
 ]
 fix = [
-    "black ddtestopt/ tests/",
-    "ruff check --fix --unsafe-fixes ddtestopt/ tests/",
+    "black {args:ddtestopt/ tests/}",
+    "ruff check --fix --unsafe-fixes {args:ddtestopt/ tests/}",
     "python -m mypy ddtestopt/ tests/",
 ]
 # Individual commands for specific fixes
