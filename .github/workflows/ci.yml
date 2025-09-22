@@ -55,6 +55,7 @@ jobs:
       run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
       env:
         PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
+        DD_API_KEY: ${{ secrets.DD_API_KEY }}
 
   coverage:
     name: Code Coverage
