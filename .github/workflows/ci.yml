@@ -54,7 +54,7 @@ jobs:
     - name: Run tests
       run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
       env:
-        CI_PYTEST_ADDOPTS: '-vvv --ddtrace --ignore=ddtestopt'
+        PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
 
   coverage:
     name: Code Coverage
