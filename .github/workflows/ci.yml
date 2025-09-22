@@ -55,9 +55,8 @@ jobs:
       env:
         PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
         DD_API_KEY: ${{ secrets.DD_API_KEY }}
-        DD_TRACE_DEBUG: ${{ env.DD_TRACE_DEBUG }}
-        DD_CIVISIBILITY_AGENTLESS_ENABLED: ${{ env.DD_CIVISIBILITY_AGENTLESS_ENABLED }}
-      run: DD_TRACE_DEBUG=1 DD_CIVISIBILITY_AGENTLESS_ENABLED=1 hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
+        DD_CIVISIBILITY_AGENTLESS_ENABLED: '1'
+      run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
 
   coverage:
     name: Code Coverage
