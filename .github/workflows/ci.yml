@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: qa  # Only run if QA job passes
     env:
-      MINIMUM_COVERAGE: 45
+      MINIMUM_COVERAGE: 79
     steps:
     - uses: actions/checkout@v4
     
