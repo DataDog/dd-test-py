@@ -39,8 +39,8 @@ class TestFeaturesWithMocking:
         # Use network mocks to prevent all real HTTP calls
         with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
             mock_api_client.return_value = mock_api_client_settings()
-            monkeypatch.setenv("DD_API_KEY", "test-key")
-            result = pytester.runpytest("-p", "ddtestopt", "-v")
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Test should pass
         assert result.ret == 0
@@ -65,9 +65,8 @@ class TestFeaturesWithMocking:
         # Use network mocks to prevent all real HTTP calls
         with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
             mock_api_client.return_value = mock_api_client_settings(auto_retries_enabled=True)
-            monkeypatch.setenv("DD_API_KEY", "test-key")
             monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
-            result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -122,8 +121,8 @@ class TestFeaturesWithMocking:
                 efd_enabled=True, known_tests_enabled=True, known_tests={known_test_ref}
             ),
         ) as _mock_api_client, setup_standard_mocks():
-            monkeypatch.setenv("DD_API_KEY", "test-key")
-            result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after EFD retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -175,8 +174,8 @@ class TestFeaturesWithMocking:
             "ddtestopt.internal.session_manager.APIClient",
             return_value=mock_api_client_settings(skipping_enabled=True, skippable_items={skippable_test_ref}),
         ) as _mock_api_client, setup_standard_mocks():
-            monkeypatch.setenv("DD_API_KEY", "test-key")
-            result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -221,8 +220,8 @@ class TestPytestPluginIntegration:
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ) as _mock_api_client, setup_standard_mocks():
-            monkeypatch.setenv("DD_API_KEY", "foobar")
-            result = pytester.runpytest("-p", "ddtestopt", "-v")
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Check that tests ran successfully
         assert result.ret == 0
@@ -248,8 +247,8 @@ class TestPytestPluginIntegration:
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ) as _mock_api_client, setup_standard_mocks():
-            monkeypatch.setenv("DD_API_KEY", "foobar")
-            result = pytester.runpytest("-p", "ddtestopt", "-v")
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Check that one test failed and one passed
         assert result.ret == 1  # pytest exits with 1 when tests fail
@@ -271,8 +270,8 @@ class TestPytestPluginIntegration:
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ) as _mock_api_client, setup_standard_mocks():
-            monkeypatch.setenv("DD_API_KEY", "foobar")
-            result = pytester.runpytest("-p", "ddtestopt", "--tb=short", "-v")
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v")
 
         # Should run without plugin loading errors
         assert result.ret == 0
@@ -298,9 +297,9 @@ class TestPytestPluginIntegration:
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ) as _mock_api_client, setup_standard_mocks():
-            monkeypatch.setenv("DD_API_KEY", "foobar")
+
             # Run with specific arguments that should be captured
-            result = pytester.runpytest("-p", "ddtestopt", "--tb=short", "-x", "-v")
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
 
         assert result.ret == 0
         result.assert_outcomes(passed=1)
@@ -328,14 +327,13 @@ class TestPytestPluginIntegration:
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ) as _mock_api_client, setup_standard_mocks():
-            monkeypatch.setenv("DD_API_KEY", "foobar")
             # Set all environment variables via monkeypatch
-            monkeypatch.setenv("DD_API_KEY", "foobar")
+
             monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")
             monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
             monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
 
-            result = pytester.runpytest("-p", "ddtestopt", "-v")
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Tests should pass
         assert result.ret == 0
@@ -395,6 +393,7 @@ class TestRetryHandler:
         with patch.dict(
             os.environ,
             {
+                "DD_API_KEY": "foobar",
                 "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2",
                 "DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT": "5",
             },
