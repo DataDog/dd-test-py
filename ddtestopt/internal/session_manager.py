@@ -42,7 +42,7 @@ class SessionManager:
         self.collected_tests: t.Set[TestRef] = set()
         self.skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
         self.itr_correlation_id: t.Optional[str] = None
-        self.itr_skipping_level = ITRSkippingLevel.TEST
+        self.itr_skipping_level = ITRSkippingLevel.TEST  # TODO: SUITE level not supported at the moment.
 
         self.is_user_provided_service: bool
 
@@ -91,7 +91,6 @@ class SessionManager:
         self.coverage_writer = TestCoverageWriter(site=self.site, api_key=self.api_key)
         self.session = session or TestSession(name="test")
         self.session.set_service(self.service)
-        self.session.set_itr_skipping_level(self.itr_skipping_level)
 
         self.writer.add_metadata("*", self.git_tags)
         self.writer.add_metadata("*", self.platform_tags)

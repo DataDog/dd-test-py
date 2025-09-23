@@ -79,6 +79,8 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def finish(self) -> None:
         if self.start_ns is None:
             raise ValueError("finish() called before start")
+
+        self.set_final_tags()
         self.duration_ns = time.time_ns() - self.start_ns
 
     def is_finished(self) -> bool:
@@ -113,6 +115,9 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
 
         return TestStatus.PASS
 
+    def set_final_tags(self) -> None:
+        pass
+
     def get_or_create_child(self, name: str) -> t.Tuple[TChildClass, bool]:
         created = False
 
@@ -126,32 +131,6 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
 
     def set_tags(self, tags: t.Dict[str, str]) -> None:
         self.tags.update(tags)
-
-    # ITR tags.
-
-    def mark_unskippable(self) -> None:
-        self.tags[TestTag.ITR_UNSKIPPABLE] = TAG_TRUE
-        if self.parent:
-            self.parent.mark_unskippable()
-
-    def is_unskippable(self) -> bool:
-        return self.tags.get(TestTag.ITR_UNSKIPPABLE) == TAG_TRUE
-
-    def mark_forced_run(self) -> None:
-        self.tags[TestTag.ITR_FORCED_RUN] = TAG_TRUE
-        if self.parent:
-            self.parent.mark_forced_run()
-
-    def is_forced_run(self) -> bool:
-        return self.tags.get(TestTag.ITR_FORCED_RUN) == TAG_TRUE
-
-    def mark_skipped_by_itr(self) -> None:
-        self.tags[TestTag.SKIPPED_BY_ITR] = TAG_TRUE
-        if self.parent:
-            self.parent.mark_forced_run()
-
-    def is_skipped_by_itr(self) -> bool:
-        return self.tags.get(TestTag.SKIPPED_BY_ITR) == TAG_TRUE
 
 
 class TestRun(TestItem["Test", t.NoReturn]):
@@ -241,6 +220,27 @@ class Test(TestItem["TestSuite", "TestRun"]):
     def last_test_run(self) -> TestRun:
         return self.test_runs[-1]
 
+    # ITR tags.
+
+    def mark_unskippable(self) -> None:
+        self.tags[TestTag.ITR_UNSKIPPABLE] = TAG_TRUE
+
+    def is_unskippable(self) -> bool:
+        return self.tags.get(TestTag.ITR_UNSKIPPABLE) == TAG_TRUE
+
+    def mark_forced_run(self) -> None:
+        self.tags[TestTag.ITR_FORCED_RUN] = TAG_TRUE
+
+    def is_forced_run(self) -> bool:
+        return self.tags.get(TestTag.ITR_FORCED_RUN) == TAG_TRUE
+
+    def mark_skipped_by_itr(self) -> None:
+        self.tags[TestTag.SKIPPED_BY_ITR] = TAG_TRUE
+        self.session.tests_skipped_by_itr += 1
+
+    def is_skipped_by_itr(self) -> bool:
+        return self.tags.get(TestTag.SKIPPED_BY_ITR) == TAG_TRUE
+
 
 class TestSuite(TestItem["TestModule", "Test"]):
     ChildClass = Test
@@ -276,6 +276,7 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
 
     def __init__(self, name: str):
         super().__init__(name=name, parent=None)  # type: ignore
+        self.tests_skipped_by_itr = 0
 
     def set_session_id(self, session_id: int) -> None:
         self.item_id = session_id
@@ -286,8 +287,13 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
         self.test_framework = test_framework
         self.test_framework_version = test_framework_version
 
-    def set_itr_skipping_level(self, itr_skipping_level: ITRSkippingLevel) -> None:
-        self.itr_skipping_level = itr_skipping_level
+    def set_final_tags(self) -> None:
+        super().set_final_tags()
+
+        if self.tests_skipped_by_itr > 0:
+            self.tags["test.itr.tests_skipping.tests_skipped"] = TAG_TRUE
+            self.tags["test.itr.tests_skipping.type"] = "test"
+            self.metrics["test.itr.tests_skipping.count"] = self.tests_skipped_by_itr
 
 
 class TestTag:

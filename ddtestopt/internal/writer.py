@@ -250,7 +250,6 @@ def serialize_suite(suite: TestSuite) -> Event:
             "test_session_id": suite.session.item_id,
             "test_module_id": suite.module.item_id,
             "test_suite_id": suite.item_id,
-            "itr_correlation_id": "9b237bb3f20ae3a2463e084cfb09219d",  # ꙮ
         },
     )
 

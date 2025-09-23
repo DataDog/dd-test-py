@@ -164,6 +164,11 @@ class TestOptPlugin:
         self.session.set_status(
             TestStatus.FAIL if session.exitstatus == pytest.ExitCode.TESTS_FAILED else TestStatus.PASS
         )
+
+        if self.is_xdist_worker and hasattr(session.config, "workeroutput"):
+            # Propagate number of skipped tests to the main process.
+            session.config.workeroutput["tests_skipped_by_itr"] = self.session.tests_skipped_by_itr
+
         self.session.finish()
 
         if not self.is_xdist_worker:
@@ -556,6 +561,17 @@ class XdistTestOptPlugin(TestOptPlugin):
         Pass test session id from the main process to xdist workers.
         """
         node.workerinput["dd_session_id"] = self.session.item_id
+
+    @pytest.hookimpl
+    def pytest_testnodedown(self, node: t.Any, error: t.Any) -> None:
+        """
+        Collect count of tests skipped by ITR from a worker node and add it to the main process' session.
+        """
+        if not hasattr(node, "workeroutput"):
+            return
+
+        if tests_skipped_by_itr := node.workeroutput.get("tests_skipped_by_itr"):
+            self.session.tests_skipped_by_itr += tests_skipped_by_itr
 
 
 def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:
