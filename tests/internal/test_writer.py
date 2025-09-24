@@ -128,8 +128,8 @@ class TestTestCoverageWriter:
 
         # Mock test run
         test_run = Mock()
-        test_run.session_id = 123
-        test_run.suite_id = 456
+        test_run.session.item_id = 123
+        test_run.suite.item_id = 456
         test_run.span_id = 789
 
         coverage_data: dict[str, bytes] = {
@@ -194,9 +194,9 @@ class TestSerializationFunctions:
         test_run.span_id = 222
         test_run.service = "test_service"
         test_run.name = "test_function"
-        test_run.session_id = 333
-        test_run.module_id = 444
-        test_run.suite_id = 555
+        test_run.session.item_id = 333
+        test_run.module.item_id = 444
+        test_run.suite.item_id = 555
         test_run.tags = {"custom.tag": "value"}
         test_run.metrics = {"custom.metric": 42}
 
@@ -261,9 +261,9 @@ class TestSerializationFunctions:
         # Add additional test-specific attributes not covered by the builder
         suite.service = "test_service"
         suite.name = "TestSuite"
-        suite.session_id = 666
-        suite.module_id = 777
-        suite.suite_id = 888
+        suite.session.item_id = 666
+        suite.module.item_id = 777
+        suite.item_id = 888
         suite.tags = {"suite.custom": "suite_value"}
         suite.metrics = {"suite.metric": 100}
 
@@ -302,8 +302,8 @@ class TestSerializationFunctions:
 
         module.service = "test_service"
         module.module_path = "/path/to/test_module.py"
-        module.session_id = 999
-        module.module_id = 1111
+        module.session.item_id = 999
+        module.item_id = 1111
         module.tags = {"module.custom": "module_value"}
         module.metrics = {"module.metric": 200}
 
@@ -341,7 +341,7 @@ class TestSerializationFunctions:
         session.duration_ns = 3500000000
 
         session.service = "test_service"
-        session.session_id = 2222
+        session.item_id = 2222
         session.tags = {"session.custom": "session_value"}
         session.metrics = {"session.metric": 300}
 
