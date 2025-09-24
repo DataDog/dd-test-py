@@ -23,11 +23,11 @@ from ddtestopt.internal.api_client import TestProperties
 from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
+from ddtestopt.internal.test_data import Test
 from ddtestopt.internal.test_data import TestModule
 from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
-from ddtestopt.internal.test_data import TestStatus
 from ddtestopt.internal.test_data import TestSuite
 
 
@@ -442,211 +442,8 @@ class BackendConnectorMockBuilder:
 
 
 # =============================================================================
-# TEST DATA OBJECT BUILDERS
-# =============================================================================
-
-
-class TestRunMockBuilder:
-    """Builder for creating TestRun mocks with flexible configuration."""
-
-    def __init__(self, test_ref: TestRef):
-        self._test_ref = test_ref
-        self._status: t.Optional[TestStatus] = None
-        self._start_ns = 1000000000
-        self._duration_ns = 500000000  # 0.5s
-        self._error_message: t.Optional[str] = None
-        self._error_type: t.Optional[str] = None
-        self._skip_reason: t.Optional[str] = None
-
-    def with_status(self, status: "TestStatus") -> "TestRunMockBuilder":
-        """Set the test status."""
-        self._status = status
-        return self
-
-    def with_passing(self) -> "TestRunMockBuilder":
-        """Set test as passing."""
-        self._status = TestStatus.PASS
-        return self
-
-    def with_failing(
-        self, error_type: str = "AssertionError", error_message: str = "Test failed"
-    ) -> "TestRunMockBuilder":
-        """Set test as failing with error details."""
-        self._status = TestStatus.FAIL
-        self._error_type = error_type
-        self._error_message = error_message
-        return self
-
-    def with_skipped(self, reason: str = "Test skipped") -> "TestRunMockBuilder":
-        """Set test as skipped with reason."""
-        self._status = TestStatus.SKIP
-        self._skip_reason = reason
-        return self
-
-    def with_timing(self, start_ns: int, duration_ns: int) -> "TestRunMockBuilder":
-        """Set test timing."""
-        self._start_ns = start_ns
-        self._duration_ns = duration_ns
-        return self
-
-    def build(self) -> Mock:
-        """Build the TestRun mock."""
-        # Default to PASS if no status set
-        if self._status is None:
-            self._status = TestStatus.PASS
-
-        test_run = Mock(spec=TestRun)
-        test_run.ref = self._test_ref
-        test_run.start_ns = self._start_ns
-        test_run.duration_ns = self._duration_ns
-        test_run.end_ns = self._start_ns + self._duration_ns
-        test_run.get_status.return_value = self._status
-        test_run.error_message = self._error_message
-        test_run.error_type = self._error_type
-        test_run.skip_reason = self._skip_reason
-
-        # Create mock parent hierarchy
-        test_run.parent = Mock()  # TestSuite
-        test_run.parent.ref = self._test_ref.suite
-        test_run.parent.parent = Mock()  # TestModule
-        test_run.parent.parent.ref = self._test_ref.suite.module
-        test_run.parent.parent.parent = Mock()  # TestSession
-        test_run.parent.parent.parent.name = "test_session"
-
-        return test_run
-
-
-class TestSuiteMockBuilder:
-    """Builder for creating TestSuite mocks with flexible configuration."""
-
-    def __init__(self, suite_ref: SuiteRef):
-        self._suite_ref = suite_ref
-        self._status: t.Optional[TestStatus] = None
-        self._start_ns = 1000000000
-        self._duration_ns = 2000000000  # 2s
-
-    def with_status(self, status: "TestStatus") -> "TestSuiteMockBuilder":
-        """Set the suite status."""
-        self._status = status
-        return self
-
-    def with_timing(self, start_ns: int, duration_ns: int) -> "TestSuiteMockBuilder":
-        """Set suite timing."""
-        self._start_ns = start_ns
-        self._duration_ns = duration_ns
-        return self
-
-    def build(self) -> Mock:
-        """Build the TestSuite mock."""
-        # Default to PASS if no status set
-        if self._status is None:
-            self._status = TestStatus.PASS
-
-        suite = Mock(spec=TestSuite)
-        suite.ref = self._suite_ref
-        suite.start_ns = self._start_ns
-        suite.duration_ns = self._duration_ns
-        suite.end_ns = self._start_ns + self._duration_ns
-        suite.get_status.return_value = self._status
-
-        # Create mock parent hierarchy
-        suite.parent = Mock()  # TestModule
-        suite.parent.ref = self._suite_ref.module
-        suite.parent.parent = Mock()  # TestSession
-        suite.parent.parent.name = "test_session"
-
-        return suite
-
-
-class TestModuleMockBuilder:
-    """Builder for creating TestModule mocks with flexible configuration."""
-
-    def __init__(self, module_ref: ModuleRef):
-        self._module_ref = module_ref
-        self._status: t.Optional[TestStatus] = None
-        self._start_ns = 1000000000
-        self._duration_ns = 5000000000  # 5s
-
-    def with_status(self, status: "TestStatus") -> "TestModuleMockBuilder":
-        """Set the module status."""
-        self._status = status
-        return self
-
-    def with_timing(self, start_ns: int, duration_ns: int) -> "TestModuleMockBuilder":
-        """Set module timing."""
-        self._start_ns = start_ns
-        self._duration_ns = duration_ns
-        return self
-
-    def build(self) -> Mock:
-        """Build the TestModule mock."""
-        # Default to PASS if no status set
-        if self._status is None:
-            self._status = TestStatus.PASS
-
-        module = Mock(spec=TestModule)
-        module.ref = self._module_ref
-        module.start_ns = self._start_ns
-        module.duration_ns = self._duration_ns
-        module.end_ns = self._start_ns + self._duration_ns
-        module.get_status.return_value = self._status
-
-        # Create mock parent
-        module.parent = Mock()  # TestSession
-        module.parent.name = "test_session"
-
-        return module
-
-
-class TestSessionDataMockBuilder:
-    """Builder for creating TestSession mocks with flexible configuration."""
-
-    def __init__(self, name: str = "test_session"):
-        self._name = name
-        self._status: t.Optional[TestStatus] = None
-        self._start_ns = 1000000000
-        self._duration_ns = 10000000000  # 10s
-
-    def with_status(self, status: "TestStatus") -> "TestSessionDataMockBuilder":
-        """Set the session status."""
-        self._status = status
-        return self
-
-    def with_timing(self, start_ns: int, duration_ns: int) -> "TestSessionDataMockBuilder":
-        """Set session timing."""
-        self._start_ns = start_ns
-        self._duration_ns = duration_ns
-        return self
-
-    def build(self) -> Mock:
-        """Build the TestSession mock."""
-        # Default to PASS if no status set
-        if self._status is None:
-            self._status = TestStatus.PASS
-
-        session = Mock(spec=TestSession)
-        session.name = self._name
-        session.start_ns = self._start_ns
-        session.duration_ns = self._duration_ns
-        session.end_ns = self._start_ns + self._duration_ns
-        session.get_status.return_value = self._status
-
-        return session
-
-
-# =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
-
-
-def session_manager_mock() -> "SessionManagerMockBuilder":
-    """Create a SessionManagerMockBuilder with defaults."""
-    return SessionManagerMockBuilder()
-
-
-def mocked_test(test_ref: TestRef) -> TestMockBuilder:
-    """Create a TestMockBuilder for the given test reference."""
-    return TestMockBuilder(test_ref)
 
 
 def pytest_item_mock(nodeid: str) -> PytestItemMockBuilder:
@@ -654,24 +451,37 @@ def pytest_item_mock(nodeid: str) -> PytestItemMockBuilder:
     return PytestItemMockBuilder(nodeid)
 
 
-def mock_test_run(test_ref: TestRef) -> TestRunMockBuilder:
-    """Create a TestRunMockBuilder with the given test reference."""
-    return TestRunMockBuilder(test_ref)
+def session_manager_mock() -> "SessionManagerMockBuilder":
+    """Create a SessionManagerMockBuilder with defaults."""
+    return SessionManagerMockBuilder()
 
 
-def mock_test_suite(suite_ref: SuiteRef) -> TestSuiteMockBuilder:
-    """Create a TestSuiteMockBuilder with the given suite reference."""
-    return TestSuiteMockBuilder(suite_ref)
+def mock_test_session(name: str = "test_session") -> TestSession:
+    return TestSession(name)
 
 
-def mock_test_module(module_ref: ModuleRef) -> TestModuleMockBuilder:
-    """Create a TestModuleMockBuilder with the given module reference."""
-    return TestModuleMockBuilder(module_ref)
+def mock_test_module(module_ref: ModuleRef) -> TestModule:
+    session = mock_test_session()
+    module, _ = session.get_or_create_child(module_ref.name)
+    return module
 
 
-def mock_test_session(name: str = "test_session") -> TestSessionDataMockBuilder:
-    """Create a TestSessionDataMockBuilder with the given name."""
-    return TestSessionDataMockBuilder(name)
+def mock_test_suite(suite_ref: SuiteRef) -> TestSuite:
+    module = mock_test_module(suite_ref.module)
+    suite, _ = module.get_or_create_child(suite_ref.name)
+    return suite
+
+
+def mock_test(test_ref: TestRef) -> Test:
+    suite = mock_test_suite(test_ref.suite)
+    test, _ = suite.get_or_create_child(test_ref.name)
+    return test
+
+
+def mock_test_run(test_ref: TestRef) -> TestRun:
+    test = mock_test(test_ref)
+    test_run = test.make_test_run()
+    return test_run
 
 
 def mock_api_client_settings(

@@ -23,7 +23,7 @@ from ddtestopt.internal.pytest.plugin import _get_test_parameters_json
 from ddtestopt.internal.pytest.plugin import _get_user_property
 from ddtestopt.internal.pytest.plugin import nodeid_to_test_ref
 from tests.mocks import TestDataFactory
-from tests.mocks import mocked_test
+from tests.mocks import mock_test
 from tests.mocks import pytest_item_mock
 from tests.mocks import session_manager_mock
 
@@ -49,13 +49,11 @@ class TestSkippingAndITRFeatures:
         plugin.manager = mock_manager
 
         # Create mock test that is NOT attempt_to_fix
-        mock_test = mocked_test(test_ref).as_attempt_to_fix(False).build()
-        mock_module = Mock()
-        mock_suite = Mock()
-        mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
+        test = mock_test(test_ref)
+        mock_manager.discover_test.return_value = (test.module, test.suite, test)
 
         # Store test in plugin's dictionary
-        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
+        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": test}
 
         # Create mock pytest item
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
@@ -87,13 +85,12 @@ class TestSkippingAndITRFeatures:
         plugin.manager = mock_manager
 
         # Create mock test that IS attempt_to_fix
-        mock_test = mocked_test(test_ref).as_attempt_to_fix(True).build()
-        mock_module = Mock()
-        mock_suite = Mock()
-        mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
+        test = mock_test(test_ref)
+        test.set_attributes(is_attempt_to_fix=True)
+        mock_manager.discover_test.return_value = (test.module, test.suite, test)
 
         # Store test in plugin's dictionary
-        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
+        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": test}
 
         # Create mock pytest item
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
@@ -136,13 +133,11 @@ class TestSkippingAndITRFeatures:
         plugin.manager = mock_manager
 
         # Create mock test that is NOT attempt_to_fix
-        mock_test = mocked_test(test_ref).as_attempt_to_fix(False).build()
-        mock_module = Mock()
-        mock_suite = Mock()
-        mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
+        test = mock_test(test_ref)
+        mock_manager.discover_test.return_value = (test.module, test.suite, test)
 
         # Store test in plugin's dictionary
-        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
+        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": test}
 
         # Create mock pytest item
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
@@ -172,13 +167,12 @@ class TestSkippingAndITRFeatures:
         plugin.manager = mock_manager
 
         # Create mock test that is disabled but NOT attempt_to_fix
-        mock_test = mocked_test(test_ref).as_disabled(True).as_attempt_to_fix(False).build()
-        mock_module = Mock()
-        mock_suite = Mock()
-        mock_manager.discover_test.return_value = (mock_module, mock_suite, mock_test)
+        test = mock_test(test_ref)
+        test.set_attributes(is_disabled=True, is_attempt_to_fix=False)
+        mock_manager.discover_test.return_value = (test.module, test.suite, test)
 
         # Store test in plugin's dictionary
-        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": mock_test}
+        plugin.tests_by_nodeid = {"test_module/test_suite.py::test_function": test}
 
         # Create mock pytest item
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()

@@ -163,10 +163,10 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
     def set_attributes(
         self,
-        is_new: bool,
-        is_quarantined: bool,
-        is_disabled: bool,
-        is_attempt_to_fix: bool,
+        is_new: bool = False,
+        is_quarantined: bool = False,
+        is_disabled: bool = False,
+        is_attempt_to_fix: bool = False,
     ) -> None:
         if is_new:
             self.tags[TestTag.IS_NEW] = TAG_TRUE

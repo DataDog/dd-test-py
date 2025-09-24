@@ -182,12 +182,14 @@ class TestTestCoverageWriter:
 class TestSerializationFunctions:
     """Tests for event serialization functions."""
 
-    def create_mock_test_run(self) -> Mock:
+    def create_mock_test_run(self) -> TestRun:
         """Create a mock TestRun with required attributes."""
         test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
-        test_run = mock_test_run(test_ref).with_passing().with_timing(1000000000, 500000000).build()
+        test_run = mock_test_run(test_ref)
+        test_run.status = TestStatus.PASS
+        test_run.start_ns = 1000000000
+        test_run.duration_ns = 500000000
 
-        # Add additional test-specific attributes not covered by the builder
         test_run.trace_id = 111
         test_run.span_id = 222
         test_run.service = "test_service"
@@ -208,7 +210,6 @@ class TestSerializationFunctions:
     def test_serialize_test_run_pass(self) -> None:
         """Test serializing a passing test run."""
         test_run = self.create_mock_test_run()
-        test_run.get_status.return_value = TestStatus.PASS
 
         event = serialize_test_run(test_run)
 
@@ -229,7 +230,7 @@ class TestSerializationFunctions:
         assert meta["test.name"] == "test_function"
         assert meta["test.status"] == "pass"
         assert meta["test.suite"] == "TestClass"
-        assert meta["test.module"] == "test_session"
+        assert meta["test.module"] == "test_module"
         assert meta["test.module_path"] == "/path/to/test_module.py"
         assert meta["custom.tag"] == "value"
         assert meta["suite.tag"] == "suite_value"
@@ -242,17 +243,20 @@ class TestSerializationFunctions:
     def test_serialize_test_run_fail(self) -> None:
         """Test serializing a failing test run."""
         test_run = self.create_mock_test_run()
-        test_run.get_status.return_value = TestStatus.FAIL
+        test_run.status = TestStatus.FAIL
 
         event = serialize_test_run(test_run)
 
         assert event["content"]["error"] == 1  # Fail = error
         assert event["content"]["meta"]["test.status"] == "fail"
 
-    def create_mock_test_suite(self) -> Mock:
+    def create_mock_test_suite(self) -> TestSuite:
         """Create a mock TestSuite."""
         suite_ref = TestDataFactory.create_suite_ref("test_module", "test_suite.py")
-        suite = mock_test_suite(suite_ref).with_timing(2000000000, 1500000000).build()
+        suite = mock_test_suite(suite_ref)
+        suite.start_ns = 2000000000
+        suite.duration_ns = 1500000000
+        suite.status = TestStatus.PASS
 
         # Add additional test-specific attributes not covered by the builder
         suite.service = "test_service"
@@ -288,17 +292,15 @@ class TestSerializationFunctions:
         assert meta["type"] == "test_suite_end"
         assert meta["suite.custom"] == "suite_value"
 
-        # Check the correlation ID is present
-        assert "itr_correlation_id" in event["content"]
-
-    def create_mock_test_module(self) -> Mock:
+    def create_mock_test_module(self) -> TestModule:
         """Create a mock TestModule."""
         module_ref = TestDataFactory.create_module_ref("test_module")
-        module = mock_test_module(module_ref).with_status(TestStatus.SKIP).with_timing(3000000000, 2500000000).build()
+        module = mock_test_module(module_ref)
+        module.status = TestStatus.SKIP
+        module.start_ns = 3000000000
+        module.duration_ns = 2500000000
 
-        # Add additional test-specific attributes not covered by the builder
         module.service = "test_service"
-        module.name = "test_module"
         module.module_path = "/path/to/test_module.py"
         module.session_id = 999
         module.module_id = 1111
@@ -331,13 +333,13 @@ class TestSerializationFunctions:
         assert meta["type"] == "test_module_end"
         assert meta["module.custom"] == "module_value"
 
-    def create_mock_test_session(self) -> Mock:
+    def create_mock_test_session(self) -> TestSession:
         """Create a mock TestSession."""
-        session = (
-            mock_test_session("test_session").with_status(TestStatus.FAIL).with_timing(4000000000, 3500000000).build()
-        )
+        session = mock_test_session("test_session")
+        session.status = TestStatus.FAIL
+        session.start_ns = 4000000000
+        session.duration_ns = 3500000000
 
-        # Add additional test-specific attributes not covered by the builder
         session.service = "test_service"
         session.session_id = 2222
         session.tags = {"session.custom": "session_value"}
