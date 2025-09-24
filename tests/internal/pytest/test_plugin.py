@@ -673,6 +673,7 @@ class TestSessionLifecycleMethods:
         # Mock session
         mock_session = Mock()
         mock_session.exitstatus = pytest.ExitCode.OK
+        mock_session.config = Mock(workeroutput={})
 
         plugin.pytest_sessionfinish(mock_session)
 
