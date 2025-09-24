@@ -49,7 +49,7 @@ matrix.pytest.dependencies = [
 
 [tool.hatch.envs.hatch-test.scripts]
 run = "pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
-run-cov = "python -m slipcover --source ddtestopt --pretty-print -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
+run-cov = "python -m slipcover --source ddtestopt/internal --pretty-print -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
 cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
 cov-combine = "true"
 cov-report = "true"
@@ -103,9 +103,17 @@ typecheck = "python -m mypy {args:ddtestopt/ tests/}"
 [tool.black]
 line-length = 120
 target_version = ['py37', 'py38', 'py39', 'py310', 'py311', 'py312']
+extend-exclude = '''
+(
+  ddtestopt/vendor/    # exclude vendored third-party code
+)
+'''
 
 [tool.ruff]
 line-length = 120
+exclude = [
+    "ddtestopt/vendor/",
+]
 lint.select = [
     "A",
     "D",
@@ -138,13 +146,13 @@ relative-imports-order = "furthest-to-closest"
 
 
 [tool.ruff.lint.per-file-ignores]
-"ddtestopt/internal/coverage/*" = ["D"]
+"ddtestopt/vendor/*" = ["D"]
 
 [tool.coverage.run]
 source = ["ddtestopt"]
 omit = [
     "tests/*",
-    "ddtestopt/internal/coverage/third-party.tar.gz",
+    "ddtestopt/vendor/*",
 ]
 
 [tool.coverage.report]
@@ -186,5 +194,6 @@ pretty = true
 exclude = [
     "build/",
     "dist/",
-    "ddtestopt/internal/coverage/",  # Complex bytecode manipulation code
+    "ddtestopt/vendor/",
 ]
+
