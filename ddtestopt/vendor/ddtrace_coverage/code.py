@@ -26,9 +26,9 @@ log = logging.getLogger(__name__)
 
 _original_exec = exec
 
-_ctx_covered: ContextVar[t.List[t.DefaultDict[str, CoverageLines]]] = ContextVar("ctx_covered", default=[])
-_ctx_is_import_coverage = ContextVar("ctx_is_import_coverage", default=False)
-_ctx_coverage_enabled = ContextVar("ctx_coverage_enabled", default=False)
+_ctx_covered: ContextVar[t.List[t.DefaultDict[str, CoverageLines]]] = ContextVar("_ctx_covered", default=[])
+_ctx_is_import_coverage = ContextVar("_ctx_is_import_coverage", default=False)
+_ctx_coverage_enabled = ContextVar("_ctx_coverage_enabled", default=False)
 
 
 def _get_ctx_covered_lines() -> t.DefaultDict[str, CoverageLines]:
