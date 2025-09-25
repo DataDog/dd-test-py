@@ -18,6 +18,8 @@ mock behavior across all test modes.
 
 from contextlib import contextmanager
 import json
+import os
+import sys
 import typing as t
 
 from _pytest.pytester import Pytester
@@ -322,34 +324,20 @@ def get_subprocess_test_mode() -> bool:
     Set _DDTESTOPT_SUBPROCESS_TEST_MODE=true to force subprocess execution.
     Set _DDTESTOPT_SUBPROCESS_TEST_MODE=false to force in-process execution.
     """
-    import os
-
     # Check for explicit environment variable first
     env_val = os.getenv("_DDTESTOPT_SUBPROCESS_TEST_MODE")
     if env_val is not None:
         return as_bool(env_val)
 
-    # Auto-detect based on ddtrace pytest plugin being active
-    try:
-        # Simple approach: check if the ddtrace pytest plugin is imported and active
-        # We look for the actual ddtrace plugin module being loaded
-        import sys
+    # Check if the ddtrace pytest plugin is imported and active
+    # Check if ddtrace plugin is loaded but not disabled
+    if "ddtrace" in sys.modules:
+        # The plugin module is loaded, now check if it's active
+        # Look at sys.argv to see if ddtrace was explicitly disabled
+        cmdline = " ".join(sys.argv)
+        return "--ddtrace" in cmdline
 
-        # Check if ddtrace plugin is loaded but not disabled
-        if "ddtrace.contrib.pytest.plugin" in sys.modules:
-            # The plugin module is loaded, now check if it's active
-            # Look at sys.argv to see if ddtrace was explicitly disabled
-            import sys
-
-            cmdline = " ".join(sys.argv)
-            if "-p no:ddtrace" in cmdline or "--no-ddtrace" in cmdline:
-                return False  # Explicitly disabled
-            return True  # Plugin loaded and not disabled
-
-    except (ImportError, AttributeError):
-        pass
-
-    # Default to in-process mode for faster execution when ddtrace plugin not detected
+    # Default to in-process mode
     return False
 
 
