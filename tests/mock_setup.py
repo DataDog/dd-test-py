@@ -6,16 +6,12 @@ This module contains the actual mock setup functions that are used by both:
 2. In-process mode: imported directly by test code
 
 This approach ensures coverage tracking and eliminates code duplication.
+Now uses builders from mocks.py for consistent mock creation.
 """
 
 import typing as t
 from unittest.mock import Mock
 from unittest.mock import patch
-
-from ddtestopt.internal.api_client import AutoTestRetriesSettings
-from ddtestopt.internal.api_client import EarlyFlakeDetectionSettings
-from ddtestopt.internal.api_client import Settings
-from ddtestopt.internal.api_client import TestManagementSettings
 
 
 class MockConfig:
@@ -28,56 +24,43 @@ class MockConfig:
 
 
 def create_mock_objects(config: MockConfig) -> t.Dict[str, t.Any]:
-    """Create all mock objects based on configuration.
+    """Create all mock objects based on configuration using builders from mocks.py.
 
     Returns:
         Dictionary containing all mock objects
     """
-    # Create mock git instance
-    mock_git_instance = Mock()
-    mock_git_instance.get_latest_commits.return_value = []
-    mock_git_instance.get_filtered_revisions.return_value = []
-    mock_git_instance.pack_objects.return_value = iter([])
+    # Import builders from mocks.py to avoid import cycles at module level
+    from tests.mocks import APIClientMockBuilder
+    from tests.mocks import BackendConnectorMockBuilder
+    from tests.mocks import get_mock_git_instance
 
-    # Create mock writer
+    # Create mock git instance using existing helper
+    mock_git_instance = get_mock_git_instance()
+
+    # Create mock writer (simple mock, no builder needed for this)
     mock_writer = Mock()
     mock_writer.flush.return_value = None
     mock_writer._send_events.return_value = None
 
-    # Create mock backend connector
-    mock_connector = Mock()
-    mock_connector.post_json.return_value = (Mock(), {})
-    mock_connector.request.return_value = (Mock(), {})
-    mock_connector.post_files.return_value = (Mock(), {})
+    # Create mock backend connector using builder
+    mock_connector = BackendConnectorMockBuilder().build()
 
-    # Create API client mock
-    mock_api_client = Mock()
-    mock_api_client.get_settings.return_value = Settings(
-        early_flake_detection=EarlyFlakeDetectionSettings(
-            enabled=config.api_client_config.get("efd_enabled", False),
-            slow_test_retries_5s=3,
-            slow_test_retries_10s=2,
-            slow_test_retries_30s=1,
-            slow_test_retries_5m=1,
-            faulty_session_threshold=30,
-        ),
-        test_management=TestManagementSettings(enabled=config.api_client_config.get("test_management_enabled", False)),
-        auto_test_retries=AutoTestRetriesSettings(enabled=config.api_client_config.get("auto_retries_enabled", False)),
-        known_tests_enabled=config.api_client_config.get("known_tests_enabled", False),
-        coverage_enabled=False,
-        skipping_enabled=config.api_client_config.get("skipping_enabled", False),
-        require_git=False,
-        itr_enabled=config.api_client_config.get("skipping_enabled", False),
+    # Create API client mock using builder with configuration
+    api_builder = APIClientMockBuilder()
+
+    api_builder.with_skipping_enabled(
+        enabled=config.api_client_config.get("skipping_enabled", False)
+    ).with_auto_retries(enabled=config.api_client_config.get("auto_retries_enabled", False)).with_early_flake_detection(
+        enabled=config.api_client_config.get("efd_enabled", False)
+    ).with_test_management(
+        enabled=config.api_client_config.get("test_management_enabled", False)
+    ).with_known_tests(
+        enabled=config.api_client_config.get("known_tests_enabled", False), tests=config.known_tests
+    ).with_skippable_items(
+        config.skippable_items
     )
 
-    mock_api_client.get_known_tests.return_value = config.known_tests
-    mock_api_client.get_test_management_properties.return_value = {}
-    mock_api_client.get_known_commits.return_value = []
-    mock_api_client.send_git_pack_file.return_value = None
-    mock_api_client.get_skippable_tests.return_value = (
-        config.skippable_items,
-        "correlation-123" if config.skippable_items else None,
-    )
+    mock_api_client = api_builder.build()
 
     return {
         "mock_git_instance": mock_git_instance,

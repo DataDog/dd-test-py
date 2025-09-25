@@ -10,6 +10,10 @@ pytest execution modes. It supports:
 
 The interface is designed to be mode-agnostic, allowing tests to switch between
 execution modes with minimal changes.
+
+CONSOLIDATION NOTE: This module now uses builders from tests/mocks.py internally
+via tests/mock_setup.py to eliminate code duplication and ensure consistent
+mock behavior across all test modes.
 """
 
 from contextlib import contextmanager
@@ -98,14 +102,24 @@ def _serialize_suite_ref(suite_ref: SuiteRef) -> t.Dict[str, str]:
 
 
 def _deserialize_test_ref(data: t.Dict[str, str]) -> TestRef:
-    """Deserialize a TestRef from a dictionary."""
+    """Deserialize a TestRef from a dictionary.
+
+    Note: This function is duplicated in the generated conftest.py content
+    for subprocess mocking. The duplication is necessary because conftest.py
+    needs self-contained deserialization functions.
+    """
     module_ref = ModuleRef(data["module_name"])
     suite_ref = SuiteRef(module_ref, data["suite_name"])
     return TestRef(suite_ref, data["test_name"])
 
 
 def _deserialize_suite_ref(data: t.Dict[str, str]) -> SuiteRef:
-    """Deserialize a SuiteRef from a dictionary."""
+    """Deserialize a SuiteRef from a dictionary.
+
+    Note: This function is duplicated in the generated conftest.py content
+    for subprocess mocking. The duplication is necessary because conftest.py
+    needs self-contained deserialization functions.
+    """
     module_ref = ModuleRef(data["module_name"])
     return SuiteRef(module_ref, data["suite_name"])
 
