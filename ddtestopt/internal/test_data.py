@@ -132,21 +132,14 @@ class TestRun(TestItem["Test", t.NoReturn]):
         self.trace_id: t.Optional[int] = None
         self.attempt_number: int = 0
 
+        self.test = parent
+        self.suite = parent.parent
+        self.module = self.suite.parent
+        self.session = self.module.parent
+
     def set_context(self, context: TestContext) -> None:
         self.span_id = context.span_id
         self.trace_id = context.trace_id
-
-    @property
-    def suite_id(self) -> int:
-        return self.parent.parent.item_id
-
-    @property
-    def module_id(self) -> int:
-        return self.parent.parent.parent.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.parent.parent.parent.item_id
 
 
 class Test(TestItem["TestSuite", "TestRun"]):
@@ -158,15 +151,19 @@ class Test(TestItem["TestSuite", "TestRun"]):
 
         self.test_runs: t.List[TestRun] = []
 
+        self.suite = parent
+        self.module = self.suite.parent
+        self.session = self.module.parent
+
     def __str__(self) -> str:
         return f"{self.parent.parent.name}/{self.parent.name}::{self.name}"
 
     def set_attributes(
         self,
-        is_new: bool,
-        is_quarantined: bool,
-        is_disabled: bool,
-        is_attempt_to_fix: bool,
+        is_new: bool = False,
+        is_quarantined: bool = False,
+        is_disabled: bool = False,
+        is_attempt_to_fix: bool = False,
     ) -> None:
         if is_new:
             self.tags[TestTag.IS_NEW] = TAG_TRUE
@@ -202,18 +199,6 @@ class Test(TestItem["TestSuite", "TestRun"]):
     def has_parameters(self) -> bool:
         return TestTag.PARAMETERS in self.tags
 
-    @property
-    def suite_id(self) -> int:
-        return self.parent.item_id
-
-    @property
-    def module_id(self) -> int:
-        return self.parent.parent.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.parent.parent.item_id
-
     def make_test_run(self) -> TestRun:
         test_run = TestRun(name=self.name, parent=self)
         test_run.attempt_number = len(self.test_runs)
@@ -230,36 +215,25 @@ class TestSuite(TestItem["TestModule", "Test"]):
     ChildClass = Test
     __test__ = False
 
+    def __init__(self, name: str, parent: TestModule) -> None:
+        super().__init__(name=name, parent=parent)
+        self.module = parent
+        self.session = self.module.parent
+
     def __str__(self) -> str:
         return f"{self.parent.name}/{self.name}"
-
-    @property
-    def suite_id(self) -> int:
-        return self.item_id
-
-    @property
-    def module_id(self) -> int:
-        return self.parent.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.parent.item_id
 
 
 class TestModule(TestItem["TestSession", "TestSuite"]):
     ChildClass = TestSuite
     __test__ = False
 
+    def __init__(self, name: str, parent: TestSession) -> None:
+        super().__init__(name=name, parent=parent)
+        self.session = parent
+
     def __str__(self) -> str:
         return f"{self.name}"
-
-    @property
-    def module_id(self) -> int:
-        return self.item_id
-
-    @property
-    def session_id(self) -> int:
-        return self.parent.item_id
 
     def set_location(self, module_path: Path) -> None:
         self.module_path = str(module_path)
