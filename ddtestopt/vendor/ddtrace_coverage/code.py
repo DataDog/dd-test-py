@@ -26,13 +26,13 @@ log = logging.getLogger(__name__)
 
 _original_exec = exec
 
-ctx_covered: ContextVar[t.List[t.DefaultDict[str, CoverageLines]]] = ContextVar("ctx_covered", default=[])
-ctx_is_import_coverage = ContextVar("ctx_is_import_coverage", default=False)
-ctx_coverage_enabled = ContextVar("ctx_coverage_enabled", default=False)
+_ctx_covered: ContextVar[t.List[t.DefaultDict[str, CoverageLines]]] = ContextVar("ctx_covered", default=[])
+_ctx_is_import_coverage = ContextVar("ctx_is_import_coverage", default=False)
+_ctx_coverage_enabled = ContextVar("ctx_coverage_enabled", default=False)
 
 
 def _get_ctx_covered_lines() -> t.DefaultDict[str, CoverageLines]:
-    return ctx_covered.get()[-1] if ctx_coverage_enabled.get() else defaultdict(CoverageLines)
+    return _ctx_covered.get()[-1] if _ctx_coverage_enabled.get() else defaultdict(CoverageLines)
 
 
 class ModuleCodeCollector(ModuleWatchdog):
@@ -103,7 +103,7 @@ class ModuleCodeCollector(ModuleWatchdog):
             lines = self.covered[path]
             lines.add(line)
 
-        if ctx_coverage_enabled.get():
+        if _ctx_coverage_enabled.get():
             # Import-time contexts store their lines in a non-context variable to be aggregated on request when
             # reporting coverage
             ctx_lines = _get_ctx_covered_lines()[path]
@@ -125,7 +125,7 @@ class ModuleCodeCollector(ModuleWatchdog):
             return
 
         ctx_covered_lines = None
-        if ctx_coverage_enabled.get():
+        if _ctx_coverage_enabled.get():
             ctx_covered_lines = _get_ctx_covered_lines()
 
         if lines:
@@ -135,7 +135,7 @@ class ModuleCodeCollector(ModuleWatchdog):
             for path, path_covered in covered.items():
                 if instance._coverage_enabled:
                     instance.covered[path].update(path_covered)
-                if ctx_coverage_enabled.get() and ctx_covered_lines is not None:
+                if _ctx_coverage_enabled.get() and ctx_covered_lines is not None:
                     ctx_covered_lines[path].update(path_covered)
 
     @classmethod
@@ -163,7 +163,7 @@ class ModuleCodeCollector(ModuleWatchdog):
 
     def _get_covered_lines(self, include_imported: bool = False) -> t.Dict[str, CoverageLines]:
         # Covered lines should always be a copy to make sure the original cannot be altered
-        covered_lines = deepcopy(_get_ctx_covered_lines() if ctx_coverage_enabled.get() else self.covered)
+        covered_lines = deepcopy(_get_ctx_covered_lines() if _ctx_coverage_enabled.get() else self.covered)
         if include_imported:
             self._add_import_time_lines(covered_lines)
 
@@ -216,28 +216,28 @@ class ModuleCodeCollector(ModuleWatchdog):
     class CollectInContext:
         def __init__(self, is_import_coverage: bool = False):
             self.is_import_coverage = is_import_coverage
-            if ctx_covered.get() is None:
-                ctx_covered.set([])
+            if _ctx_covered.get() is None:
+                _ctx_covered.set([])
 
         def __enter__(self):
-            ctx_covered.get().append(defaultdict(CoverageLines))
-            ctx_coverage_enabled.set(True)
+            _ctx_covered.get().append(defaultdict(CoverageLines))
+            _ctx_coverage_enabled.set(True)
 
             if self.is_import_coverage:
-                ctx_is_import_coverage.set(self.is_import_coverage)
+                _ctx_is_import_coverage.set(self.is_import_coverage)
 
             return self
 
         def __exit__(self, *args, **kwargs):
-            covered_lines_stack = ctx_covered.get()
+            covered_lines_stack = _ctx_covered.get()
             covered_lines_stack.pop()
 
             # Stop coverage if we're exiting the last context
             if len(covered_lines_stack) == 0:
-                ctx_coverage_enabled.set(False)
+                _ctx_coverage_enabled.set(False)
 
         def get_covered_lines(self) -> t.Dict[str, CoverageLines]:
-            return ctx_covered.get()[-1]
+            return _ctx_covered.get()[-1]
 
     @classmethod
     def start_coverage(cls):
@@ -253,7 +253,7 @@ class ModuleCodeCollector(ModuleWatchdog):
 
     @classmethod
     def coverage_enabled(cls):
-        if ctx_coverage_enabled.get():
+        if _ctx_coverage_enabled.get():
             return True
         if cls._instance is None:
             return False
@@ -274,7 +274,7 @@ class ModuleCodeCollector(ModuleWatchdog):
 
     @classmethod
     def coverage_enabled_in_context(cls):
-        return cls._instance is not None and ctx_coverage_enabled.get()
+        return cls._instance is not None and _ctx_coverage_enabled.get()
 
     @classmethod
     def report_seen_lines(cls, workspace_path: Path, include_imported: bool = False):
