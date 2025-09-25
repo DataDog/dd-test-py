@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
-"""Subprocess mocking utilities for test_integration.py refactoring.
+"""Unified mocking utilities for test_integration.py.
 
-This module provides utilities to set up mocks in pytest subprocesses when using
-pytester.runpytest_subprocess(). It works by:
+This module provides utilities to set up mocks for both subprocess and in-process
+pytest execution modes. It supports:
 
-1. Serializing mock configuration to environment variables
-2. Creating a conftest.py file that reads these variables and sets up mocks
-3. Providing helper functions to generate the necessary conftest content
+1. Subprocess mode: Serializing mock configuration to environment variables and
+   creating a conftest.py file that sets up mocks in the subprocess
+2. In-process mode: Using traditional context managers for mocking
+
+The interface is designed to be mode-agnostic, allowing tests to switch between
+execution modes with minimal changes.
 """
 
+from contextlib import contextmanager
 import json
 import typing as t
 
@@ -143,13 +147,12 @@ def serialize_mock_config(config: SubprocessMockConfig) -> t.Dict[str, str]:
 
 
 def generate_conftest_content() -> str:
-    """Generate conftest.py content for subprocess mocking."""
+    """Generate conftest.py content for subprocess mocking using importable modules."""
     return '''#!/usr/bin/env python3
 """Auto-generated conftest.py for subprocess mocking."""
 
 import json
 import os
-from unittest.mock import Mock, patch
 import pytest
 
 # Import the mock utilities we need
@@ -162,10 +165,7 @@ if str(test_dir) not in sys.path:
     sys.path.insert(0, str(test_dir))
 
 from ddtestopt.internal.test_data import ModuleRef, SuiteRef, TestRef
-from ddtestopt.internal.api_client import AutoTestRetriesSettings
-from ddtestopt.internal.api_client import EarlyFlakeDetectionSettings
-from ddtestopt.internal.api_client import Settings
-from ddtestopt.internal.api_client import TestManagementSettings
+from tests.mock_setup import MockConfig, setup_mocks_for_subprocess
 
 
 def _deserialize_test_ref(data):
@@ -182,7 +182,7 @@ def _deserialize_suite_ref(data):
 
 
 def _setup_subprocess_mocks():
-    """Set up mocks based on environment variables."""
+    """Set up mocks based on environment variables using importable module."""
     if not os.getenv('DDTESTOPT_SUBPROCESS_MOCKING'):
         return
 
@@ -205,69 +205,9 @@ def _setup_subprocess_mocks():
     known_tests_data = json.loads(known_tests_str)
     known_tests = {_deserialize_test_ref(test_data) for test_data in known_tests_data}
 
-    # Create mock API client
-    mock_api_client = Mock()
-    mock_api_client.get_settings.return_value = Settings(
-        early_flake_detection=EarlyFlakeDetectionSettings(
-            enabled=api_config.get('efd_enabled', False),
-            slow_test_retries_5s=3,
-            slow_test_retries_10s=2,
-            slow_test_retries_30s=1,
-            slow_test_retries_5m=1,
-            faulty_session_threshold=30,
-        ),
-        test_management=TestManagementSettings(enabled=api_config.get('test_management_enabled', False)),
-        auto_test_retries=AutoTestRetriesSettings(enabled=api_config.get('auto_retries_enabled', False)),
-        known_tests_enabled=api_config.get('known_tests_enabled', False),
-        coverage_enabled=False,
-        skipping_enabled=api_config.get('skipping_enabled', False),
-        require_git=False,
-        itr_enabled=api_config.get('skipping_enabled', False),
-    )
-
-    mock_api_client.get_known_tests.return_value = known_tests
-    mock_api_client.get_test_management_properties.return_value = {}
-    mock_api_client.get_known_commits.return_value = []
-    mock_api_client.send_git_pack_file.return_value = None
-    mock_api_client.get_skippable_tests.return_value = (
-        skippable_items,
-        "correlation-123" if skippable_items else None,
-    )
-
-    # Create mock git instance
-    mock_git_instance = Mock()
-    mock_git_instance.get_latest_commits.return_value = []
-    mock_git_instance.get_filtered_revisions.return_value = []
-    mock_git_instance.pack_objects.return_value = iter([])
-
-    # Create mock writer
-    mock_writer = Mock()
-    mock_writer.flush.return_value = None
-    mock_writer._send_events.return_value = None
-
-    # Create mock backend connector
-    mock_connector = Mock()
-    mock_connector.post_json.return_value = (Mock(), {})
-    mock_connector.request.return_value = (Mock(), {})
-    mock_connector.post_files.return_value = (Mock(), {})
-
-    # Apply all the patches
-    patcher1 = patch("ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client)
-    patcher2 = patch("ddtestopt.internal.session_manager.get_git_tags", return_value={})
-    patcher3 = patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={})
-    patcher4 = patch("ddtestopt.internal.session_manager.Git", return_value=mock_git_instance)
-    patcher5 = patch("ddtestopt.internal.http.BackendConnector", return_value=mock_connector)
-    patcher6 = patch("ddtestopt.internal.writer.TestOptWriter", return_value=mock_writer)
-    patcher7 = patch("ddtestopt.internal.writer.TestCoverageWriter", return_value=mock_writer)
-
-    # Start all patches
-    patcher1.start()
-    patcher2.start()
-    patcher3.start()
-    patcher4.start()
-    patcher5.start()
-    patcher6.start()
-    patcher7.start()
+    # Create configuration object and set up mocks using importable module
+    config = MockConfig(api_config, skippable_items, known_tests)
+    setup_mocks_for_subprocess(config)
 
 
 # Set up mocks as early as possible
@@ -318,30 +258,245 @@ def setup_subprocess_environment(pytester: Pytester, config: SubprocessMockConfi
     pytester.makeconftest(generate_conftest_content())
 
 
-# Convenience functions for common test scenarios
+# =============================================================================
+# SHARED MOCK SETUP LOGIC (Using importable modules)
+# =============================================================================
+
+# Mock setup logic is now in mock_setup.py for better coverage tracking
+
+
+# =============================================================================
+# IN-PROCESS MOCKING SYSTEM (Uses shared logic)
+# =============================================================================
+
+
+@contextmanager
+def _setup_in_process_mocks(config: SubprocessMockConfig) -> t.Generator[t.Any, t.Any, t.Any]:
+    """Set up mocks for in-process testing using importable module."""
+    from tests.mock_setup import MockConfig
+    from tests.mock_setup import setup_mocks_for_in_process
+
+    # Convert SubprocessMockConfig to MockConfig
+    mock_config = MockConfig(
+        api_client_config=config.api_client_config,
+        skippable_items=config.skippable_items,
+        known_tests=config.known_tests,
+    )
+
+    # Use the importable module for mock setup
+    with setup_mocks_for_in_process(mock_config):
+        yield
+
+
+# =============================================================================
+# UNIFIED INTERFACE - SUPPORTS BOTH MODES
+# =============================================================================
+
+
+def as_bool(val: str) -> bool:
+    return val.strip().lower() in ("true", "1")
+
+
+def get_subprocess_test_mode() -> bool:
+    """Get the test execution mode from environment variable or ddtrace plugin detection.
+
+    Auto-detection logic:
+    1. If _DDTESTOPT_SUBPROCESS_TEST_MODE is explicitly set, use that value
+    2. If ddtrace pytest plugin is active, use subprocess mode for isolation
+    3. Otherwise, default to in-process mode for speed
+
+    Set _DDTESTOPT_SUBPROCESS_TEST_MODE=true to force subprocess execution.
+    Set _DDTESTOPT_SUBPROCESS_TEST_MODE=false to force in-process execution.
+    """
+    import os
+
+    # Check for explicit environment variable first
+    env_val = os.getenv("_DDTESTOPT_SUBPROCESS_TEST_MODE")
+    if env_val is not None:
+        return as_bool(env_val)
+
+    # Auto-detect based on ddtrace pytest plugin being active
+    try:
+        # Simple approach: check if the ddtrace pytest plugin is imported and active
+        # We look for the actual ddtrace plugin module being loaded
+        import sys
+
+        # Check if ddtrace plugin is loaded but not disabled
+        if "ddtrace.contrib.pytest.plugin" in sys.modules:
+            # The plugin module is loaded, now check if it's active
+            # Look at sys.argv to see if ddtrace was explicitly disabled
+            import sys
+
+            cmdline = " ".join(sys.argv)
+            if "-p no:ddtrace" in cmdline or "--no-ddtrace" in cmdline:
+                return False  # Explicitly disabled
+            return True  # Plugin loaded and not disabled
+
+    except (ImportError, AttributeError):
+        pass
+
+    # Default to in-process mode for faster execution when ddtrace plugin not detected
+    return False
+
+
+def setup_test_mocks(
+    pytester: Pytester, subprocess_mode: t.Optional[bool] = None, **config_kwargs: t.Any
+) -> t.Optional[t.ContextManager[None]]:
+    """Unified interface for setting up test mocks.
+
+    Args:
+        pytester: The pytest Pytester instance
+        mode: Either "subprocess" or "in-process". If None, uses DDTESTOPT_TEST_MODE env var
+        **config_kwargs: Configuration options for the mocks
+
+    Returns:
+        None for subprocess mode, context manager for in-process mode
+
+    Example:
+        # Subprocess mode (new)
+        setup_test_mocks(pytester, mode="subprocess")
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-v")
+
+        # In-process mode (original)
+        with setup_test_mocks(pytester, mode="in-process"):
+            result = pytester.runpytest("-p", "ddtestopt", "-v")
+
+        # Environment-controlled mode
+        # Set DDTESTOPT_TEST_MODE=in-process before running tests
+        context = setup_test_mocks(pytester)  # Uses env var
+        if context:
+            with context:
+                result = pytester.runpytest("-p", "ddtestopt", "-v")
+        else:
+            result = pytester.runpytest_subprocess("-p", "ddtestopt", "-v")
+    """
+    if subprocess_mode is None:
+        subprocess_mode = get_subprocess_test_mode()
+
+    config = create_subprocess_mock_config(**config_kwargs)
+
+    if subprocess_mode:
+        setup_subprocess_environment(pytester, config)
+        return None
+
+    return _setup_in_process_mocks(config)
+
+
+# =============================================================================
+# CONVENIENCE FUNCTIONS - SUPPORT BOTH MODES
+# =============================================================================
+
+
+def setup_basic_mocks(
+    pytester: Pytester, subprocess_mode: t.Optional[bool] = None
+) -> t.Optional[t.ContextManager[None]]:
+    """Set up basic mocks for simple test execution."""
+    return setup_test_mocks(pytester, subprocess_mode=subprocess_mode)
+
+
+def setup_retry_mocks(
+    pytester: Pytester, subprocess_mode: t.Optional[bool] = None
+) -> t.Optional[t.ContextManager[None]]:
+    """Set up mocks for auto retry functionality testing."""
+    return setup_test_mocks(pytester, subprocess_mode=subprocess_mode, auto_retries_enabled=True)
+
+
+def setup_efd_mocks(
+    pytester: Pytester, subprocess_mode: t.Optional[bool] = None, known_tests: t.Optional[t.Set[TestRef]] = None
+) -> t.Optional[t.ContextManager[None]]:
+    """Set up mocks for Early Flake Detection testing."""
+    return setup_test_mocks(
+        pytester,
+        subprocess_mode=subprocess_mode,
+        efd_enabled=True,
+        known_tests_enabled=True,
+        known_tests=known_tests or set(),
+    )
+
+
+def setup_itr_mocks(
+    pytester: Pytester,
+    subprocess_mode: t.Optional[bool] = None,
+    skippable_items: t.Optional[t.Set[t.Union[TestRef, SuiteRef]]] = None,
+) -> t.Optional[t.ContextManager[None]]:
+    """Set up mocks for Intelligent Test Runner testing."""
+    return setup_test_mocks(
+        pytester, subprocess_mode=subprocess_mode, skipping_enabled=True, skippable_items=skippable_items or set()
+    )
+
+
+# =============================================================================
+# UTILITY FUNCTIONS FOR DUAL-MODE EXECUTION
+# =============================================================================
+
+
+def run_test_with_mocks(
+    pytester: Pytester, pytest_args: t.List[str], subprocess_mode: t.Optional[bool] = None, **mock_config: t.Any
+) -> t.Any:
+    """Run a test with appropriate mocking based on the mode.
+
+    This utility function handles the conditional execution pattern:
+    - For subprocess mode: sets up mocks and runs runpytest_subprocess()
+    - For in-process mode: uses context manager and runs runpytest()
+
+    Args:
+        pytester: The pytest Pytester instance
+        pytest_args: Arguments to pass to pytest
+        mode: Test execution mode (if None, uses environment variable)
+        **mock_config: Mock configuration options
+
+    Returns:
+        The result from pytester.runpytest() or pytester.runpytest_subprocess()
+
+    Example:
+        # Simple usage - mode determined by environment
+        result = run_test_with_mocks(pytester, ["-p", "ddtestopt", "-v"])
+
+        # With specific configuration
+        result = run_test_with_mocks(
+            pytester,
+            ["-p", "ddtestopt", "-v"],
+            auto_retries_enabled=True
+        )
+    """
+    if subprocess_mode is None:
+        subprocess_mode = get_subprocess_test_mode()
+
+    context = setup_test_mocks(pytester, subprocess_mode=subprocess_mode, **mock_config)
+
+    if context is not None:
+        # In-process mode
+        with context:
+            return pytester.runpytest(*pytest_args)
+    else:
+        # Subprocess mode
+        return pytester.runpytest_subprocess(*pytest_args)
+
+
+# =============================================================================
+# BACKWARD COMPATIBILITY - SUBPROCESS-ONLY FUNCTIONS
+# =============================================================================
 
 
 def setup_basic_subprocess_mocks(pytester: Pytester) -> None:
-    """Set up basic mocks for simple test execution."""
-    config = create_subprocess_mock_config()
-    setup_subprocess_environment(pytester, config)
+    """Set up basic mocks for simple test execution (subprocess only)."""
+    setup_test_mocks(pytester, subprocess_mode=True)
 
 
 def setup_retry_subprocess_mocks(pytester: Pytester) -> None:
-    """Set up mocks for auto retry functionality testing."""
-    config = create_subprocess_mock_config(auto_retries_enabled=True)
-    setup_subprocess_environment(pytester, config)
+    """Set up mocks for auto retry functionality testing (subprocess only)."""
+    setup_test_mocks(pytester, subprocess_mode=True, auto_retries_enabled=True)
 
 
 def setup_efd_subprocess_mocks(pytester: Pytester, known_tests: t.Optional[t.Set[TestRef]] = None) -> None:
-    """Set up mocks for Early Flake Detection testing."""
-    config = create_subprocess_mock_config(efd_enabled=True, known_tests_enabled=True, known_tests=known_tests or set())
-    setup_subprocess_environment(pytester, config)
+    """Set up mocks for Early Flake Detection testing (subprocess only)."""
+    setup_test_mocks(
+        pytester, subprocess_mode=True, efd_enabled=True, known_tests_enabled=True, known_tests=known_tests or set()
+    )
 
 
 def setup_itr_subprocess_mocks(
     pytester: Pytester, skippable_items: t.Optional[t.Set[t.Union[TestRef, SuiteRef]]] = None
 ) -> None:
-    """Set up mocks for Intelligent Test Runner testing."""
-    config = create_subprocess_mock_config(skipping_enabled=True, skippable_items=skippable_items or set())
-    setup_subprocess_environment(pytester, config)
+    """Set up mocks for Intelligent Test Runner testing (subprocess only)."""
+    setup_test_mocks(pytester, subprocess_mode=True, skipping_enabled=True, skippable_items=skippable_items or set())
