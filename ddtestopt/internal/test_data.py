@@ -282,7 +282,6 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
         self.item_id = session_id
 
     def set_attributes(self, test_command: str, test_framework: str, test_framework_version: str) -> None:
-        self.command = test_command
         self.test_command = test_command
         self.test_framework = test_framework
         self.test_framework_version = test_framework_version

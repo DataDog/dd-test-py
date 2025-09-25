@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 
 
 class SessionManager:
-    def __init__(self, writer: t.Optional[TestOptWriter] = None, session: t.Optional[TestSession] = None) -> None:
+    def __init__(self, session: TestSession) -> None:
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
         self.workspace_path = get_workspace_path()
@@ -87,9 +87,9 @@ class SessionManager:
         # Retry handlers must be set up after collection phase for EFD faulty session logic to work.
         self.retry_handlers: t.List[RetryHandler] = []
 
-        self.writer = writer or TestOptWriter(site=self.site, api_key=self.api_key)
+        self.writer = TestOptWriter(site=self.site, api_key=self.api_key)
         self.coverage_writer = TestCoverageWriter(site=self.site, api_key=self.api_key)
-        self.session = session or TestSession(name="test")
+        self.session = session
         self.session.set_service(self.service)
 
         self.writer.add_metadata("*", self.git_tags)
