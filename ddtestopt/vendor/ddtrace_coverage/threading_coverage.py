@@ -28,7 +28,7 @@ thread_init = Thread.__init__
 thread_boostrap_inner = Thread._bootstrap_inner  # type: ignore[attr-defined]
 thread_join = Thread.join
 
-DD_PATCH_ATTR = "_datadog_top_patch"
+DD_PATCH_ATTR = "_datadog_patch"
 
 
 def _is_patched():
@@ -82,6 +82,9 @@ class CoverageCollectingThread(threading.Thread):
 
 
 def _patch_threading():
+    if _is_patched():
+        return
+
     threading.Thread.__init__ = CoverageCollectingThread.__init__
     threading.Thread._bootstrap_inner = CoverageCollectingThread._bootstrap_inner
     threading.Thread.join = CoverageCollectingThread.join
