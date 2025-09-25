@@ -153,3 +153,72 @@ class TestITR:
         assert session["content"]["meta"].get("test.itr.tests_skipping.tests_skipped") is None
         assert session["content"]["meta"].get("test.itr.tests_skipping.type") is None
         assert session["content"]["metrics"].get("test.itr.tests_skipping.count") is None
+
+    @pytest.mark.slow
+    def test_itr_one_unskippable_test(self, pytester: Pytester) -> None:
+        """Test that IntelligentTestRunner skips tests marked as skippable."""
+        # Create a test file with multiple tests
+        pytester.makepyfile(
+            test_foo="""
+            import pytest
+
+            def test_should_be_skipped():
+                '''A test that should be skipped by ITR.'''
+                assert False
+
+            @pytest.mark.skipif(False, reason='datadog_itr_unskippable')
+            def test_unskippable():
+                '''A test that should NOT be skipped by ITR due to being unskippable.'''
+                assert False
+
+            def test_should_run():
+                '''A test that should run normally.'''
+                assert True
+        """
+        )
+
+        skippable_items: t.Set[t.Union[TestRef, SuiteRef]] = {
+            # Mark one test as skippable.
+            TestRef(SuiteRef(ModuleRef("."), "test_foo.py"), "test_should_be_skipped"),
+            TestRef(SuiteRef(ModuleRef("."), "test_foo.py"), "test_unskippable"),
+        }
+
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient",
+            return_value=mock_api_client_settings(skipping_enabled=True, skippable_items=skippable_items),
+        ), setup_standard_mocks():
+            with EventCapture.capture() as event_capture:
+                result = pytester.inline_run("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+
+        # Check that tests completed with failure (1 test failed).
+        assert result.ret == 1
+
+        # Verify outcomes: one test skipped by ITR, one failed (not skipped), one test passed
+        result.assertoutcome(passed=1, failed=1, skipped=1)
+
+        # There should be events for 3 tests, 1 suite, 1 module, 1 session
+        assert len(list(event_capture.events())) == 6
+
+        # Check that test events have the correct tags.
+        skipped_test = event_capture.event_by_test_name("test_should_be_skipped")
+        assert skipped_test["content"]["meta"]["test.status"] == "skip"
+        assert skipped_test["content"]["meta"]["test.skipped_by_itr"] == "true"
+        assert skipped_test["content"]["meta"]["test.skip_reason"] == "Skipped by Datadog Intelligent Test Runner"
+
+        unskippable_test = event_capture.event_by_test_name("test_unskippable")
+        assert unskippable_test["content"]["meta"]["test.status"] == "fail"
+        assert unskippable_test["content"]["meta"].get("test.skipped_by_itr") is None
+        assert unskippable_test["content"]["meta"].get("test.skip_reason") is None
+        assert unskippable_test["content"]["meta"].get("test.itr.unskippable") == "true"
+        assert unskippable_test["content"]["meta"].get("test.itr.forced_run") == "true"
+
+        passed_test = event_capture.event_by_test_name("test_should_run")
+        assert passed_test["content"]["meta"]["test.status"] == "pass"
+        assert passed_test["content"]["meta"].get("test.skipped_by_itr") is None
+        assert passed_test["content"]["meta"].get("test.skip_reason") is None
+
+        # Check that session event has the correct tags.
+        [session] = event_capture.events_by_type("test_session_end")
+        assert session["content"]["meta"]["test.itr.tests_skipping.tests_skipped"] == "true"
+        assert session["content"]["meta"]["test.itr.tests_skipping.type"] == "test"
+        assert session["content"]["metrics"]["test.itr.tests_skipping.count"] == 1
