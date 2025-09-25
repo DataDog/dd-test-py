@@ -335,7 +335,8 @@ def get_subprocess_test_mode() -> bool:
         # The plugin module is loaded, now check if it's active
         # Look at sys.argv to see if ddtrace was explicitly disabled
         cmdline = " ".join(sys.argv)
-        return "--ddtrace" in cmdline
+        pytest_addopts = os.getenv("PYTEST_ADDOPTS", "")
+        return "--ddtrace" in cmdline or "--ddtrace" in pytest_addopts
 
     # Default to in-process mode
     return False
