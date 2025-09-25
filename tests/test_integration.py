@@ -25,7 +25,7 @@ class TestFeaturesWithMocking:
     """High-level feature tests using pytester with mocked dependencies."""
 
     @pytest.mark.slow
-    def test_simple_plugin_enabled(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_simple_plugin_enabled(self, pytester: Pytester) -> None:
         """Test basic plugin functionality without complex dependencies."""
         # Create a simple test file
         pytester.makepyfile(
@@ -95,7 +95,7 @@ class TestFeaturesWithMocking:
         assert "test_passes PASSED" in output
 
     @pytest.mark.slow
-    def test_early_flake_detection_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_early_flake_detection_with_pytester(self, pytester: Pytester) -> None:
         """Test that EarlyFlakeDetection retries new failing tests."""
         # Create a test file with a new failing test
         pytester.makepyfile(
@@ -120,7 +120,7 @@ class TestFeaturesWithMocking:
             return_value=mock_api_client_settings(
                 efd_enabled=True, known_tests_enabled=True, known_tests={known_test_ref}
             ),
-        ) as _mock_api_client, setup_standard_mocks():
+        ), setup_standard_mocks():
 
             result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
@@ -150,7 +150,7 @@ class TestFeaturesWithMocking:
         assert "test_known_test PASSED" in output
 
     @pytest.mark.slow
-    def test_intelligent_test_runner_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_intelligent_test_runner_with_pytester(self, pytester: Pytester) -> None:
         """Test that IntelligentTestRunner skips tests marked as skippable."""
         # Create a test file with multiple tests
         pytester.makepyfile(
@@ -173,7 +173,7 @@ class TestFeaturesWithMocking:
         with patch(
             "ddtestopt.internal.session_manager.APIClient",
             return_value=mock_api_client_settings(skipping_enabled=True, skippable_items={skippable_test_ref}),
-        ) as _mock_api_client, setup_standard_mocks():
+        ), setup_standard_mocks():
 
             result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
@@ -200,7 +200,7 @@ class TestPytestPluginIntegration:
     """Integration tests for the pytest plugin using pytester for better performance and reliability."""
 
     @pytest.mark.slow
-    def test_basic_test_execution(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_basic_test_execution(self, pytester: Pytester) -> None:
         """Test that a basic test runs with the ddtestopt plugin."""
         # Create test file using pytester
         pytester.makepyfile(
@@ -219,7 +219,7 @@ class TestPytestPluginIntegration:
         # Set up mocks and environment
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ) as _mock_api_client, setup_standard_mocks():
+        ), setup_standard_mocks():
 
             result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
@@ -228,7 +228,7 @@ class TestPytestPluginIntegration:
         result.assert_outcomes(passed=2)
 
     @pytest.mark.slow
-    def test_failing_test_execution(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_failing_test_execution(self, pytester: Pytester) -> None:
         """Test that failing tests are properly handled."""
         # Create test file using pytester
         pytester.makepyfile(
@@ -246,7 +246,7 @@ class TestPytestPluginIntegration:
         # Set up mocks and environment
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ) as _mock_api_client, setup_standard_mocks():
+        ), setup_standard_mocks():
 
             result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
@@ -255,7 +255,7 @@ class TestPytestPluginIntegration:
         result.assert_outcomes(passed=1, failed=1)
 
     @pytest.mark.slow
-    def test_plugin_loads_correctly(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_plugin_loads_correctly(self, pytester: Pytester) -> None:
         """Test that the ddtestopt plugin loads without errors."""
         # Create test file using pytester
         pytester.makepyfile(
@@ -269,7 +269,7 @@ class TestPytestPluginIntegration:
         # Set up mocks and environment
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ) as _mock_api_client, setup_standard_mocks():
+        ), setup_standard_mocks():
 
             result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v")
 
@@ -282,7 +282,7 @@ class TestPytestPluginIntegration:
         assert "Error setting up Test Optimization plugin" not in output
 
     @pytest.mark.slow
-    def test_test_session_name_extraction(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_test_session_name_extraction(self, pytester: Pytester) -> None:
         """Test that the pytest session command is properly extracted."""
         # Create test file using pytester
         pytester.makepyfile(
@@ -296,7 +296,7 @@ class TestPytestPluginIntegration:
         # Set up mocks and environment
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ) as _mock_api_client, setup_standard_mocks():
+        ), setup_standard_mocks():
 
             # Run with specific arguments that should be captured
             result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
@@ -326,7 +326,7 @@ class TestPytestPluginIntegration:
         # Set up mocks and environment (including retry env vars)
         with patch(
             "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ) as _mock_api_client, setup_standard_mocks():
+        ), setup_standard_mocks():
             # Set all environment variables via monkeypatch
 
             monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")
@@ -350,7 +350,7 @@ class TestRetryHandler:
         with patch(
             "ddtestopt.internal.session_manager.APIClient",
             return_value=mock_api_client_settings(auto_retries_enabled=True),
-        ) as _mock_api_client, setup_standard_mocks(), patch.dict(
+        ), setup_standard_mocks(), patch.dict(
             os.environ,  # Mock environment variables
             {
                 "DD_API_KEY": "test-key",
