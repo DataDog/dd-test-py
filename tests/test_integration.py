@@ -14,8 +14,11 @@ from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestSession
 from tests.mocks import mock_api_client_settings
-from tests.mocks import network_mocks
 from tests.mocks import setup_standard_mocks
+from tests.subprocess_mocks import setup_basic_subprocess_mocks
+from tests.subprocess_mocks import setup_efd_subprocess_mocks
+from tests.subprocess_mocks import setup_itr_subprocess_mocks
+from tests.subprocess_mocks import setup_retry_subprocess_mocks
 
 
 # Functions moved to tests.mocks for centralization
@@ -36,11 +39,11 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Use network mocks to prevent all real HTTP calls
-        with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            mock_api_client.return_value = mock_api_client_settings()
+        # Set up mocks for subprocess execution
+        setup_basic_subprocess_mocks(pytester)
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Test should pass
         assert result.ret == 0
@@ -62,11 +65,14 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Use network mocks to prevent all real HTTP calls
-        with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            mock_api_client.return_value = mock_api_client_settings(auto_retries_enabled=True)
-            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+        # Set up mocks for subprocess execution with retry functionality
+        setup_retry_subprocess_mocks(pytester)
+
+        # Set retry-related environment variables
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
+
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -114,15 +120,11 @@ class TestFeaturesWithMocking:
         known_suite = SuiteRef(ModuleRef("."), "test_efd.py")
         known_test_ref = TestRef(known_suite, "test_known_test")
 
-        # Use unified mock setup with EFD enabled
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient",
-            return_value=mock_api_client_settings(
-                efd_enabled=True, known_tests_enabled=True, known_tests={known_test_ref}
-            ),
-        ), setup_standard_mocks():
+        # Set up mocks for subprocess execution with EFD enabled
+        setup_efd_subprocess_mocks(pytester, known_tests={known_test_ref})
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after EFD retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -169,13 +171,11 @@ class TestFeaturesWithMocking:
         skippable_suite = SuiteRef(ModuleRef("."), "test_itr.py")
         skippable_test_ref = TestRef(skippable_suite, "test_should_be_skipped")
 
-        # Use unified mock setup with ITR enabled
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient",
-            return_value=mock_api_client_settings(skipping_enabled=True, skippable_items={skippable_test_ref}),
-        ), setup_standard_mocks():
+        # Set up mocks for subprocess execution with ITR enabled
+        setup_itr_subprocess_mocks(pytester, skippable_items={skippable_test_ref})
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -216,12 +216,11 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
+        # Set up mocks for subprocess execution
+        setup_basic_subprocess_mocks(pytester)
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Check that tests ran successfully
         assert result.ret == 0
@@ -243,12 +242,11 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
+        # Set up mocks for subprocess execution
+        setup_basic_subprocess_mocks(pytester)
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Check that one test failed and one passed
         assert result.ret == 1  # pytest exits with 1 when tests fail
@@ -266,12 +264,11 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
+        # Set up mocks for subprocess execution
+        setup_basic_subprocess_mocks(pytester)
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v")
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v")
 
         # Should run without plugin loading errors
         assert result.ret == 0
@@ -293,13 +290,11 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
+        # Set up mocks for subprocess execution
+        setup_basic_subprocess_mocks(pytester)
 
-            # Run with specific arguments that should be captured
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
+        # Run with specific arguments that should be captured in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
 
         assert result.ret == 0
         result.assert_outcomes(passed=1)
@@ -323,17 +318,16 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment (including retry env vars)
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
-            # Set all environment variables via monkeypatch
+        # Set up mocks for subprocess execution
+        setup_basic_subprocess_mocks(pytester)
 
-            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")
-            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
-            monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
+        # Set retry-related environment variables
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run tests in subprocess
+        result = pytester.runpytest_subprocess("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Tests should pass
         assert result.ret == 0
