@@ -73,14 +73,16 @@ class SubprocessMockConfig:
             self.known_tests = tests
         return self
 
-    def with_skippable_items(self, items: t.Set[t.Union[TestRef, SuiteRef]]) -> "SubprocessMockConfig":
+    def with_skippable_items(self, items: t.Optional[t.Set[t.Union[TestRef, SuiteRef]]]) -> "SubprocessMockConfig":
         """Set skippable test items."""
-        self.skippable_items = items
+        if items is not None:
+            self.skippable_items = items
         return self
 
-    def with_environment_vars(self, env_vars: t.Dict[str, str]) -> "SubprocessMockConfig":
+    def with_environment_vars(self, env_vars: t.Optional[t.Dict[str, str]]) -> "SubprocessMockConfig":
         """Set additional environment variables."""
-        self.environment_vars.update(env_vars)
+        if env_vars is not None:
+            self.environment_vars.update(env_vars)
         return self
 
 
@@ -103,27 +105,28 @@ def _serialize_suite_ref(suite_ref: SuiteRef) -> t.Dict[str, str]:
     }
 
 
-def _deserialize_test_ref(data: t.Dict[str, str]) -> TestRef:
-    """Deserialize a TestRef from a dictionary.
+# ## DEV: Used only inside subprocess (conftest.py)
+# def _deserialize_test_ref(data: t.Dict[str, str]) -> TestRef:
+#     """Deserialize a TestRef from a dictionary.
 
-    Note: This function is duplicated in the generated conftest.py content
-    for subprocess mocking. The duplication is necessary because conftest.py
-    needs self-contained deserialization functions.
-    """
-    module_ref = ModuleRef(data["module_name"])
-    suite_ref = SuiteRef(module_ref, data["suite_name"])
-    return TestRef(suite_ref, data["test_name"])
+#     Note: This function is duplicated in the generated conftest.py content
+#     for subprocess mocking. The duplication is necessary because conftest.py
+#     needs self-contained deserialization functions.
+#     """
+#     module_ref = ModuleRef(data["module_name"])
+#     suite_ref = SuiteRef(module_ref, data["suite_name"])
+#     return TestRef(suite_ref, data["test_name"])
 
 
-def _deserialize_suite_ref(data: t.Dict[str, str]) -> SuiteRef:
-    """Deserialize a SuiteRef from a dictionary.
+# def _deserialize_suite_ref(data: t.Dict[str, str]) -> SuiteRef:
+#     """Deserialize a SuiteRef from a dictionary.
 
-    Note: This function is duplicated in the generated conftest.py content
-    for subprocess mocking. The duplication is necessary because conftest.py
-    needs self-contained deserialization functions.
-    """
-    module_ref = ModuleRef(data["module_name"])
-    return SuiteRef(module_ref, data["suite_name"])
+#     Note: This function is duplicated in the generated conftest.py content
+#     for subprocess mocking. The duplication is necessary because conftest.py
+#     needs self-contained deserialization functions.
+#     """
+#     module_ref = ModuleRef(data["module_name"])
+#     return SuiteRef(module_ref, data["suite_name"])
 
 
 def serialize_mock_config(config: SubprocessMockConfig) -> t.Dict[str, str]:
@@ -243,20 +246,17 @@ def create_subprocess_mock_config(**kwargs: t.Any) -> SubprocessMockConfig:
     config = SubprocessMockConfig()
 
     # Apply any provided configuration
-    if "skipping_enabled" in kwargs:
-        config.with_skipping_enabled(kwargs["skipping_enabled"])
-    if "auto_retries_enabled" in kwargs:
-        config.with_auto_retries_enabled(kwargs["auto_retries_enabled"])
-    if "efd_enabled" in kwargs:
-        config.with_early_flake_detection(kwargs["efd_enabled"])
-    if "test_management_enabled" in kwargs:
-        config.with_test_management(kwargs["test_management_enabled"])
-    if "known_tests_enabled" in kwargs:
-        config.with_known_tests(kwargs["known_tests_enabled"], kwargs.get("known_tests"))
-    if "skippable_items" in kwargs:
-        config.with_skippable_items(kwargs["skippable_items"])
-    if "environment_vars" in kwargs:
-        config.with_environment_vars(kwargs["environment_vars"])
+    config.with_skipping_enabled(kwargs.get("skipping_enabled", False)).with_auto_retries_enabled(
+        kwargs.get("auto_retries_enabled", False)
+    ).with_early_flake_detection(kwargs.get("efd_enabled", False)).with_test_management(
+        kwargs.get("test_management_enabled", False)
+    ).with_known_tests(
+        kwargs.get("known_tests_enabled", False), kwargs.get("known_tests")
+    ).with_skippable_items(
+        kwargs.get("skippable_items", None)
+    ).with_environment_vars(
+        kwargs.get("environment_vars", None)
+    )
 
     return config
 
@@ -272,13 +272,6 @@ def setup_subprocess_environment(pytester: Pytester, config: SubprocessMockConfi
 
     # Create conftest.py in the test directory
     pytester.makeconftest(generate_conftest_content())
-
-
-# =============================================================================
-# SHARED MOCK SETUP LOGIC (Using importable modules)
-# =============================================================================
-
-# Mock setup logic is now in mock_setup.py for better coverage tracking
 
 
 # =============================================================================
@@ -385,47 +378,47 @@ def setup_test_mocks(
     return _setup_in_process_mocks(config)
 
 
-# =============================================================================
-# CONVENIENCE FUNCTIONS - SUPPORT BOTH MODES
-# =============================================================================
+# # =============================================================================
+# # CONVENIENCE FUNCTIONS - SUPPORT BOTH MODES
+# # =============================================================================
 
 
-def setup_basic_mocks(
-    pytester: Pytester, subprocess_mode: t.Optional[bool] = None
-) -> t.Optional[t.ContextManager[None]]:
-    """Set up basic mocks for simple test execution."""
-    return setup_test_mocks(pytester, subprocess_mode=subprocess_mode)
+# def setup_basic_mocks(
+#     pytester: Pytester, subprocess_mode: t.Optional[bool] = None
+# ) -> t.Optional[t.ContextManager[None]]:
+#     """Set up basic mocks for simple test execution."""
+#     return setup_test_mocks(pytester, subprocess_mode=subprocess_mode)
 
 
-def setup_retry_mocks(
-    pytester: Pytester, subprocess_mode: t.Optional[bool] = None
-) -> t.Optional[t.ContextManager[None]]:
-    """Set up mocks for auto retry functionality testing."""
-    return setup_test_mocks(pytester, subprocess_mode=subprocess_mode, auto_retries_enabled=True)
+# def setup_retry_mocks(
+#     pytester: Pytester, subprocess_mode: t.Optional[bool] = None
+# ) -> t.Optional[t.ContextManager[None]]:
+#     """Set up mocks for auto retry functionality testing."""
+#     return setup_test_mocks(pytester, subprocess_mode=subprocess_mode, auto_retries_enabled=True)
 
 
-def setup_efd_mocks(
-    pytester: Pytester, subprocess_mode: t.Optional[bool] = None, known_tests: t.Optional[t.Set[TestRef]] = None
-) -> t.Optional[t.ContextManager[None]]:
-    """Set up mocks for Early Flake Detection testing."""
-    return setup_test_mocks(
-        pytester,
-        subprocess_mode=subprocess_mode,
-        efd_enabled=True,
-        known_tests_enabled=True,
-        known_tests=known_tests or set(),
-    )
+# def setup_efd_mocks(
+#     pytester: Pytester, subprocess_mode: t.Optional[bool] = None, known_tests: t.Optional[t.Set[TestRef]] = None
+# ) -> t.Optional[t.ContextManager[None]]:
+#     """Set up mocks for Early Flake Detection testing."""
+#     return setup_test_mocks(
+#         pytester,
+#         subprocess_mode=subprocess_mode,
+#         efd_enabled=True,
+#         known_tests_enabled=True,
+#         known_tests=known_tests or set(),
+#     )
 
 
-def setup_itr_mocks(
-    pytester: Pytester,
-    subprocess_mode: t.Optional[bool] = None,
-    skippable_items: t.Optional[t.Set[t.Union[TestRef, SuiteRef]]] = None,
-) -> t.Optional[t.ContextManager[None]]:
-    """Set up mocks for Intelligent Test Runner testing."""
-    return setup_test_mocks(
-        pytester, subprocess_mode=subprocess_mode, skipping_enabled=True, skippable_items=skippable_items or set()
-    )
+# def setup_itr_mocks(
+#     pytester: Pytester,
+#     subprocess_mode: t.Optional[bool] = None,
+#     skippable_items: t.Optional[t.Set[t.Union[TestRef, SuiteRef]]] = None,
+# ) -> t.Optional[t.ContextManager[None]]:
+#     """Set up mocks for Intelligent Test Runner testing."""
+#     return setup_test_mocks(
+#         pytester, subprocess_mode=subprocess_mode, skipping_enabled=True, skippable_items=skippable_items or set()
+#     )
 
 
 # =============================================================================
@@ -474,32 +467,3 @@ def run_test_with_mocks(
     else:
         # Subprocess mode
         return pytester.runpytest_subprocess(*pytest_args)
-
-
-# =============================================================================
-# BACKWARD COMPATIBILITY - SUBPROCESS-ONLY FUNCTIONS
-# =============================================================================
-
-
-def setup_basic_subprocess_mocks(pytester: Pytester) -> None:
-    """Set up basic mocks for simple test execution (subprocess only)."""
-    setup_test_mocks(pytester, subprocess_mode=True)
-
-
-def setup_retry_subprocess_mocks(pytester: Pytester) -> None:
-    """Set up mocks for auto retry functionality testing (subprocess only)."""
-    setup_test_mocks(pytester, subprocess_mode=True, auto_retries_enabled=True)
-
-
-def setup_efd_subprocess_mocks(pytester: Pytester, known_tests: t.Optional[t.Set[TestRef]] = None) -> None:
-    """Set up mocks for Early Flake Detection testing (subprocess only)."""
-    setup_test_mocks(
-        pytester, subprocess_mode=True, efd_enabled=True, known_tests_enabled=True, known_tests=known_tests or set()
-    )
-
-
-def setup_itr_subprocess_mocks(
-    pytester: Pytester, skippable_items: t.Optional[t.Set[t.Union[TestRef, SuiteRef]]] = None
-) -> None:
-    """Set up mocks for Intelligent Test Runner testing (subprocess only)."""
-    setup_test_mocks(pytester, subprocess_mode=True, skipping_enabled=True, skippable_items=skippable_items or set())

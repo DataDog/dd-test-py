@@ -34,9 +34,6 @@ parallel = true
 retries = 2
 retry-delay = 1
 
-[tool.hatch.envs.hatch-test.env-vars]
-_DD_CIVISIBILITY_ITR_FORCE_ENABLE_COVERAGE = "true"
-
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.13", "3.12"]
 pytest = ["8.1.2", "8.4.*"]
