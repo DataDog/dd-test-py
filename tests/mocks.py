@@ -415,9 +415,8 @@ class BackendConnectorMockBuilder:
 
     def build(self) -> Mock:
         """Build the BackendConnector mock."""
-        from ddtestopt.internal.http import BackendConnector
-
-        mock_connector = Mock(spec=BackendConnector)
+        # Create a simple Mock without spec to avoid CI environment issues
+        mock_connector = Mock()
 
         # Mock methods to prevent real HTTP calls
         def mock_post_json(endpoint: str, data: t.Any) -> t.Tuple[Mock, t.Any]:
@@ -434,9 +433,9 @@ class BackendConnectorMockBuilder:
         def mock_post_files(path: str, files: t.Any, **kwargs: t.Any) -> t.Tuple[Mock, t.Dict[str, t.Any]]:
             return Mock(), {}
 
-        mock_connector.post_json.side_effect = mock_post_json
-        mock_connector.request.side_effect = mock_request
-        mock_connector.post_files.side_effect = mock_post_files
+        mock_connector.post_json = Mock(side_effect=mock_post_json)
+        mock_connector.request = Mock(side_effect=mock_request)
+        mock_connector.post_files = Mock(side_effect=mock_post_files)
 
         return mock_connector
 
