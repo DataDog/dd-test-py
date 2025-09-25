@@ -59,6 +59,7 @@ jobs:
     - name: Run tests
       env:
         PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
+        _DDTESTOPT_SUBPROCESS_TEST_MODE: "true"
         DD_API_KEY: ${{ secrets.DD_API_KEY }}
         DD_CIVISIBILITY_AGENTLESS_ENABLED: '1'
       run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
