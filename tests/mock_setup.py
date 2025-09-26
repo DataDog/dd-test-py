@@ -23,14 +23,14 @@ from tests.mocks import BackendConnectorMockBuilder
 from tests.mocks import get_mock_git_instance
 
 
-def create_mock_objects_from_fixture(fixture: t.Any) -> t.Dict[str, t.Any]:
-    """Create all mock objects based on MockFixture configuration using builders from mocks.py.
+def create_patchers(fixture: t.Any) -> t.List[t.Any]:
+    """Create all patch objects.
 
     Args:
         fixture: MockFixture object with test configuration
 
     Returns:
-        Dictionary containing all mock objects
+        List of patcher objects
     """
     # Create mock git instance using existing helper
     mock_git_instance = get_mock_git_instance()
@@ -58,31 +58,14 @@ def create_mock_objects_from_fixture(fixture: t.Any) -> t.Dict[str, t.Any]:
 
     mock_api_client = api_builder.build()
 
-    return {
-        "mock_git_instance": mock_git_instance,
-        "mock_writer": mock_writer,
-        "mock_connector": mock_connector,
-        "mock_api_client": mock_api_client,
-    }
-
-
-def create_patchers(mock_objects: t.Dict[str, t.Any]) -> t.List[t.Any]:
-    """Create all patch objects.
-
-    Args:
-        mock_objects: Dictionary of mock objects from create_mock_objects()
-
-    Returns:
-        List of patcher objects
-    """
     patchers = [
-        patch("ddtestopt.internal.session_manager.APIClient", return_value=mock_objects["mock_api_client"]),
+        patch("ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client),
         patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}),
         patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={}),
-        patch("ddtestopt.internal.session_manager.Git", return_value=mock_objects["mock_git_instance"]),
-        patch("ddtestopt.internal.http.BackendConnector", return_value=mock_objects["mock_connector"]),
-        patch("ddtestopt.internal.writer.TestOptWriter", return_value=mock_objects["mock_writer"]),
-        patch("ddtestopt.internal.writer.TestCoverageWriter", return_value=mock_objects["mock_writer"]),
+        patch("ddtestopt.internal.session_manager.Git", return_value=mock_git_instance),
+        patch("ddtestopt.internal.http.BackendConnector", return_value=mock_connector),
+        patch("ddtestopt.internal.writer.TestOptWriter", return_value=mock_writer),
+        patch("ddtestopt.internal.writer.TestCoverageWriter", return_value=mock_writer),
     ]
     return patchers
 
@@ -95,8 +78,7 @@ def setup_mocks_for_subprocess(fixture: t.Any) -> None:
     Args:
         fixture: MockFixture object with test configuration
     """
-    mock_objects = create_mock_objects_from_fixture(fixture)
-    patchers = create_patchers(mock_objects)
+    patchers = create_patchers(fixture)
 
     # Start all patches for subprocess mode
     for patcher in patchers:
@@ -115,8 +97,7 @@ def setup_mocks_for_in_process(fixture: t.Any) -> t.ContextManager[None]:
 
     @contextmanager
     def _mock_context() -> t.Generator[t.Any, t.Any, t.Any]:
-        mock_objects = create_mock_objects_from_fixture(fixture)
-        patchers = create_patchers(mock_objects)
+        patchers = create_patchers(fixture)
 
         # Start all patches
         for patcher in patchers:
