@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Improved mock utilities for test optimization framework testing.
 
 This module provides flexible and easy-to-use mock builders and utilities
@@ -9,7 +8,9 @@ for testing the ddtestopt framework. The design emphasizes:
 - Utility functions for common patterns
 """
 
-from contextlib import ExitStack
+from __future__ import annotations
+
+import contextlib
 import os
 from pathlib import Path
 import typing as t
@@ -30,6 +31,8 @@ from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
+from ddtestopt.internal.writer import Event
+from ddtestopt.internal.writer import TestOptWriter
 
 
 def get_mock_git_instance() -> Mock:
@@ -518,11 +521,12 @@ def mock_backend_connector() -> "BackendConnectorMockBuilder":
 
 
 def setup_standard_mocks() -> t.ContextManager[t.Any]:
-    """Create comprehensive mocks that prevent any real network calls."""
+    """Mock calls used by the session manager to get git and platform tags."""
     return patch.multiple(
         "ddtestopt.internal.session_manager",
         get_git_tags=Mock(return_value={}),
         get_platform_tags=Mock(return_value={}),
+        get_workspace_path=Mock(return_value="/repo"),
         Git=Mock(return_value=get_mock_git_instance()),
     )
 
@@ -531,7 +535,7 @@ def network_mocks() -> t.ContextManager[t.Any]:
     """Create comprehensive mocks that prevent ALL network calls at multiple levels."""
 
     def _create_stack() -> t.ContextManager[t.Any]:
-        stack = ExitStack()
+        stack = contextlib.ExitStack()
 
         # Mock the session manager dependencies
         stack.enter_context(
@@ -560,3 +564,50 @@ def network_mocks() -> t.ContextManager[t.Any]:
         return stack
 
     return _create_stack()
+
+
+class EventCapture:
+    """
+    Utilities for capturing events generated during a test run.
+    """
+
+    @classmethod
+    @contextlib.contextmanager
+    def capture(cls) -> t.Generator[EventCapture, None, None]:
+        """
+        Mock the event writer to capture events sent during a test run.
+
+        Returns a context manager that can be queried after the test run with the methods below.
+
+        Example usage:
+            with EventCapture.capture() as event_capture:
+                pytester.inline_run(...)
+
+            all_events = list(event_capture.events())
+
+            [session_event] = event_capture.events_by_type("test_session_end")
+
+            test_event = event_capture.event_by_test_name("test_foo")
+        """
+        with patch.object(TestOptWriter, "put_event") as put_event_mock:
+            yield cls(put_event_mock)
+
+    def __init__(self, put_event_mock: Mock) -> None:
+        self.put_event_mock = put_event_mock
+
+    def events(self) -> t.Iterable[Event]:
+        for args, kwargs in self.put_event_mock.call_args_list:
+            event = args[0]
+            yield event
+
+    def events_by_type(self, event_type: str) -> t.Iterable[Event]:
+        for event in self.events():
+            if event["type"] == event_type:
+                yield event
+
+    def event_by_test_name(self, test_name: str) -> Event:
+        for event in self.events():
+            if event["type"] == "test" and event["content"]["meta"]["test.name"] == test_name:
+                return event
+
+        raise AssertionError(f"Expected event with test name {test_name!r}, found none")
