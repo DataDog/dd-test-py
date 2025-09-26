@@ -31,6 +31,9 @@ class BackendConnector(threading.local):
         if accept_gzip:
             self.default_headers["Accept-Encoding"] = "gzip"
 
+    def close(self) -> None:
+        self.conn.close()
+
     # TODO: handle retries
     def request(
         self,
@@ -47,14 +50,16 @@ class BackendConnector(threading.local):
             full_headers["Content-Encoding"] = "gzip"
 
         start_time = time.time()
+
         self.conn.request(method, path, body=data, headers=full_headers)
-        elapsed_time = time.time() - start_time
 
         response = self.conn.getresponse()
         if response.headers.get("Content-Encoding") == "gzip":
             response_data = gzip.open(response).read()
         else:
             response_data = response.read()
+
+        elapsed_time = time.time() - start_time
 
         log.debug("Request to %s %s took %.3f seconds", method, path, elapsed_time)
         # log.debug("Request headers %s, data %s", full_headers, data)
