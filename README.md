@@ -9,7 +9,7 @@ Datadog's Python Library for instrumenting your tests.
 
 ## Features
 
-- [Test Visibility](https://docs.datadoghq.com/tests/) - collect metrics and results for your tests
+- [Test Optimization](https://docs.datadoghq.com/tests/) - collect metrics and results for your tests
 - [Flaky test management](https://docs.datadoghq.com/tests/flaky_management/) - track, triage, and remediate flaky tests across your organization. Quarantine or disable problematic tests to keep known flakes from breaking builds, and create cases and Jira issues to track work toward fixes.
 - [Auto test retries](https://docs.datadoghq.com/tests/flaky_tests/auto_test_retries/?tab=python) - retrying failing tests up to N times to avoid failing your build due to flaky tests
 - [Early flake detection](https://docs.datadoghq.com/tests/flaky_tests/early_flake_detection/?tab=python) - Datadog’s test flakiness solution that identifies flakes early by running newly added tests multiple times
