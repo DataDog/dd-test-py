@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Simple test fixtures for integration tests.
+"""Test fixtures for integration tests.
 
-This module provides a simplified approach to test configuration using plain
-Python objects instead of complex serialization/deserialization.
+This module provides an approach to prepare fixtures and run pytester in in-process or subprocess modes.
 """
 
 from contextlib import contextmanager
@@ -293,10 +292,7 @@ def run_pytest_with_fixture(
     fixture: MockFixture,
     subprocess_mode: t.Optional[bool] = None,
 ) -> t.Any:
-    """Run a test with the given fixture configuration.
-
-    This is the main utility function that replaces run_test_with_mocks.
-    """
+    """Run a test with the given fixture configuration."""
     with setup_test_mode_with_fixture(pytester, fixture, subprocess_mode):
         if subprocess_mode:
             return pytester.runpytest_subprocess(*pytest_args)
