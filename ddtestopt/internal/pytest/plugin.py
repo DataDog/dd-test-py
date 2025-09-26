@@ -38,6 +38,7 @@ from ddtestopt.internal.utils import TestContext
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
 DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
 SKIPPED_BY_ITR_REASON = "Skipped by Datadog Intelligent Test Runner"
+ITR_UNSKIPPABLE_REASON = "datadog_itr_unskippable"
 
 
 log = logging.getLogger(__name__)
@@ -115,6 +116,7 @@ class TestPhase:
     SETUP = "setup"
     CALL = "call"
     TEARDOWN = "teardown"
+    __test__ = False
 
 
 _ReportGroup = t.Dict[str, pytest.TestReport]
@@ -124,6 +126,8 @@ class TestOptPlugin:
     """
     pytest plugin for test optimization.
     """
+
+    __test__ = False
 
     def __init__(self) -> None:
         self.enable_ddtrace = False  # TODO: make it configurable via command line.
@@ -160,6 +164,11 @@ class TestOptPlugin:
         self.session.set_status(
             TestStatus.FAIL if session.exitstatus == pytest.ExitCode.TESTS_FAILED else TestStatus.PASS
         )
+
+        if self.is_xdist_worker and hasattr(session.config, "workeroutput"):
+            # Propagate number of skipped tests to the main process.
+            session.config.workeroutput["tests_skipped_by_itr"] = self.session.tests_skipped_by_itr
+
         self.session.finish()
 
         if not self.is_xdist_worker:
@@ -208,6 +217,9 @@ class TestOptPlugin:
             if parameters := _get_test_parameters_json(item):
                 test.set_parameters(parameters)
 
+            if _is_test_unskippable(item):
+                test.mark_unskippable()
+
         return self.manager.discover_test(
             test_ref,
             on_new_module=_on_new_module,
@@ -228,8 +240,8 @@ class TestOptPlugin:
 
         self.tests_by_nodeid[item.nodeid] = test
 
-        if test_ref in self.manager.skippable_items:
-            item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
+        self._handle_itr(item, test_ref, test)
+
         if test.is_disabled() and not test.is_attempt_to_fix():
             item.add_marker(pytest.mark.skip(reason=DISABLED_BY_TEST_MANAGEMENT_REASON))
         elif test.is_quarantined() or (test.is_disabled() and test.is_attempt_to_fix()):
@@ -526,6 +538,21 @@ class TestOptPlugin:
 
         return TestStatus.PASS, {}
 
+    def _handle_itr(self, item: pytest.Item, test_ref: TestRef, test: Test) -> None:
+        if not self.manager.is_skippable_test(test_ref):
+            return
+
+        if test.is_unskippable():
+            test.mark_forced_run()
+            return
+
+        if test.is_attempt_to_fix():
+            # if the test is an attempt-to-fix, behave as it if were not selected for skipping.
+            return
+
+        item.add_marker(pytest.mark.skip(reason=SKIPPED_BY_ITR_REASON))
+        test.mark_skipped_by_itr()
+
 
 class XdistTestOptPlugin(TestOptPlugin):
     @pytest.hookimpl
@@ -533,7 +560,18 @@ class XdistTestOptPlugin(TestOptPlugin):
         """
         Pass test session id from the main process to xdist workers.
         """
-        node.workerinput["dd_session_id"] = self.session.session_id
+        node.workerinput["dd_session_id"] = self.session.item_id
+
+    @pytest.hookimpl
+    def pytest_testnodedown(self, node: t.Any, error: t.Any) -> None:
+        """
+        Collect count of tests skipped by ITR from a worker node and add it to the main process' session.
+        """
+        if not hasattr(node, "workeroutput"):
+            return
+
+        if tests_skipped_by_itr := node.workeroutput.get("tests_skipped_by_itr"):
+            self.session.tests_skipped_by_itr += tests_skipped_by_itr
 
 
 def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:
@@ -618,3 +656,22 @@ def _encode_test_parameter(parameter: t.Any) -> str:
     # if the representation includes an id() we'll remove it
     # because it isn't constant across executions
     return re.sub(r" at 0[xX][0-9a-fA-F]+", "", param_repr)
+
+
+def _get_skipif_condition(marker: pytest.Mark) -> t.Any:
+    # DEV: pytest allows the condition to be a string to be evaluated. We currently don't support this.
+    if marker.args:
+        condition = marker.args[0]
+    elif marker.kwargs:
+        condition = marker.kwargs.get("condition")
+    else:
+        condition = True  # `skipif` with no condition is equivalent to plain `skip`.
+
+    return condition
+
+
+def _is_test_unskippable(item: pytest.Item) -> bool:
+    return any(
+        (_get_skipif_condition(marker) is False and marker.kwargs.get("reason") == ITR_UNSKIPPABLE_REASON)
+        for marker in item.iter_markers(name="skipif")
+    )

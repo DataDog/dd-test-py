@@ -8,13 +8,15 @@ import contextlib
 from pathlib import Path
 import typing as t
 
-from ddtestopt.internal.coverage.code import ModuleCodeCollector
-from ddtestopt.internal.coverage.coverage_lines import CoverageLines
-import ddtestopt.internal.coverage.installer
+from ddtestopt.vendor.ddtrace_coverage.code import ModuleCodeCollector
+from ddtestopt.vendor.ddtrace_coverage.coverage_lines import CoverageLines
+import ddtestopt.vendor.ddtrace_coverage.installer
 
 
 def install_coverage(workspace_path: Path) -> None:
-    ddtestopt.internal.coverage.installer.install(include_paths=[workspace_path], collect_import_time_coverage=True)
+    ddtestopt.vendor.ddtrace_coverage.installer.install(
+        include_paths=[workspace_path], collect_import_time_coverage=True
+    )
     ModuleCodeCollector.start_coverage()  # type: ignore[no-untyped-call]
 
 
