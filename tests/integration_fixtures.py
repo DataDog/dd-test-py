@@ -198,14 +198,13 @@ def setup_mocks_for_in_process(fixture: MockFixture) -> t.ContextManager[None]:
 
 # DEV: This is imported inside subprocess conftest
 def _setup_subprocess_mocks_from_fixture() -> None:
-    """Set up mocks by reading fixture file."""
-    fixture_path = os.getenv("DDTESTOPT_FIXTURE_PATH")
-    if not fixture_path:
+    """Set up mocks by reading fixture JSON from environment variable."""
+    fixture_json = os.getenv("_DDTESTOPT_FIXTURE_JSON")
+    if not fixture_json:
         return
 
-    # Read fixture file and create fixture object
-    with open(fixture_path, "r") as f:
-        fixture_data = json.load(f)
+    # Parse JSON directly from environment variable
+    fixture_data = json.loads(fixture_json)
 
     fixture = MockFixture(**fixture_data)
 
@@ -215,7 +214,7 @@ def _setup_subprocess_mocks_from_fixture() -> None:
 
 @contextmanager
 def _setup_subprocess_mode(pytester: Pytester, fixture: MockFixture) -> t.Generator[None, None, None]:
-    """Set up subprocess mode with fixture file."""
+    """Set up subprocess mode with fixture JSON in environment variable."""
     conftest_content = '''#!/usr/bin/env python3
 """Auto-generated conftest.py for fixture-based mocking."""
 import sys
@@ -232,11 +231,8 @@ from tests.integration_fixtures import _setup_subprocess_mocks_from_fixture
 _setup_subprocess_mocks_from_fixture()
 '''
 
-    # Create fixture file in test directory
-    fixture_path = pytester.makefile(".json", fixture=json.dumps(asdict(fixture)))
-
-    # Set environment variable to point to fixture file
-    pytester._monkeypatch.setenv("DDTESTOPT_FIXTURE_PATH", str(fixture_path))
+    # Set fixture JSON directly in environment variable
+    pytester._monkeypatch.setenv("_DDTESTOPT_FIXTURE_JSON", json.dumps(asdict(fixture)))
 
     # Set standard test environment variables
     pytester._monkeypatch.setenv("DD_API_KEY", "test-api-key")
