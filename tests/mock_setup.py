@@ -11,6 +11,8 @@ Now uses builders from mocks.py for consistent mock creation.
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+import json
+import os
 import typing as t
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -195,3 +197,20 @@ class MockFixture:
         if not self.known_tests:
             return set()
         return {nodeid_to_test_ref(nodeid) for nodeid in self.known_tests}
+
+
+# DEV: This is imported inside subprocess conftest
+def _setup_subprocess_mocks_from_fixture() -> None:
+    """Set up mocks by reading fixture file."""
+    fixture_path = os.getenv("DDTESTOPT_FIXTURE_PATH")
+    if not fixture_path:
+        return
+
+    # Read fixture file and create fixture object
+    with open(fixture_path, "r") as f:
+        fixture_data = json.load(f)
+
+    fixture = MockFixture(**fixture_data)
+
+    # Set up mocks using the simplified interface
+    setup_mocks_for_subprocess(fixture)

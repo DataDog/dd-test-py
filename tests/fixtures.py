@@ -74,7 +74,7 @@ def setup_test_mode_with_fixture(
             yield
     else:
         # In-process mode: use context manager
-        with _setup_in_process_mode(fixture):
+        with setup_mocks_for_in_process(fixture):
             yield
 
 
@@ -103,14 +103,6 @@ def _setup_subprocess_mode(pytester: Pytester, fixture: MockFixture) -> t.Genera
     yield
 
 
-@contextmanager
-def _setup_in_process_mode(fixture: MockFixture) -> t.Generator[None, None, None]:
-    """Set up in-process mode using mock_setup module."""
-    # Use the fixture directly with the simplified mock_setup
-    with setup_mocks_for_in_process(fixture):
-        yield
-
-
 def _create_static_conftest(pytester: Pytester) -> None:
     """Create static conftest.py that reads fixture files."""
     conftest_content = '''#!/usr/bin/env python3
@@ -126,27 +118,10 @@ test_dir = Path(__file__).parent.parent
 if str(test_dir) not in sys.path:
     sys.path.insert(0, str(test_dir))
 
-from tests.mock_setup import MockFixture, setup_mocks_for_subprocess
-
-
-def _setup_mocks_from_fixture():
-    """Set up mocks by reading fixture file."""
-    fixture_path = os.getenv('DDTESTOPT_FIXTURE_PATH')
-    if not fixture_path:
-        return
-
-    # Read fixture file and create fixture object
-    with open(fixture_path, 'r') as f:
-        fixture_data = json.load(f)
-
-    fixture = MockFixture(**fixture_data)
-
-    # Set up mocks using the simplified interface
-    setup_mocks_for_subprocess(fixture)
-
+from tests.mock_setup import _setup_subprocess_mocks_from_fixture
 
 # Set up mocks as early as possible
-_setup_mocks_from_fixture()
+_setup_subprocess_mocks_from_fixture()
 '''
     pytester.makeconftest(conftest_content)
 
@@ -161,9 +136,6 @@ def run_test_with_fixture(
 
     This is the main utility function that replaces run_test_with_mocks.
     """
-    if subprocess_mode is None:
-        subprocess_mode = get_subprocess_test_mode()
-
     with setup_test_mode_with_fixture(pytester, fixture, subprocess_mode):
         if subprocess_mode:
             return pytester.runpytest_subprocess(*pytest_args)
