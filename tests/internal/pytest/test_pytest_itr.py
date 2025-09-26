@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import contextlib
 import typing as t
-from unittest.mock import Mock
 from unittest.mock import patch
 
 from _pytest.pytester import Pytester
@@ -11,38 +9,9 @@ import pytest
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
-from ddtestopt.internal.writer import Event
-from ddtestopt.internal.writer import TestOptWriter
+from tests.mocks import EventCapture
 from tests.mocks import mock_api_client_settings
 from tests.mocks import setup_standard_mocks
-
-
-class EventCapture:
-    @classmethod
-    @contextlib.contextmanager
-    def capture(cls) -> t.Generator[EventCapture, None, None]:
-        with patch.object(TestOptWriter, "put_event") as put_event_mock:
-            yield cls(put_event_mock)
-
-    def __init__(self, put_event_mock: Mock) -> None:
-        self.put_event_mock = put_event_mock
-
-    def events(self) -> t.Iterable[Event]:
-        for args, kwargs in self.put_event_mock.call_args_list:
-            event = args[0]
-            yield event
-
-    def events_by_type(self, event_type: str) -> t.Iterable[Event]:
-        for event in self.events():
-            if event["type"] == event_type:
-                yield event
-
-    def event_by_test_name(self, test_name: str) -> Event:
-        for event in self.events():
-            if event["type"] == "test" and event["content"]["meta"]["test.name"] == test_name:
-                return event
-
-        raise AssertionError(f"Expected event with test name {test_name!r}, found none")
 
 
 class TestITR:

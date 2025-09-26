@@ -290,9 +290,9 @@ class TestSession(TestItem[t.NoReturn, "TestModule"]):
         super().set_final_tags()
 
         if self.tests_skipped_by_itr > 0:
-            self.tags["test.itr.tests_skipping.tests_skipped"] = TAG_TRUE
-            self.tags["test.itr.tests_skipping.type"] = "test"
-            self.metrics["test.itr.tests_skipping.count"] = self.tests_skipped_by_itr
+            self.tags[TestTag.ITR_TESTS_SKIPPED] = TAG_TRUE
+            self.tags[TestTag.ITR_TESTS_SKIPPING_TYPE] = "test"
+            self.metrics[TestTag.ITR_TESTS_SKIPPING_COUNT] = self.tests_skipped_by_itr
 
 
 class TestTag:
@@ -324,5 +324,8 @@ class TestTag:
     ITR_UNSKIPPABLE = "test.itr.unskippable"
     ITR_FORCED_RUN = "test.itr.forced_run"
     SKIPPED_BY_ITR = "test.skipped_by_itr"
+    ITR_TESTS_SKIPPED = "test.itr.tests_skipping.tests_skipped"
+    ITR_TESTS_SKIPPING_TYPE = "test.itr.tests_skipping.type"
+    ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count"
 
     __test__ = False
