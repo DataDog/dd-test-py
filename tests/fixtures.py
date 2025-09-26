@@ -107,9 +107,6 @@ def _create_static_conftest(pytester: Pytester) -> None:
     """Create static conftest.py that reads fixture files."""
     conftest_content = '''#!/usr/bin/env python3
 """Auto-generated conftest.py for fixture-based mocking."""
-
-import json
-import os
 import sys
 from pathlib import Path
 
