@@ -11,15 +11,15 @@ jobs:
     name: Quality Assurance
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
+    - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
     - name: Set up Python 3.13
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
       with:
         python-version: "3.13"
         
     - name: Install Hatch
-      run: pip install hatch
+      run: pip install "click<=8.2.1" "hatch==1.14.1"
       
     - name: Run QA checks
       run: hatch run qa:qa
@@ -28,6 +28,11 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     needs: qa  # Only run if QA job passes
+    environment:
+      name: dd_access # Specify the environment to use
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -41,41 +46,45 @@ jobs:
             pytest-version: "7.2.0"
     
     steps:
-    - uses: actions/checkout@v4
-    
+    - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Install Hatch
-      run: pip install hatch
-      
+      run: pip install "click<=8.2.1" "hatch==1.14.1"
+
     - name: Run tests
-      run: hatch run test.py${{ matrix.python-version }}-${{ matrix.pytest-version }}:test
+      env:
+        PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
+        DD_API_KEY: ${{ secrets.DD_API_KEY }}
+        DD_CIVISIBILITY_AGENTLESS_ENABLED: '1'
+      run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
 
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
     needs: qa  # Only run if QA job passes
     env:
-      MINIMUM_COVERAGE: 43
+      MINIMUM_COVERAGE: 79
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
     
     - name: Set up Python 3.13
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
       with:
         python-version: "3.13"
         
     - name: Install Hatch
-      run: pip install hatch
-      
+      run: pip install "click<=8.2.1" "hatch==1.14.1"
+
     - name: Run coverage tests
       id: coverage
       run: |
         # Run coverage and capture output
-        coverage_output=$(hatch run 'test.py3.13-8.4.*:test-cov' 2>&1)
+        coverage_output=$(hatch test -c 2>&1)
         echo "$coverage_output"
         
         # Extract coverage percentage from the last line

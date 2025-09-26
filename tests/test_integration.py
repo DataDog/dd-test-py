@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
 
+import os
 from unittest.mock import Mock
 from unittest.mock import patch
 
 from _pytest.monkeypatch import MonkeyPatch
 from _pytest.pytester import Pytester
+import pytest
 
-from ddtestopt.internal.api_client import AutoTestRetriesSettings
-from ddtestopt.internal.api_client import EarlyFlakeDetectionSettings
-from ddtestopt.internal.api_client import Settings
-from ddtestopt.internal.api_client import TestManagementSettings
+from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
+from ddtestopt.internal.test_data import TestSession
+from tests.mocks import mock_api_client_settings
+from tests.mocks import network_mocks
+from tests.mocks import setup_standard_mocks
+
+
+# Functions moved to tests.mocks for centralization
 
 
 class TestFeaturesWithMocking:
-    def test_simple_plugin_enabled(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
-        # def test_simple_plugin_enabled(self, pytester: Pytester) -> None:
+    """High-level feature tests using pytester with mocked dependencies."""
+
+    @pytest.mark.slow
+    def test_simple_plugin_enabled(self, pytester: Pytester) -> None:
         """Test basic plugin functionality without complex dependencies."""
         # Create a simple test file
         pytester.makepyfile(
@@ -28,47 +36,17 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Mock all the API and environment dependencies
-        with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            # Set up mock API client
-            mock_client = Mock()
-            mock_client.get_settings.return_value = Settings(
-                early_flake_detection=EarlyFlakeDetectionSettings(),
-                test_management=TestManagementSettings(),
-                auto_test_retries=AutoTestRetriesSettings(),
-                known_tests_enabled=False,
-                coverage_enabled=False,
-                skipping_enabled=False,
-                require_git=False,
-                itr_enabled=False,
-            )
-            mock_client.get_known_tests.return_value = set()
-            mock_client.get_test_management_properties.return_value = {}
-            mock_client.get_known_commits.return_value = []
-            mock_client.send_git_pack_file.return_value = None
-            mock_client.get_skippable_tests.return_value = (set(), None)
-            mock_api_client.return_value = mock_client
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings()
 
-            # Mock git and platform dependencies
-            with patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}):
-                with patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={}):
-                    with patch("ddtestopt.internal.session_manager.Git") as mock_git:
-                        # Mock Git instance
-                        mock_git_instance = Mock()
-                        mock_git_instance.get_latest_commits.return_value = []
-                        mock_git_instance.get_filtered_revisions.return_value = []
-                        mock_git_instance.pack_objects.return_value = iter([])
-                        mock_git.return_value = mock_git_instance
-
-                        # Set environment variables for retry configuration
-                        monkeypatch.setenv("DD_API_KEY", "test-key")
-
-                        result = pytester.runpytest("-p", "ddtestopt", "-v")
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
 
         # Test should pass
         assert result.ret == 0
         result.assert_outcomes(passed=1)
 
+    @pytest.mark.slow
     def test_retry_functionality_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
         """Test that failing tests are retried when auto retry is enabled."""
         # Create a test file with a failing test
@@ -84,44 +62,11 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Mock all the API and environment dependencies
-        with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            # Set up mock API client
-            mock_client = Mock()
-            mock_client.get_settings.return_value = Settings(
-                early_flake_detection=EarlyFlakeDetectionSettings(),
-                test_management=TestManagementSettings(),
-                auto_test_retries=AutoTestRetriesSettings(enabled=True),
-                known_tests_enabled=False,
-                coverage_enabled=False,
-                skipping_enabled=False,
-                require_git=False,
-                itr_enabled=False,
-            )
-            mock_client.get_known_tests.return_value = set()
-            mock_client.get_test_management_properties.return_value = {}
-            mock_client.get_known_commits.return_value = []
-            mock_client.send_git_pack_file.return_value = None
-            mock_client.get_skippable_tests.return_value = (set(), None)
-            mock_api_client.return_value = mock_client
-
-            # Mock git and platform dependencies
-            with patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}):
-                with patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={}):
-                    with patch("ddtestopt.internal.session_manager.Git") as mock_git:
-                        # Mock Git instance
-                        mock_git_instance = Mock()
-                        mock_git_instance.get_latest_commits.return_value = []
-                        mock_git_instance.get_filtered_revisions.return_value = []
-                        mock_git_instance.pack_objects.return_value = iter([])
-                        mock_git.return_value = mock_git_instance
-
-                        # Set environment variables for retry configuration
-                        monkeypatch.setenv("DD_API_KEY", "test-key")
-                        monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
-
-                        # Run pytest with the ddtestopt plugin enabled
-                        result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings(auto_retries_enabled=True)
+            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -149,7 +94,8 @@ class TestFeaturesWithMocking:
         assert "test_always_fails FAILED" in output
         assert "test_passes PASSED" in output
 
-    def test_early_flake_detection_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    @pytest.mark.slow
+    def test_early_flake_detection_with_pytester(self, pytester: Pytester) -> None:
         """Test that EarlyFlakeDetection retries new failing tests."""
         # Create a test file with a new failing test
         pytester.makepyfile(
@@ -164,59 +110,19 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Mock all the API and environment dependencies
-        with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            # Set up mock API client with EFD enabled
-            mock_client = Mock()
-            mock_client.get_settings.return_value = Settings(
-                early_flake_detection=EarlyFlakeDetectionSettings(
-                    enabled=True,
-                    slow_test_retries_5s=3,
-                    slow_test_retries_10s=2,
-                    slow_test_retries_30s=1,
-                    slow_test_retries_5m=1,
-                    faulty_session_threshold=30,
-                ),
-                test_management=TestManagementSettings(),
-                auto_test_retries=AutoTestRetriesSettings(enabled=False),
-                known_tests_enabled=True,  # Enable known tests for EFD logic
-                coverage_enabled=False,
-                skipping_enabled=False,
-                require_git=False,
-                itr_enabled=False,
-            )
+        # Set up known tests - only include the "known" test
+        known_suite = SuiteRef(ModuleRef("."), "test_efd.py")
+        known_test_ref = TestRef(known_suite, "test_known_test")
 
-            # Set up known tests - only include the "known" test
-            from ddtestopt.internal.test_data import ModuleRef
-            from ddtestopt.internal.test_data import SuiteRef
-            from ddtestopt.internal.test_data import TestRef
+        # Use unified mock setup with EFD enabled
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient",
+            return_value=mock_api_client_settings(
+                efd_enabled=True, known_tests_enabled=True, known_tests={known_test_ref}
+            ),
+        ), setup_standard_mocks():
 
-            known_suite = SuiteRef(ModuleRef("."), "test_efd.py")
-            known_test_ref = TestRef(known_suite, "test_known_test")
-            mock_client.get_known_tests.return_value = {known_test_ref}
-
-            mock_client.get_test_management_properties.return_value = {}
-            mock_client.get_known_commits.return_value = []
-            mock_client.send_git_pack_file.return_value = None
-            mock_client.get_skippable_tests.return_value = (set(), None)
-            mock_api_client.return_value = mock_client
-
-            # Mock git and platform dependencies
-            with patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}):
-                with patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={}):
-                    with patch("ddtestopt.internal.session_manager.Git") as mock_git:
-                        # Mock Git instance
-                        mock_git_instance = Mock()
-                        mock_git_instance.get_latest_commits.return_value = []
-                        mock_git_instance.get_filtered_revisions.return_value = []
-                        mock_git_instance.pack_objects.return_value = iter([])
-                        mock_git.return_value = mock_git_instance
-
-                        # Set environment variables
-                        monkeypatch.setenv("DD_API_KEY", "test-key")
-
-                        # Run pytest with the ddtestopt plugin enabled
-                        result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after EFD retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -243,7 +149,8 @@ class TestFeaturesWithMocking:
         assert "test_new_flaky FAILED" in output
         assert "test_known_test PASSED" in output
 
-    def test_intelligent_test_runner_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    @pytest.mark.slow
+    def test_intelligent_test_runner_with_pytester(self, pytester: Pytester) -> None:
         """Test that IntelligentTestRunner skips tests marked as skippable."""
         # Create a test file with multiple tests
         pytester.makepyfile(
@@ -258,50 +165,17 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Mock all the API and environment dependencies
-        with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            # Set up mock API client with ITR enabled
-            mock_client = Mock()
-            mock_client.get_settings.return_value = Settings(
-                early_flake_detection=EarlyFlakeDetectionSettings(),
-                test_management=TestManagementSettings(),
-                auto_test_retries=AutoTestRetriesSettings(enabled=False),
-                known_tests_enabled=False,
-                coverage_enabled=False,
-                skipping_enabled=True,  # Enable test skipping
-                require_git=False,
-                itr_enabled=True,  # Enable ITR
-            )
+        # Set up skippable tests - mark one test as skippable
+        skippable_suite = SuiteRef(ModuleRef("."), "test_itr.py")
+        skippable_test_ref = TestRef(skippable_suite, "test_should_be_skipped")
 
-            mock_client.get_known_tests.return_value = set()
-            mock_client.get_test_management_properties.return_value = {}
-            mock_client.get_known_commits.return_value = []
-            mock_client.send_git_pack_file.return_value = None
+        # Use unified mock setup with ITR enabled
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient",
+            return_value=mock_api_client_settings(skipping_enabled=True, skippable_items={skippable_test_ref}),
+        ), setup_standard_mocks():
 
-            # Set up skippable tests - mark one test as skippable
-
-            skippable_suite = SuiteRef(ModuleRef("."), "test_itr.py")
-            skippable_test_ref = TestRef(skippable_suite, "test_should_be_skipped")
-            mock_client.get_skippable_tests.return_value = ({skippable_test_ref}, "correlation-123")
-
-            mock_api_client.return_value = mock_client
-
-            # Mock git and platform dependencies
-            with patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}):
-                with patch("ddtestopt.internal.session_manager.get_platform_tags", return_value={}):
-                    with patch("ddtestopt.internal.session_manager.Git") as mock_git:
-                        # Mock Git instance
-                        mock_git_instance = Mock()
-                        mock_git_instance.get_latest_commits.return_value = []
-                        mock_git_instance.get_filtered_revisions.return_value = []
-                        mock_git_instance.pack_objects.return_value = iter([])
-                        mock_git.return_value = mock_git_instance
-
-                        # Set environment variables
-                        monkeypatch.setenv("DD_API_KEY", "test-key")
-
-                        # Run pytest with the ddtestopt plugin enabled
-                        result = pytester.runpytest("-p", "ddtestopt", "-v", "-s")
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -320,3 +194,249 @@ class TestFeaturesWithMocking:
         # The skippable test should be marked as skipped, the other should pass
         assert "test_should_be_skipped SKIPPED" in output
         assert "test_should_run PASSED" in output
+
+
+class TestPytestPluginIntegration:
+    """Integration tests for the pytest plugin using pytester for better performance and reliability."""
+
+    @pytest.mark.slow
+    def test_basic_test_execution(self, pytester: Pytester) -> None:
+        """Test that a basic test runs with the ddtestopt plugin."""
+        # Create test file using pytester
+        pytester.makepyfile(
+            """
+            def test_simple():
+                '''A simple test that should pass.'''
+                assert True
+
+            def test_with_assertion():
+                '''A test with a real assertion.'''
+                result = 2 + 2
+                assert result == 4
+            """
+        )
+
+        # Set up mocks and environment
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
+        ), setup_standard_mocks():
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+
+        # Check that tests ran successfully
+        assert result.ret == 0
+        result.assert_outcomes(passed=2)
+
+    @pytest.mark.slow
+    def test_failing_test_execution(self, pytester: Pytester) -> None:
+        """Test that failing tests are properly handled."""
+        # Create test file using pytester
+        pytester.makepyfile(
+            """
+            def test_failing():
+                '''A test that should fail.'''
+                assert False, "This test should fail"
+
+            def test_passing():
+                '''A test that should pass.'''
+                assert True
+            """
+        )
+
+        # Set up mocks and environment
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
+        ), setup_standard_mocks():
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+
+        # Check that one test failed and one passed
+        assert result.ret == 1  # pytest exits with 1 when tests fail
+        result.assert_outcomes(passed=1, failed=1)
+
+    @pytest.mark.slow
+    def test_plugin_loads_correctly(self, pytester: Pytester) -> None:
+        """Test that the ddtestopt plugin loads without errors."""
+        # Create test file using pytester
+        pytester.makepyfile(
+            """
+            def test_plugin_loaded():
+                '''Test to verify plugin is loaded.'''
+                assert True
+            """
+        )
+
+        # Set up mocks and environment
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
+        ), setup_standard_mocks():
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v")
+
+        # Should run without plugin loading errors
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+        # Should not have any error messages about plugin loading
+        output = result.stdout.str()
+        assert "Error setting up Test Optimization plugin" not in output
+
+    @pytest.mark.slow
+    def test_test_session_name_extraction(self, pytester: Pytester) -> None:
+        """Test that the pytest session command is properly extracted."""
+        # Create test file using pytester
+        pytester.makepyfile(
+            """
+            def test_command_extraction():
+                '''Test for command extraction functionality.'''
+                assert True
+            """
+        )
+
+        # Set up mocks and environment
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
+        ), setup_standard_mocks():
+
+            # Run with specific arguments that should be captured
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
+
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+    @pytest.mark.slow
+    def test_retry_environment_variables_respected(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+        """Test that retry environment variables are properly read by the plugin."""
+        # Create test file using pytester
+        pytester.makepyfile(
+            """
+            def test_env_vars():
+                '''Test to verify environment variables are read.'''
+                import os
+                # These should be set by our test environment
+                assert os.getenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED") == "true"
+                assert os.getenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT") == "2"
+
+            def test_simple_pass():
+                '''Simple passing test.'''
+                assert True
+            """
+        )
+
+        # Set up mocks and environment (including retry env vars)
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
+        ), setup_standard_mocks():
+            # Set all environment variables via monkeypatch
+
+            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")
+            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
+            monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
+
+            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+
+        # Tests should pass
+        assert result.ret == 0
+        result.assert_outcomes(passed=2)
+
+
+class TestRetryHandler:
+    """Test auto retry functionality using mocking for unit testing."""
+
+    @pytest.mark.slow
+    def test_retry_handler_configuration(self) -> None:
+        """Test that AutoTestRetriesHandler is configured correctly with mocked settings."""
+        # Use unified mock setup with auto retries enabled
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient",
+            return_value=mock_api_client_settings(auto_retries_enabled=True),
+        ), setup_standard_mocks(), patch.dict(
+            os.environ,  # Mock environment variables
+            {
+                "DD_API_KEY": "test-key",
+                "DD_CIVISIBILITY_FLAKY_RETRY_ENABLED": "true",
+                "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "3",
+                "DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT": "10",
+            },
+        ):
+            # Create a test session with proper attributes
+            test_session = TestSession(name="test")
+            test_session.set_attributes(test_command="pytest", test_framework="pytest", test_framework_version="1.0.0")
+
+            # Create session manager with mocked dependencies
+            session_manager = SessionManager(session=test_session)
+            session_manager.setup_retry_handlers()
+
+            # Check that AutoTestRetriesHandler was added
+            from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
+
+            retry_handlers = session_manager.retry_handlers
+            auto_retry_handler = next((h for h in retry_handlers if isinstance(h, AutoTestRetriesHandler)), None)
+
+            assert auto_retry_handler is not None, "AutoTestRetriesHandler should be configured"
+            assert auto_retry_handler.max_retries_per_test == 3
+            assert auto_retry_handler.max_tests_to_retry_per_session == 10
+
+    def test_retry_handler_logic(self) -> None:
+        """Test the retry logic of AutoTestRetriesHandler."""
+        from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
+        from ddtestopt.internal.test_data import ModuleRef
+        from ddtestopt.internal.test_data import SuiteRef
+        from ddtestopt.internal.test_data import Test
+        from ddtestopt.internal.test_data import TestRef
+        from ddtestopt.internal.test_data import TestStatus
+
+        # Create a mock session manager
+        mock_session_manager = Mock()
+
+        # Create AutoTestRetriesHandler
+        with patch.dict(
+            os.environ,
+            {
+                "DD_API_KEY": "foobar",
+                "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2",
+                "DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT": "5",
+            },
+        ):
+            handler = AutoTestRetriesHandler(mock_session_manager)
+
+        # Create a test with a mock parent (suite)
+        module_ref = ModuleRef("module")
+        suite_ref = SuiteRef(module_ref, "suite")
+        test_ref = TestRef(suite_ref, "test_name")
+
+        # Create a mock suite as parent
+        mock_suite = Mock()
+        mock_suite.ref = suite_ref
+
+        test = Test(test_ref.name, parent=mock_suite)
+
+        # Test should_apply
+        assert handler.should_apply(test) is True
+
+        # Create a failing test run
+        test_run = test.make_test_run()
+        test_run.start()
+        test_run.set_status(TestStatus.FAIL)
+        test_run.finish()
+
+        # First retry should be allowed
+        assert handler.should_retry(test) is True
+
+        # Add another failed run
+        test_run2 = test.make_test_run()
+        test_run2.start()
+        test_run2.set_status(TestStatus.FAIL)
+        test_run2.finish()
+
+        # Second retry should be allowed
+        assert handler.should_retry(test) is True
+
+        # Add third failed run
+        test_run3 = test.make_test_run()
+        test_run3.start()
+        test_run3.set_status(TestStatus.FAIL)
+        test_run3.finish()
+
+        # Should not retry after max attempts
+        assert handler.should_retry(test) is False
