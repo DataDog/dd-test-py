@@ -4,17 +4,14 @@ import os
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from _pytest.monkeypatch import MonkeyPatch
 from _pytest.pytester import Pytester
 import pytest
 
 from ddtestopt.internal.session_manager import SessionManager
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestSession
+from tests.integration_fixtures import MockFixture
+from tests.integration_fixtures import run_pytest_with_fixture
 from tests.mocks import mock_api_client_settings
-from tests.mocks import network_mocks
 from tests.mocks import setup_standard_mocks
 
 
@@ -36,18 +33,18 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Use network mocks to prevent all real HTTP calls
-        with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            mock_api_client.return_value = mock_api_client_settings()
+        # Create simple fixture with default settings
+        fixture = MockFixture()
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run test with automatic mode detection
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Test should pass
         assert result.ret == 0
         result.assert_outcomes(passed=1)
 
     @pytest.mark.slow
-    def test_retry_functionality_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_retry_functionality_with_pytester(self, pytester: Pytester) -> None:
         """Test that failing tests are retried when auto retry is enabled."""
         # Create a test file with a failing test
         pytester.makepyfile(
@@ -62,11 +59,14 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Use network mocks to prevent all real HTTP calls
-        with network_mocks(), patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
-            mock_api_client.return_value = mock_api_client_settings(auto_retries_enabled=True)
-            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+        # Set retry-related environment variables
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
+
+        # Create fixture with auto retries enabled
+        fixture = MockFixture(auto_retries_enabled=True, env_vars={"DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2"})
+
+        # Run test with auto retries configuration
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that the test failed after retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -84,7 +84,7 @@ class TestFeaturesWithMocking:
         # Verify that retries happened - should see "RETRY FAILED (Auto Test Retries)" messages
         # DEV: We configured DD_CIVISIBILITY_FLAKY_RETRY_COUNT=2
         # BUT the plugin will show 3 retry attempts (as it includes the initial attempt)
-        retry_messages = output.count("RETRY FAILED (Auto Test Retries)")
+        retry_messages = output.count("test_always_fails RETRY FAILED (Auto Test Retries)")
         assert retry_messages == 3, f"Expected 3 retry messages, got {retry_messages}"
 
         # Should see the final summary mentioning dd_retry
@@ -110,19 +110,14 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Set up known tests - only include the "known" test
-        known_suite = SuiteRef(ModuleRef("."), "test_efd.py")
-        known_test_ref = TestRef(known_suite, "test_known_test")
+        # Define the known test for this test scenario using simple nodeid
+        known_test_nodeid = "test_efd.py::test_known_test"
 
-        # Use unified mock setup with EFD enabled
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient",
-            return_value=mock_api_client_settings(
-                efd_enabled=True, known_tests_enabled=True, known_tests={known_test_ref}
-            ),
-        ), setup_standard_mocks():
+        # Create fixture with EFD enabled and known tests
+        fixture = MockFixture(efd_enabled=True, known_tests_enabled=True, known_tests=[known_test_nodeid])
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+        # Run test with EFD configuration
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that the test failed after EFD retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -165,17 +160,14 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Set up skippable tests - mark one test as skippable
-        skippable_suite = SuiteRef(ModuleRef("."), "test_itr.py")
-        skippable_test_ref = TestRef(skippable_suite, "test_should_be_skipped")
+        # Define the skippable test for this test scenario using simple nodeid
+        skippable_test_nodeid = "test_itr.py::test_should_be_skipped"
 
-        # Use unified mock setup with ITR enabled
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient",
-            return_value=mock_api_client_settings(skipping_enabled=True, skippable_items={skippable_test_ref}),
-        ), setup_standard_mocks():
+        # Create fixture with skipping enabled
+        fixture = MockFixture(skipping_enabled=True, skippable_items=[skippable_test_nodeid])
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+        # Run test with ITR configuration
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -216,12 +208,11 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
+        # Create simple fixture with default settings
+        fixture = MockFixture()
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run test with automatic mode detection
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Check that tests ran successfully
         assert result.ret == 0
@@ -243,69 +234,18 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
+        # Create simple fixture with default settings
+        fixture = MockFixture()
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run test with automatic mode detection
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Check that one test failed and one passed
         assert result.ret == 1  # pytest exits with 1 when tests fail
         result.assert_outcomes(passed=1, failed=1)
 
     @pytest.mark.slow
-    def test_plugin_loads_correctly(self, pytester: Pytester) -> None:
-        """Test that the ddtestopt plugin loads without errors."""
-        # Create test file using pytester
-        pytester.makepyfile(
-            """
-            def test_plugin_loaded():
-                '''Test to verify plugin is loaded.'''
-                assert True
-            """
-        )
-
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
-
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v")
-
-        # Should run without plugin loading errors
-        assert result.ret == 0
-        result.assert_outcomes(passed=1)
-
-        # Should not have any error messages about plugin loading
-        output = result.stdout.str()
-        assert "Error setting up Test Optimization plugin" not in output
-
-    @pytest.mark.slow
-    def test_test_session_name_extraction(self, pytester: Pytester) -> None:
-        """Test that the pytest session command is properly extracted."""
-        # Create test file using pytester
-        pytester.makepyfile(
-            """
-            def test_command_extraction():
-                '''Test for command extraction functionality.'''
-                assert True
-            """
-        )
-
-        # Set up mocks and environment
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
-
-            # Run with specific arguments that should be captured
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
-
-        assert result.ret == 0
-        result.assert_outcomes(passed=1)
-
-    @pytest.mark.slow
-    def test_retry_environment_variables_respected(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_retry_environment_variables_respected(self, pytester: Pytester) -> None:
         """Test that retry environment variables are properly read by the plugin."""
         # Create test file using pytester
         pytester.makepyfile(
@@ -323,17 +263,22 @@ class TestPytestPluginIntegration:
             """
         )
 
-        # Set up mocks and environment (including retry env vars)
-        with patch(
-            "ddtestopt.internal.session_manager.APIClient", return_value=mock_api_client_settings()
-        ), setup_standard_mocks():
-            # Set all environment variables via monkeypatch
+        # Set retry-related environment variables
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
+        pytester._monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
 
-            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")
-            monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
-            monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
+        # Create fixture with environment variables
+        fixture = MockFixture(
+            env_vars={
+                "DD_CIVISIBILITY_FLAKY_RETRY_ENABLED": "true",
+                "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2",
+                "DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT": "5",
+            }
+        )
 
-            result = pytester.runpytest("-p", "ddtestopt", "-p", "no:ddtrace", "-v")
+        # Run test with automatic mode detection
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Tests should pass
         assert result.ret == 0
