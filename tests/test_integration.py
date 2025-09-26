@@ -9,8 +9,8 @@ import pytest
 
 from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.test_data import TestSession
-from tests.fixtures import create_fixture_with_nodeids
-from tests.fixtures import run_pytest_with_fixture
+from tests.integration_fixtures import MockFixture
+from tests.integration_fixtures import run_pytest_with_fixture
 from tests.mocks import mock_api_client_settings
 from tests.mocks import setup_standard_mocks
 
@@ -34,7 +34,7 @@ class TestFeaturesWithMocking:
         )
 
         # Create simple fixture with default settings
-        fixture = create_fixture_with_nodeids()
+        fixture = MockFixture()
 
         # Run test with automatic mode detection
         result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
@@ -63,9 +63,7 @@ class TestFeaturesWithMocking:
         pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
 
         # Create fixture with auto retries enabled
-        fixture = create_fixture_with_nodeids(
-            auto_retries_enabled=True, env_vars={"DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2"}
-        )
+        fixture = MockFixture(auto_retries_enabled=True, env_vars={"DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2"})
 
         # Run test with auto retries configuration
         result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
@@ -116,9 +114,7 @@ class TestFeaturesWithMocking:
         known_test_nodeid = "test_efd.py::test_known_test"
 
         # Create fixture with EFD enabled and known tests
-        fixture = create_fixture_with_nodeids(
-            efd_enabled=True, known_tests_enabled=True, known_tests=[known_test_nodeid]
-        )
+        fixture = MockFixture(efd_enabled=True, known_tests_enabled=True, known_tests=[known_test_nodeid])
 
         # Run test with EFD configuration
         result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
@@ -168,7 +164,7 @@ class TestFeaturesWithMocking:
         skippable_test_nodeid = "test_itr.py::test_should_be_skipped"
 
         # Create fixture with skipping enabled
-        fixture = create_fixture_with_nodeids(skipping_enabled=True, skippable_items=[skippable_test_nodeid])
+        fixture = MockFixture(skipping_enabled=True, skippable_items=[skippable_test_nodeid])
 
         # Run test with ITR configuration
         result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
@@ -213,7 +209,7 @@ class TestPytestPluginIntegration:
         )
 
         # Create simple fixture with default settings
-        fixture = create_fixture_with_nodeids()
+        fixture = MockFixture()
 
         # Run test with automatic mode detection
         result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
@@ -239,7 +235,7 @@ class TestPytestPluginIntegration:
         )
 
         # Create simple fixture with default settings
-        fixture = create_fixture_with_nodeids()
+        fixture = MockFixture()
 
         # Run test with automatic mode detection
         result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
@@ -273,7 +269,7 @@ class TestPytestPluginIntegration:
         pytester._monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
 
         # Create fixture with environment variables
-        fixture = create_fixture_with_nodeids(
+        fixture = MockFixture(
             env_vars={
                 "DD_CIVISIBILITY_FLAKY_RETRY_ENABLED": "true",
                 "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2",
