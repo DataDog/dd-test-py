@@ -13,21 +13,9 @@ import typing as t
 
 from _pytest.pytester import Pytester
 
-# from ddtestopt.internal.test_data import SuiteRef
-# from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.utils import asbool
 from tests.mock_setup import MockFixture
 from tests.mock_setup import setup_mocks_for_in_process
-
-
-# def test_ref_to_nodeid(test_ref: TestRef) -> str:
-#     """Convert TestRef to pytest nodeid string."""
-#     return f"{test_ref.suite.name}::{test_ref.name}"
-
-
-# def suite_ref_to_nodeid(suite_ref: SuiteRef) -> str:
-#     """Convert SuiteRef to pytest nodeid string."""
-#     return suite_ref.name
 
 
 def create_fixture_with_nodeids(
@@ -118,7 +106,6 @@ def _setup_subprocess_mode(pytester: Pytester, fixture: MockFixture) -> t.Genera
 @contextmanager
 def _setup_in_process_mode(fixture: MockFixture) -> t.Generator[None, None, None]:
     """Set up in-process mode using mock_setup module."""
-
     # Use the fixture directly with the simplified mock_setup
     with setup_mocks_for_in_process(fixture):
         yield
