@@ -140,7 +140,7 @@ def _setup_mocks_from_fixture():
         fixture_data = json.load(f)
 
     fixture = MockFixture(**fixture_data)
-    
+
     # Set up mocks using the simplified interface
     setup_mocks_for_subprocess(fixture)
 

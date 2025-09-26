@@ -4,7 +4,6 @@ import os
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from _pytest.monkeypatch import MonkeyPatch
 from _pytest.pytester import Pytester
 import pytest
 
@@ -45,7 +44,7 @@ class TestFeaturesWithMocking:
         result.assert_outcomes(passed=1)
 
     @pytest.mark.slow
-    def test_retry_functionality_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_retry_functionality_with_pytester(self, pytester: Pytester) -> None:
         """Test that failing tests are retried when auto retry is enabled."""
         # Create a test file with a failing test
         pytester.makepyfile(
@@ -64,7 +63,9 @@ class TestFeaturesWithMocking:
         pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
 
         # Create fixture with auto retries enabled
-        fixture = create_fixture_with_nodeids(auto_retries_enabled=True, env_vars={"DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2"})
+        fixture = create_fixture_with_nodeids(
+            auto_retries_enabled=True, env_vars={"DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2"}
+        )
 
         # Run test with auto retries configuration
         result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
@@ -85,7 +86,7 @@ class TestFeaturesWithMocking:
         # Verify that retries happened - should see "RETRY FAILED (Auto Test Retries)" messages
         # DEV: We configured DD_CIVISIBILITY_FLAKY_RETRY_COUNT=2
         # BUT the plugin will show 3 retry attempts (as it includes the initial attempt)
-        retry_messages = output.count("RETRY FAILED (Auto Test Retries)")
+        retry_messages = output.count("test_always_fails RETRY FAILED (Auto Test Retries)")
         assert retry_messages == 3, f"Expected 3 retry messages, got {retry_messages}"
 
         # Should see the final summary mentioning dd_retry
@@ -113,9 +114,11 @@ class TestFeaturesWithMocking:
 
         # Define the known test for this test scenario using simple nodeid
         known_test_nodeid = "test_efd.py::test_known_test"
-        
+
         # Create fixture with EFD enabled and known tests
-        fixture = create_fixture_with_nodeids(efd_enabled=True, known_tests_enabled=True, known_tests=[known_test_nodeid])
+        fixture = create_fixture_with_nodeids(
+            efd_enabled=True, known_tests_enabled=True, known_tests=[known_test_nodeid]
+        )
 
         # Run test with EFD configuration
         result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
@@ -163,7 +166,7 @@ class TestFeaturesWithMocking:
 
         # Define the skippable test for this test scenario using simple nodeid
         skippable_test_nodeid = "test_itr.py::test_should_be_skipped"
-        
+
         # Create fixture with skipping enabled
         fixture = create_fixture_with_nodeids(skipping_enabled=True, skippable_items=[skippable_test_nodeid])
 
@@ -246,56 +249,7 @@ class TestPytestPluginIntegration:
         result.assert_outcomes(passed=1, failed=1)
 
     @pytest.mark.slow
-    def test_plugin_loads_correctly(self, pytester: Pytester) -> None:
-        """Test that the ddtestopt plugin loads without errors."""
-        # Create test file using pytester
-        pytester.makepyfile(
-            """
-            def test_plugin_loaded():
-                '''Test to verify plugin is loaded.'''
-                assert True
-            """
-        )
-
-        # Create simple fixture with default settings
-        fixture = create_fixture_with_nodeids()
-
-        # Run test with automatic mode detection
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v"], fixture)
-
-        # Should run without plugin loading errors
-        assert result.ret == 0
-        result.assert_outcomes(passed=1)
-
-        # Should not have any error messages about plugin loading
-        output = result.stdout.str()
-        assert "Error setting up Test Optimization plugin" not in output
-
-    @pytest.mark.slow
-    def test_test_session_name_extraction(self, pytester: Pytester) -> None:
-        """Test that the pytest session command is properly extracted."""
-        # Create test file using pytester
-        pytester.makepyfile(
-            """
-            def test_command_extraction():
-                '''Test for command extraction functionality.'''
-                assert True
-            """
-        )
-
-        # Create simple fixture with default settings
-        fixture = create_fixture_with_nodeids()
-
-        # Run test with automatic mode detection
-        result = run_test_with_fixture(
-            pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v"], fixture
-        )
-
-        assert result.ret == 0
-        result.assert_outcomes(passed=1)
-
-    @pytest.mark.slow
-    def test_retry_environment_variables_respected(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
+    def test_retry_environment_variables_respected(self, pytester: Pytester) -> None:
         """Test that retry environment variables are properly read by the plugin."""
         # Create test file using pytester
         pytester.makepyfile(

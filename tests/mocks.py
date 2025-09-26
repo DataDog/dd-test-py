@@ -9,6 +9,7 @@ for testing the ddtestopt framework. The design emphasizes:
 - Utility functions for common patterns
 """
 
+from contextlib import ExitStack
 import os
 from pathlib import Path
 import typing as t
@@ -29,8 +30,6 @@ from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
-
-from contextlib import ExitStack
 
 
 def get_mock_git_instance() -> Mock:

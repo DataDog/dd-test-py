@@ -9,6 +9,7 @@ This approach ensures coverage tracking and eliminates code duplication.
 Now uses builders from mocks.py for consistent mock creation.
 """
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 import typing as t
 from unittest.mock import Mock
@@ -17,12 +18,9 @@ from unittest.mock import patch
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
-
 from tests.mocks import APIClientMockBuilder
 from tests.mocks import BackendConnectorMockBuilder
 from tests.mocks import get_mock_git_instance
-
-from contextlib import contextmanager
 
 
 def create_mock_objects_from_fixture(fixture: t.Any) -> t.Dict[str, t.Any]:
@@ -34,7 +32,6 @@ def create_mock_objects_from_fixture(fixture: t.Any) -> t.Dict[str, t.Any]:
     Returns:
         Dictionary containing all mock objects
     """
-
     # Create mock git instance using existing helper
     mock_git_instance = get_mock_git_instance()
 
@@ -137,12 +134,12 @@ def setup_mocks_for_in_process(fixture: t.Any) -> t.ContextManager[None]:
 
 def nodeid_to_test_ref(nodeid: str) -> TestRef:
     """Convert pytest nodeid to TestRef object.
-    
+
     Example: "test_file.py::test_name" → TestRef(...)
     """
     if "::" not in nodeid:
         raise ValueError(f"Invalid test nodeid (missing '::'): {nodeid}")
-    
+
     file_path, test_name = nodeid.split("::", 1)
     module_ref = ModuleRef(".")
     suite_ref = SuiteRef(module_ref, file_path)
@@ -151,12 +148,12 @@ def nodeid_to_test_ref(nodeid: str) -> TestRef:
 
 def nodeid_to_suite_ref(nodeid: str) -> SuiteRef:
     """Convert pytest nodeid to SuiteRef object.
-    
+
     Example: "test_file.py" → SuiteRef(...)
     """
     if "::" in nodeid:
         raise ValueError(f"Cannot convert test nodeid to suite: {nodeid}")
-    
+
     file_path = nodeid
     module_ref = ModuleRef(".")
     return SuiteRef(module_ref, file_path)
@@ -165,7 +162,7 @@ def nodeid_to_suite_ref(nodeid: str) -> SuiteRef:
 @dataclass
 class MockFixture:
     """Simple test fixture configuration using pytest nodeids.
-    
+
     Uses simple strings (pytest nodeids) for much simpler JSON serialization.
     Examples:
     - "test_file.py::test_name" for individual tests
@@ -180,8 +177,8 @@ class MockFixture:
     known_tests_enabled: bool = False
 
     # Simple string lists - much easier to serialize/deserialize
-    skippable_items: t.Optional[t.List[str]] = None   # pytest nodeids
-    known_tests: t.Optional[t.List[str]] = None       # pytest nodeids
+    skippable_items: t.Optional[t.List[str]] = None  # pytest nodeids
+    known_tests: t.Optional[t.List[str]] = None  # pytest nodeids
 
     # Environment variables for the test
     env_vars: t.Optional[t.Dict[str, str]] = None
@@ -204,7 +201,7 @@ class MockFixture:
 
         for nodeid in self.skippable_items:
             if "::" in nodeid:
-                # It's a test reference  
+                # It's a test reference
                 items.add(nodeid_to_test_ref(nodeid))
             else:
                 # It's a suite/file reference
