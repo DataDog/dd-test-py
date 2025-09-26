@@ -673,6 +673,7 @@ class TestSessionLifecycleMethods:
         # Mock session
         mock_session = Mock()
         mock_session.exitstatus = pytest.ExitCode.OK
+        mock_session.config = Mock(workeroutput={})
 
         plugin.pytest_sessionfinish(mock_session)
 
@@ -808,7 +809,7 @@ class TestXdistPlugin:
 
         # Mock session with session_id
         plugin.session = Mock()
-        plugin.session.session_id = "test-session-123"
+        plugin.session.item_id = "test-session-123"
 
         # Mock node
         mock_node = Mock()

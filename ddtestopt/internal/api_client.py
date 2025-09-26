@@ -12,6 +12,7 @@ from ddtestopt.internal.constants import EMPTY_NAME
 from ddtestopt.internal.git import GitTag
 from ddtestopt.internal.http import BackendConnector
 from ddtestopt.internal.http import FileAttachment
+from ddtestopt.internal.test_data import ITRSkippingLevel
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
@@ -28,6 +29,7 @@ class APIClient:
         service: str,
         env: str,
         git_tags: t.Dict[str, str],
+        itr_skipping_level: ITRSkippingLevel,
         configurations: t.Dict[str, str],
     ) -> None:
         self.site = site
@@ -35,11 +37,15 @@ class APIClient:
         self.service = service
         self.env = env
         self.git_tags = git_tags
+        self.itr_skipping_level = itr_skipping_level
         self.configurations = configurations
 
         self.base_url = f"https://api.{self.site}"
 
         self.connector = BackendConnector(host=f"api.{self.site}", default_headers={"dd-api-key": self.api_key})
+
+    def close(self) -> None:
+        self.connector.close()
 
     def get_settings(self) -> Settings:
         request_data = {
@@ -47,7 +53,7 @@ class APIClient:
                 "id": str(uuid.uuid4()),
                 "type": "ci_app_test_service_libraries_settings",
                 "attributes": {
-                    "test_level": "test",
+                    "test_level": self.itr_skipping_level.value,
                     "service": self.service,
                     "env": self.env,
                     "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
@@ -191,7 +197,7 @@ class APIClient:
                     "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
                     "sha": self.git_tags[GitTag.COMMIT_SHA],
                     "configurations": self.configurations,
-                    "test_level": "test",  # TODO: suite level support
+                    "test_level": self.itr_skipping_level.value,
                 },
             }
         }
@@ -203,9 +209,9 @@ class APIClient:
                 if item["type"] in ("test", "suite"):
                     module_ref = ModuleRef(item["attributes"].get("configurations", {}).get("test.bundle", EMPTY_NAME))
                     suite_ref = SuiteRef(module_ref, item["attributes"].get("suite", EMPTY_NAME))
-                    if item["type"] == "suite":
+                    if item["type"] == "suite" and self.itr_skipping_level == ITRSkippingLevel.SUITE:
                         skippable_items.add(suite_ref)
-                    else:
+                    elif item["type"] == "test" and self.itr_skipping_level == ITRSkippingLevel.TEST:
                         test_ref = TestRef(suite_ref, item["attributes"].get("name", EMPTY_NAME))
                         skippable_items.add(test_ref)
 
