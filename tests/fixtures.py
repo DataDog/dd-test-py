@@ -123,7 +123,7 @@ _setup_subprocess_mocks_from_fixture()
     pytester.makeconftest(conftest_content)
 
 
-def run_test_with_fixture(
+def run_pytest_with_fixture(
     pytester: Pytester,
     pytest_args: t.List[str],
     fixture: MockFixture,

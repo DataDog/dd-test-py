@@ -10,7 +10,7 @@ import pytest
 from ddtestopt.internal.session_manager import SessionManager
 from ddtestopt.internal.test_data import TestSession
 from tests.fixtures import create_fixture_with_nodeids
-from tests.fixtures import run_test_with_fixture
+from tests.fixtures import run_pytest_with_fixture
 from tests.mocks import mock_api_client_settings
 from tests.mocks import setup_standard_mocks
 
@@ -37,7 +37,7 @@ class TestFeaturesWithMocking:
         fixture = create_fixture_with_nodeids()
 
         # Run test with automatic mode detection
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Test should pass
         assert result.ret == 0
@@ -68,7 +68,7 @@ class TestFeaturesWithMocking:
         )
 
         # Run test with auto retries configuration
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that the test failed after retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -121,7 +121,7 @@ class TestFeaturesWithMocking:
         )
 
         # Run test with EFD configuration
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that the test failed after EFD retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -171,7 +171,7 @@ class TestFeaturesWithMocking:
         fixture = create_fixture_with_nodeids(skipping_enabled=True, skippable_items=[skippable_test_nodeid])
 
         # Run test with ITR configuration
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -216,7 +216,7 @@ class TestPytestPluginIntegration:
         fixture = create_fixture_with_nodeids()
 
         # Run test with automatic mode detection
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Check that tests ran successfully
         assert result.ret == 0
@@ -242,7 +242,7 @@ class TestPytestPluginIntegration:
         fixture = create_fixture_with_nodeids()
 
         # Run test with automatic mode detection
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Check that one test failed and one passed
         assert result.ret == 1  # pytest exits with 1 when tests fail
@@ -282,7 +282,7 @@ class TestPytestPluginIntegration:
         )
 
         # Run test with automatic mode detection
-        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
+        result = run_pytest_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Tests should pass
         assert result.ret == 0
