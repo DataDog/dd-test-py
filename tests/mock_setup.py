@@ -72,10 +72,10 @@ def create_patchers(fixture: t.Any) -> t.List[t.Any]:
     return patchers
 
 
-def setup_mocks_for_subprocess(fixture: t.Any) -> None:
-    """Set up mocks for subprocess execution (called from conftest.py).
+def start_patchers(fixture: t.Any) -> t.List[t.Any]:
+    """Set up mocks (called from conftest.py).
 
-    This function starts all patches and leaves them running for the subprocess.
+    This function starts all patches (and leaves them running for the subprocess).
 
     Args:
         fixture: MockFixture object with test configuration
@@ -85,6 +85,8 @@ def setup_mocks_for_subprocess(fixture: t.Any) -> None:
     # Start all patches for subprocess mode
     for patcher in patchers:
         patcher.start()
+
+    return patchers
 
 
 def setup_mocks_for_in_process(fixture: t.Any) -> t.ContextManager[None]:
@@ -99,11 +101,7 @@ def setup_mocks_for_in_process(fixture: t.Any) -> t.ContextManager[None]:
 
     @contextmanager
     def _mock_context() -> t.Generator[t.Any, t.Any, t.Any]:
-        patchers = create_patchers(fixture)
-
-        # Start all patches
-        for patcher in patchers:
-            patcher.start()
+        patchers = start_patchers(fixture)
 
         try:
             yield
@@ -213,4 +211,4 @@ def _setup_subprocess_mocks_from_fixture() -> None:
     fixture = MockFixture(**fixture_data)
 
     # Set up mocks using the simplified interface
-    setup_mocks_for_subprocess(fixture)
+    start_patchers(fixture)
