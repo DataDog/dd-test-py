@@ -30,6 +30,8 @@ from ddtestopt.internal.test_data import TestRun
 from ddtestopt.internal.test_data import TestSession
 from ddtestopt.internal.test_data import TestSuite
 
+from contextlib import ExitStack
+
 
 def get_mock_git_instance() -> Mock:
     mock_git_instance = Mock()
@@ -528,7 +530,6 @@ def setup_standard_mocks() -> t.ContextManager[t.Any]:
 
 def network_mocks() -> t.ContextManager[t.Any]:
     """Create comprehensive mocks that prevent ALL network calls at multiple levels."""
-    from contextlib import ExitStack
 
     def _create_stack() -> t.ContextManager[t.Any]:
         stack = ExitStack()

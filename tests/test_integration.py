@@ -9,13 +9,11 @@ from _pytest.pytester import Pytester
 import pytest
 
 from ddtestopt.internal.session_manager import SessionManager
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import TestRef
 from ddtestopt.internal.test_data import TestSession
+from tests.fixtures import create_fixture_with_nodeids
+from tests.fixtures import run_test_with_fixture
 from tests.mocks import mock_api_client_settings
 from tests.mocks import setup_standard_mocks
-from tests.subprocess_mocks import run_test_with_mocks
 
 
 # Functions moved to tests.mocks for centralization
@@ -36,8 +34,11 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Run test with automatic mode detection (subprocess by default, in-process if ddtrace not loaded)
-        result = run_test_with_mocks(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"])
+        # Create simple fixture with default settings
+        fixture = create_fixture_with_nodeids()
+
+        # Run test with automatic mode detection
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Test should pass
         assert result.ret == 0
@@ -62,10 +63,11 @@ class TestFeaturesWithMocking:
         # Set retry-related environment variables
         pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
 
-        # Run test with automatic mode detection and retry configuration
-        result = run_test_with_mocks(
-            pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], auto_retries_enabled=True
-        )
+        # Create fixture with auto retries enabled
+        fixture = create_fixture_with_nodeids(auto_retries_enabled=True, env_vars={"DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2"})
+
+        # Run test with auto retries configuration
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that the test failed after retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -109,18 +111,14 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Set up known tests - only include the "known" test
-        known_suite = SuiteRef(ModuleRef("."), "test_efd.py")
-        known_test_ref = TestRef(known_suite, "test_known_test")
+        # Define the known test for this test scenario using simple nodeid
+        known_test_nodeid = "test_efd.py::test_known_test"
+        
+        # Create fixture with EFD enabled and known tests
+        fixture = create_fixture_with_nodeids(efd_enabled=True, known_tests_enabled=True, known_tests=[known_test_nodeid])
 
-        # Run test with automatic mode detection and EFD configuration
-        result = run_test_with_mocks(
-            pytester,
-            ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"],
-            efd_enabled=True,
-            known_tests_enabled=True,
-            known_tests={known_test_ref},
-        )
+        # Run test with EFD configuration
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that the test failed after EFD retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -163,17 +161,14 @@ class TestFeaturesWithMocking:
         """
         )
 
-        # Set up skippable tests - mark one test as skippable
-        skippable_suite = SuiteRef(ModuleRef("."), "test_itr.py")
-        skippable_test_ref = TestRef(skippable_suite, "test_should_be_skipped")
+        # Define the skippable test for this test scenario using simple nodeid
+        skippable_test_nodeid = "test_itr.py::test_should_be_skipped"
+        
+        # Create fixture with skipping enabled
+        fixture = create_fixture_with_nodeids(skipping_enabled=True, skippable_items=[skippable_test_nodeid])
 
-        # Run test with automatic mode detection and ITR configuration
-        result = run_test_with_mocks(
-            pytester,
-            ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"],
-            skipping_enabled=True,
-            skippable_items={skippable_test_ref},
-        )
+        # Run test with ITR configuration
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s"], fixture)
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -214,8 +209,11 @@ class TestPytestPluginIntegration:
             """
         )
 
+        # Create simple fixture with default settings
+        fixture = create_fixture_with_nodeids()
+
         # Run test with automatic mode detection
-        result = run_test_with_mocks(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"])
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Check that tests ran successfully
         assert result.ret == 0
@@ -237,8 +235,11 @@ class TestPytestPluginIntegration:
             """
         )
 
+        # Create simple fixture with default settings
+        fixture = create_fixture_with_nodeids()
+
         # Run test with automatic mode detection
-        result = run_test_with_mocks(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"])
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Check that one test failed and one passed
         assert result.ret == 1  # pytest exits with 1 when tests fail
@@ -256,8 +257,11 @@ class TestPytestPluginIntegration:
             """
         )
 
+        # Create simple fixture with default settings
+        fixture = create_fixture_with_nodeids()
+
         # Run test with automatic mode detection
-        result = run_test_with_mocks(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v"])
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-v"], fixture)
 
         # Should run without plugin loading errors
         assert result.ret == 0
@@ -279,8 +283,13 @@ class TestPytestPluginIntegration:
             """
         )
 
+        # Create simple fixture with default settings
+        fixture = create_fixture_with_nodeids()
+
         # Run test with automatic mode detection
-        result = run_test_with_mocks(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v"])
+        result = run_test_with_fixture(
+            pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "--tb=short", "-x", "-v"], fixture
+        )
 
         assert result.ret == 0
         result.assert_outcomes(passed=1)
@@ -309,8 +318,17 @@ class TestPytestPluginIntegration:
         pytester._monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
         pytester._monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
 
+        # Create fixture with environment variables
+        fixture = create_fixture_with_nodeids(
+            env_vars={
+                "DD_CIVISIBILITY_FLAKY_RETRY_ENABLED": "true",
+                "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2",
+                "DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT": "5",
+            }
+        )
+
         # Run test with automatic mode detection
-        result = run_test_with_mocks(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"])
+        result = run_test_with_fixture(pytester, ["-p", "ddtestopt", "-p", "no:ddtrace", "-v"], fixture)
 
         # Tests should pass
         assert result.ret == 0
