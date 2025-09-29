@@ -527,7 +527,6 @@ def setup_standard_mocks() -> t.ContextManager[t.Any]:
         "ddtestopt.internal.session_manager",
         get_git_tags=Mock(return_value={}),
         get_platform_tags=Mock(return_value={}),
-        get_workspace_path=Mock(return_value="/repo"),
         Git=Mock(return_value=get_mock_git_instance()),
     )
 

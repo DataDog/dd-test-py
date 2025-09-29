@@ -406,7 +406,6 @@ class BaseModuleWatchdog(abc.ABC):
 
             if not isinstance(loader, _ImportHookChainedLoader):
                 spec.loader = t.cast("Loader", _ImportHookChainedLoader(loader, spec))
-
             t.cast(_ImportHookChainedLoader, spec.loader).add_callback(type(self), self.after_import)
             t.cast(_ImportHookChainedLoader, spec.loader).add_transformer(type(self), self.transform)
 

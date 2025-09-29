@@ -9,6 +9,7 @@ import pytest
 from ddtestopt.internal.test_data import ModuleRef
 from ddtestopt.internal.test_data import SuiteRef
 from ddtestopt.internal.test_data import TestRef
+from ddtestopt.internal.writer import TestCoverageWriter
 from tests.mocks import EventCapture
 from tests.mocks import mock_api_client_settings
 from tests.mocks import setup_standard_mocks
@@ -191,3 +192,27 @@ class TestITR:
         assert session["content"]["meta"]["test.itr.tests_skipping.tests_skipped"] == "true"
         assert session["content"]["meta"]["test.itr.tests_skipping.type"] == "test"
         assert session["content"]["metrics"]["test.itr.tests_skipping.count"] == 1
+
+    @pytest.mark.slow
+    def test_itr_code_coverage(self, pytester: Pytester) -> None:
+        pytester.makepyfile(
+            lib_constants="""
+            ANSWER = 42
+            """,
+            test_foo="""
+            from lib_constants import ANSWER
+
+            def test_answer():
+                assert ANSWER == 42
+            """,
+        )
+        with patch(
+            "ddtestopt.internal.session_manager.APIClient",
+            return_value=mock_api_client_settings(),
+        ), setup_standard_mocks():
+            with patch.object(TestCoverageWriter, "put_event") as put_event_mock:
+                pytester.inline_run("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+
+        coverage_events = [args[0] for args, kwargs in put_event_mock.call_args_list]
+        covered_files = set(f["filename"] for f in coverage_events[0]["files"])
+        assert covered_files == {"/test_foo.py", "/lib_constants.py"}
