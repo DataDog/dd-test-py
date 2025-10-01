@@ -6,7 +6,6 @@ The rest of ddtestopt should only use the interface exposed in this file to set 
 
 import contextlib
 from pathlib import Path
-import sys
 import typing as t
 
 from ddtestopt.vendor.ddtrace_coverage.code import ModuleCodeCollector
@@ -16,7 +15,7 @@ import ddtestopt.vendor.ddtrace_coverage.installer
 
 def install_coverage(workspace_path: Path) -> None:
     # Do not clash with ddtrace's own ModuleCodeCollector.
-    sys.meta_path = [m for m in sys.meta_path if not m.__module__.startswith("ddtrace.")]
+    # sys.meta_path = [m for m in sys.meta_path if not m.__module__.startswith("ddtrace.")]
 
     ddtestopt.vendor.ddtrace_coverage.installer.install(
         include_paths=[workspace_path], collect_import_time_coverage=True

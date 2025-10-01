@@ -272,7 +272,7 @@ class _ImportHookChainedLoader:
 
         _get_code = getattr(self.loader, "get_code", None)
         # DEV: avoid re-wrapping the loader's get_code method (eg: in case of repeated importlib.reload() calls)
-        if _get_code is not None and not getattr(_get_code, "_dd_get_code", False):
+        if _get_code is not None and not getattr(_get_code, "_ddtest_get_code", False):
 
             def get_code(_loader, fullname):
                 code = _get_code(fullname)
@@ -282,9 +282,13 @@ class _ImportHookChainedLoader:
 
                 return code
 
-            setattr(get_code, "_dd_get_code", True)
+            setattr(get_code, "_ddtest_get_code", True)
 
-            self.loader.get_code = get_code.__get__(self.loader, type(self.loader))  # type: ignore[union-attr]
+            if self.loader.__class__.__name__ == "_ImportHookChainedLoader" and hasattr(self.loader, "loader"):
+                # Skip over ddtrace's _ImportHookChainedLoader!
+                self.loader.loader.get_code = get_code.__get__(self.loader, type(self.loader))  # type: ignore[union-attr]
+            else:
+                self.loader.get_code = get_code.__get__(self.loader, type(self.loader))  # type: ignore[union-attr]
 
         pre_exec_hook = self._find_first_pre_exec_hook(module)
 
@@ -403,6 +407,7 @@ class BaseModuleWatchdog(abc.ABC):
                 return None
 
             loader = getattr(spec, "loader", None)
+
 
             if not isinstance(loader, _ImportHookChainedLoader):
                 spec.loader = t.cast("Loader", _ImportHookChainedLoader(loader, spec))
