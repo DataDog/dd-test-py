@@ -111,7 +111,7 @@ class SessionManagerMockBuilder:
             test_management=self._settings.test_management,
             auto_test_retries=self._settings.auto_test_retries,
             known_tests_enabled=self._settings.known_tests_enabled,
-            coverage_enabled=self._settings.coverage_enabled,
+            coverage_enabled=enabled,
             skipping_enabled=enabled,
             require_git=self._settings.require_git,
             itr_enabled=self._settings.itr_enabled,
@@ -527,7 +527,6 @@ def setup_standard_mocks() -> t.ContextManager[t.Any]:
         "ddtestopt.internal.session_manager",
         get_git_tags=Mock(return_value={}),
         get_platform_tags=Mock(return_value={}),
-        get_workspace_path=Mock(return_value="/repo"),
         Git=Mock(return_value=get_mock_git_instance()),
     )
 
