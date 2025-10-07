@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import typing as t
 from unittest.mock import patch
 
@@ -194,6 +195,7 @@ class TestITR:
         assert session["content"]["metrics"]["test.itr.tests_skipping.count"] == 1
 
     @pytest.mark.slow
+    @pytest.mark.skipif("slipcover" in sys.modules, reason="slipcover is incompatible with ITR code coverage")
     def test_itr_code_coverage(self, pytester: Pytester) -> None:
         pytester.makepyfile(
             lib_constants="""
