@@ -14,9 +14,6 @@ import ddtestopt.vendor.ddtrace_coverage.installer
 
 
 def install_coverage(workspace_path: Path) -> None:
-    # Do not clash with ddtrace's own ModuleCodeCollector.
-    # sys.meta_path = [m for m in sys.meta_path if not m.__module__.startswith("ddtrace.")]
-
     ddtestopt.vendor.ddtrace_coverage.installer.install(
         include_paths=[workspace_path], collect_import_time_coverage=True
     )

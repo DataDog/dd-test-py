@@ -285,7 +285,10 @@ class _ImportHookChainedLoader:
             setattr(get_code, "_ddtest_get_code", True)
 
             if self.loader.__class__.__name__ == "_ImportHookChainedLoader" and hasattr(self.loader, "loader"):
-                # Skip over ddtrace's _ImportHookChainedLoader!
+                # DEV: If both dd-test-py and dd-trace-py are in use, we may end up chainloading dd-trace-py's
+                # _ImportHookChainedLoader. Unfortunately, it does not expect its loader to be overridden and will not
+                # call our `get_code` if we do that. To work around this, if the next loader is dd-trace-py's, we modify
+                # the one _after_ it in the chain, so that when dd-trace-py passes control to it, it calls us.
                 self.loader.loader.get_code = get_code.__get__(self.loader, type(self.loader))  # type: ignore[union-attr]
             else:
                 self.loader.get_code = get_code.__get__(self.loader, type(self.loader))  # type: ignore[union-attr]
