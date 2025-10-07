@@ -111,7 +111,7 @@ class SessionManagerMockBuilder:
             test_management=self._settings.test_management,
             auto_test_retries=self._settings.auto_test_retries,
             known_tests_enabled=self._settings.known_tests_enabled,
-            coverage_enabled=self._settings.coverage_enabled,
+            coverage_enabled=enabled,
             skipping_enabled=enabled,
             require_git=self._settings.require_git,
             itr_enabled=self._settings.itr_enabled,
