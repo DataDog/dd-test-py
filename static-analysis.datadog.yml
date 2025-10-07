@@ -4,9 +4,3 @@ rulesets:
       if-return-no-else:
         ignore:
           - "**/*.py"
-
-      no-bare-except:
-        # In most projects this rule is a good idea, but for the tracer, in a lot of cases, we just want to catch
-        # _everything_, log the exception, and continue going to avoid breaking the end user's pipeline.
-        ignore:
-          - "**/*.py"
