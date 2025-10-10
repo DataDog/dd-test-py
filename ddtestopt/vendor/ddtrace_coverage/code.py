@@ -12,7 +12,6 @@ import typing as t
 from .coverage_lines import CoverageLines
 from .instrumentation import instrument_all_lines
 from .module import ModuleWatchdog
-from .packages import is_user_code
 from .packages import platlib_path
 from .packages import platstdlib_path
 from .packages import purelib_path
@@ -333,9 +332,6 @@ class ModuleCodeCollector(ModuleWatchdog):
 
         if any(code_path.is_relative_to(exclude_path) for exclude_path in self._exclude_paths):
             # Don't instrument code from standard library/site packages/etc.
-            return code
-
-        if not is_user_code(code_path):
             return code
 
         retval = self.instrument_code(code, _module.__package__ if _module is not None else "")
