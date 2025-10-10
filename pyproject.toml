@@ -9,6 +9,7 @@ dependencies = [
     "bytecode>=0.15.0",
     "msgpack>=1.0.0",
 ]
+license = "Apache-2.0"
 
 [project.entry-points.pytest11]
 ddtestopt = "ddtestopt.internal.pytest.plugin"
