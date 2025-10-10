@@ -28,8 +28,6 @@ jobs:
     name: Run Tests
     runs-on: ubuntu-latest
     needs: qa  # Only run if QA job passes
-    environment:
-      name: dd_access # Specify the environment to use
     permissions:
       contents: read
       packages: read
@@ -58,9 +56,7 @@ jobs:
 
     - name: Run tests
       env:
-        PYTEST_ADDOPTS: '-v --ddtrace --ignore=ddtestopt'
-        DD_API_KEY: ${{ secrets.DD_API_KEY }}
-        DD_CIVISIBILITY_AGENTLESS_ENABLED: '1'
+        PYTEST_ADDOPTS: '-v --ignore=ddtestopt'
       run: hatch test -i py=${{ matrix.python-version }} -i pytest=${{ matrix.pytest-version}}
 
   coverage:
