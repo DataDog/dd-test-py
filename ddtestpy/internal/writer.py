@@ -7,14 +7,14 @@ import uuid
 
 import msgpack  # type: ignore
 
-from ddtestopt.internal.http import BackendConnector
-from ddtestopt.internal.http import FileAttachment
-from ddtestopt.internal.test_data import TestItem
-from ddtestopt.internal.test_data import TestModule
-from ddtestopt.internal.test_data import TestRun
-from ddtestopt.internal.test_data import TestSession
-from ddtestopt.internal.test_data import TestStatus
-from ddtestopt.internal.test_data import TestSuite
+from ddtestpy.internal.http import BackendConnector
+from ddtestpy.internal.http import FileAttachment
+from ddtestpy.internal.test_data import TestItem
+from ddtestpy.internal.test_data import TestModule
+from ddtestpy.internal.test_data import TestRun
+from ddtestpy.internal.test_data import TestSession
+from ddtestpy.internal.test_data import TestStatus
+from ddtestpy.internal.test_data import TestSuite
 
 
 log = logging.getLogger(__name__)

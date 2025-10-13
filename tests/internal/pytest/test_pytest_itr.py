@@ -7,10 +7,10 @@ from unittest.mock import patch
 from _pytest.pytester import Pytester
 import pytest
 
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import TestRef
-from ddtestopt.internal.writer import TestCoverageWriter
+from ddtestpy.internal.test_data import ModuleRef
+from ddtestpy.internal.test_data import SuiteRef
+from ddtestpy.internal.test_data import TestRef
+from ddtestpy.internal.writer import TestCoverageWriter
 from tests.mocks import EventCapture
 from tests.mocks import mock_api_client_settings
 from tests.mocks import setup_standard_mocks
@@ -39,11 +39,11 @@ class TestITR:
         }
 
         with patch(
-            "ddtestopt.internal.session_manager.APIClient",
+            "ddtestpy.internal.session_manager.APIClient",
             return_value=mock_api_client_settings(skipping_enabled=True, skippable_items=skippable_items),
         ), setup_standard_mocks():
             with EventCapture.capture() as event_capture:
-                result = pytester.inline_run("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+                result = pytester.inline_run("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -93,11 +93,11 @@ class TestITR:
         }
 
         with patch(
-            "ddtestopt.internal.session_manager.APIClient",
+            "ddtestpy.internal.session_manager.APIClient",
             return_value=mock_api_client_settings(skipping_enabled=False, skippable_items=skippable_items),
         ), setup_standard_mocks():
             with EventCapture.capture() as event_capture:
-                result = pytester.inline_run("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+                result = pytester.inline_run("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that tests completed with failure (1 test failed).
         assert result.ret == 1
@@ -155,11 +155,11 @@ class TestITR:
         }
 
         with patch(
-            "ddtestopt.internal.session_manager.APIClient",
+            "ddtestpy.internal.session_manager.APIClient",
             return_value=mock_api_client_settings(skipping_enabled=True, skippable_items=skippable_items),
         ), setup_standard_mocks():
             with EventCapture.capture() as event_capture:
-                result = pytester.inline_run("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+                result = pytester.inline_run("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that tests completed with failure (1 test failed).
         assert result.ret == 1
@@ -209,11 +209,11 @@ class TestITR:
             """,
         )
         with patch(
-            "ddtestopt.internal.session_manager.APIClient",
+            "ddtestpy.internal.session_manager.APIClient",
             return_value=mock_api_client_settings(skipping_enabled=True),
         ), setup_standard_mocks():
             with patch.object(TestCoverageWriter, "put_event") as put_event_mock:
-                pytester.inline_run("-p", "ddtestopt", "-p", "no:ddtrace", "-v", "-s")
+                pytester.inline_run("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
 
         coverage_events = [args[0] for args, kwargs in put_event_mock.call_args_list]
         covered_files = set(f["filename"] for f in coverage_events[0]["files"])

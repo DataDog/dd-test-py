@@ -1,14 +1,14 @@
-"""Tests for ddtestopt.internal.git module."""
+"""Tests for ddtestpy.internal.git module."""
 
 from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
 
-from ddtestopt.internal.git import Git
-from ddtestopt.internal.git import GitTag
-from ddtestopt.internal.git import _GitSubprocessDetails
-from ddtestopt.internal.git import get_git_tags
+from ddtestpy.internal.git import Git
+from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.git import _GitSubprocessDetails
+from ddtestpy.internal.git import get_git_tags
 
 
 class TestGitTag:
@@ -230,7 +230,7 @@ class TestGit:
 class TestGetGitTags:
     """Tests for get_git_tags function."""
 
-    @patch("ddtestopt.internal.git.Git")
+    @patch("ddtestpy.internal.git.Git")
     def test_get_git_tags_success(self, mock_git_class: Mock) -> None:
         """Test get_git_tags with successful Git operations."""
         mock_git = Mock()
@@ -252,8 +252,8 @@ class TestGetGitTags:
         }
         assert result == expected
 
-    @patch("ddtestopt.internal.git.Git")
-    @patch("ddtestopt.internal.git.log")
+    @patch("ddtestpy.internal.git.Git")
+    @patch("ddtestpy.internal.git.log")
     def test_get_git_tags_git_not_available(self, mock_log: Mock, mock_git_class: Mock) -> None:
         """Test get_git_tags when Git is not available."""
         mock_git_class.side_effect = RuntimeError("git command not found")

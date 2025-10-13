@@ -1,1 +1,1 @@
-"""Tests for ddtestopt.internal modules."""
+"""Tests for ddtestpy.internal modules."""

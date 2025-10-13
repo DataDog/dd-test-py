@@ -12,27 +12,27 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
-from ddtestopt.internal.constants import EMPTY_NAME
-from ddtestopt.internal.coverage_api import coverage_collection
-from ddtestopt.internal.coverage_api import install_coverage
-from ddtestopt.internal.ddtrace import install_global_trace_filter
-from ddtestopt.internal.ddtrace import trace_context
-from ddtestopt.internal.git import get_workspace_path
-from ddtestopt.internal.logging import catch_and_log_exceptions
-from ddtestopt.internal.logging import setup_logging
-from ddtestopt.internal.retry_handlers import RetryHandler
-from ddtestopt.internal.session_manager import SessionManager
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import Test
-from ddtestopt.internal.test_data import TestModule
-from ddtestopt.internal.test_data import TestRef
-from ddtestopt.internal.test_data import TestRun
-from ddtestopt.internal.test_data import TestSession
-from ddtestopt.internal.test_data import TestStatus
-from ddtestopt.internal.test_data import TestSuite
-from ddtestopt.internal.test_data import TestTag
-from ddtestopt.internal.utils import TestContext
+from ddtestpy.internal.constants import EMPTY_NAME
+from ddtestpy.internal.coverage_api import coverage_collection
+from ddtestpy.internal.coverage_api import install_coverage
+from ddtestpy.internal.ddtrace import install_global_trace_filter
+from ddtestpy.internal.ddtrace import trace_context
+from ddtestpy.internal.git import get_workspace_path
+from ddtestpy.internal.logging import catch_and_log_exceptions
+from ddtestpy.internal.logging import setup_logging
+from ddtestpy.internal.retry_handlers import RetryHandler
+from ddtestpy.internal.session_manager import SessionManager
+from ddtestpy.internal.test_data import ModuleRef
+from ddtestpy.internal.test_data import SuiteRef
+from ddtestpy.internal.test_data import Test
+from ddtestpy.internal.test_data import TestModule
+from ddtestpy.internal.test_data import TestRef
+from ddtestpy.internal.test_data import TestRun
+from ddtestpy.internal.test_data import TestSession
+from ddtestpy.internal.test_data import TestStatus
+from ddtestpy.internal.test_data import TestSuite
+from ddtestpy.internal.test_data import TestTag
+from ddtestpy.internal.utils import TestContext
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")

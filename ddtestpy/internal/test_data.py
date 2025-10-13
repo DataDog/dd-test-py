@@ -8,10 +8,10 @@ from pathlib import Path
 import time
 import typing as t
 
-from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
-from ddtestopt.internal.constants import TAG_TRUE
-from ddtestopt.internal.utils import TestContext
-from ddtestopt.internal.utils import _gen_item_id
+from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
+from ddtestpy.internal.constants import TAG_TRUE
+from ddtestpy.internal.utils import TestContext
+from ddtestpy.internal.utils import _gen_item_id
 
 
 @dataclass(frozen=True)

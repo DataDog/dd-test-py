@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest import mock
 
-from ddtestopt.internal.coverage_api import coverage_collection
-from ddtestopt.vendor.ddtrace_coverage.code import ModuleCodeCollector
+from ddtestpy.internal.coverage_api import coverage_collection
+from ddtestpy.vendor.ddtrace_coverage.code import ModuleCodeCollector
 
 
 def test_get_coverage_bitmaps() -> None:

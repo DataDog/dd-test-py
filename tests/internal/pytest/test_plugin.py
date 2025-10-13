@@ -12,16 +12,16 @@ from unittest.mock import patch
 from _pytest.reports import TestReport
 import pytest
 
-from ddtestopt.internal.pytest.plugin import DISABLED_BY_TEST_MANAGEMENT_REASON
-from ddtestopt.internal.pytest.plugin import SKIPPED_BY_ITR_REASON
-from ddtestopt.internal.pytest.plugin import TestOptPlugin
-from ddtestopt.internal.pytest.plugin import XdistTestOptPlugin
-from ddtestopt.internal.pytest.plugin import _encode_test_parameter
-from ddtestopt.internal.pytest.plugin import _get_exception_tags
-from ddtestopt.internal.pytest.plugin import _get_module_path_from_item
-from ddtestopt.internal.pytest.plugin import _get_test_parameters_json
-from ddtestopt.internal.pytest.plugin import _get_user_property
-from ddtestopt.internal.pytest.plugin import nodeid_to_test_ref
+from ddtestpy.internal.pytest.plugin import DISABLED_BY_TEST_MANAGEMENT_REASON
+from ddtestpy.internal.pytest.plugin import SKIPPED_BY_ITR_REASON
+from ddtestpy.internal.pytest.plugin import TestOptPlugin
+from ddtestpy.internal.pytest.plugin import XdistTestOptPlugin
+from ddtestpy.internal.pytest.plugin import _encode_test_parameter
+from ddtestpy.internal.pytest.plugin import _get_exception_tags
+from ddtestpy.internal.pytest.plugin import _get_module_path_from_item
+from ddtestpy.internal.pytest.plugin import _get_test_parameters_json
+from ddtestpy.internal.pytest.plugin import _get_user_property
+from ddtestpy.internal.pytest.plugin import nodeid_to_test_ref
 from tests.mocks import TestDataFactory
 from tests.mocks import mock_test
 from tests.mocks import pytest_item_mock
@@ -59,8 +59,8 @@ class TestSkippingAndITRFeatures:
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
-        with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
-            "ddtestopt.internal.pytest.plugin.coverage_collection"
+        with patch("ddtestpy.internal.pytest.plugin.trace_context"), patch(
+            "ddtestpy.internal.pytest.plugin.coverage_collection"
         ):
 
             # Call the method that applies skipping logic
@@ -96,8 +96,8 @@ class TestSkippingAndITRFeatures:
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
-        with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
-            "ddtestopt.internal.pytest.plugin.coverage_collection"
+        with patch("ddtestpy.internal.pytest.plugin.trace_context"), patch(
+            "ddtestpy.internal.pytest.plugin.coverage_collection"
         ):
 
             # Call the method that applies skipping logic
@@ -143,8 +143,8 @@ class TestSkippingAndITRFeatures:
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
-        with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
-            "ddtestopt.internal.pytest.plugin.coverage_collection"
+        with patch("ddtestpy.internal.pytest.plugin.trace_context"), patch(
+            "ddtestpy.internal.pytest.plugin.coverage_collection"
         ):
 
             # Call the method that applies skipping logic
@@ -178,8 +178,8 @@ class TestSkippingAndITRFeatures:
         mock_item = pytest_item_mock("test_module/test_suite.py::test_function").build()
 
         # Mock the trace_context and coverage_collection context managers
-        with patch("ddtestopt.internal.pytest.plugin.trace_context"), patch(
-            "ddtestopt.internal.pytest.plugin.coverage_collection"
+        with patch("ddtestpy.internal.pytest.plugin.trace_context"), patch(
+            "ddtestpy.internal.pytest.plugin.coverage_collection"
         ):
 
             # Call the method that applies skipping logic
@@ -235,7 +235,7 @@ class TestSessionManagement:
         mock_session.config = mock_config
 
         # Mock the session manager and other dependencies
-        with patch("ddtestopt.internal.pytest.plugin.SessionManager", return_value=Mock()):
+        with patch("ddtestpy.internal.pytest.plugin.SessionManager", return_value=Mock()):
             plugin.pytest_sessionstart(mock_session)
 
         assert plugin.is_xdist_worker is True
@@ -634,7 +634,7 @@ class TestSessionLifecycleMethods:
         plugin.pytest_sessionfinish(mock_session)
 
         # Verify session was finished with PASS status
-        from ddtestopt.internal.test_data import TestStatus
+        from ddtestpy.internal.test_data import TestStatus
 
         plugin.session.set_status.assert_called_once_with(TestStatus.PASS)
         plugin.session.finish.assert_called_once()
@@ -657,7 +657,7 @@ class TestSessionLifecycleMethods:
         plugin.pytest_sessionfinish(mock_session)
 
         # Verify session was finished with FAIL status
-        from ddtestopt.internal.test_data import TestStatus
+        from ddtestpy.internal.test_data import TestStatus
 
         plugin.session.set_status.assert_called_once_with(TestStatus.FAIL)
 
@@ -853,7 +853,7 @@ class TestOutcomeProcessing:
             teardown_report: None,
         }
 
-        from ddtestopt.internal.test_data import TestStatus
+        from ddtestpy.internal.test_data import TestStatus
 
         status, tags = plugin._get_test_outcome("test_id")
 
@@ -889,7 +889,7 @@ class TestOutcomeProcessing:
             call_report: mock_excinfo,
         }
 
-        from ddtestopt.internal.test_data import TestStatus
+        from ddtestpy.internal.test_data import TestStatus
 
         status, tags = plugin._get_test_outcome("test_id")
 
@@ -918,8 +918,8 @@ class TestOutcomeProcessing:
             setup_report: mock_excinfo,
         }
 
-        from ddtestopt.internal.test_data import TestStatus
-        from ddtestopt.internal.test_data import TestTag
+        from ddtestpy.internal.test_data import TestStatus
+        from ddtestpy.internal.test_data import TestTag
 
         status, tags = plugin._get_test_outcome("test_id")
 
@@ -943,8 +943,8 @@ class TestOutcomeProcessing:
             setup_report: None,
         }
 
-        from ddtestopt.internal.test_data import TestStatus
-        from ddtestopt.internal.test_data import TestTag
+        from ddtestpy.internal.test_data import TestStatus
+        from ddtestpy.internal.test_data import TestTag
 
         status, tags = plugin._get_test_outcome("test_id")
 

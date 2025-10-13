@@ -1,8 +1,8 @@
 """Basic test to ensure the package imports correctly."""
 
 
-def test_import_ddtestopt() -> None:
+def test_import_ddtestpy() -> None:
     """Test that the main package can be imported."""
-    import ddtestopt
+    import ddtestpy
 
-    assert ddtestopt.__version__ == "0.1.0"
+    assert ddtestpy.__version__ == "0.1.0"

@@ -4,31 +4,31 @@ import os
 import re
 import typing as t
 
-from ddtestopt.internal.api_client import APIClient
-from ddtestopt.internal.api_client import TestProperties
-from ddtestopt.internal.constants import DEFAULT_ENV_NAME
-from ddtestopt.internal.constants import DEFAULT_SERVICE_NAME
-from ddtestopt.internal.constants import DEFAULT_SITE
-from ddtestopt.internal.git import Git
-from ddtestopt.internal.git import GitTag
-from ddtestopt.internal.git import get_git_tags
-from ddtestopt.internal.git import get_workspace_path
-from ddtestopt.internal.platform import get_platform_tags
-from ddtestopt.internal.retry_handlers import AttemptToFixHandler
-from ddtestopt.internal.retry_handlers import AutoTestRetriesHandler
-from ddtestopt.internal.retry_handlers import EarlyFlakeDetectionHandler
-from ddtestopt.internal.retry_handlers import RetryHandler
-from ddtestopt.internal.test_data import ITRSkippingLevel
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import Test
-from ddtestopt.internal.test_data import TestModule
-from ddtestopt.internal.test_data import TestRef
-from ddtestopt.internal.test_data import TestSession
-from ddtestopt.internal.test_data import TestSuite
-from ddtestopt.internal.test_data import TestTag
-from ddtestopt.internal.utils import asbool
-from ddtestopt.internal.writer import TestCoverageWriter
-from ddtestopt.internal.writer import TestOptWriter
+from ddtestpy.internal.api_client import APIClient
+from ddtestpy.internal.api_client import TestProperties
+from ddtestpy.internal.constants import DEFAULT_ENV_NAME
+from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
+from ddtestpy.internal.constants import DEFAULT_SITE
+from ddtestpy.internal.git import Git
+from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.git import get_git_tags
+from ddtestpy.internal.git import get_workspace_path
+from ddtestpy.internal.platform import get_platform_tags
+from ddtestpy.internal.retry_handlers import AttemptToFixHandler
+from ddtestpy.internal.retry_handlers import AutoTestRetriesHandler
+from ddtestpy.internal.retry_handlers import EarlyFlakeDetectionHandler
+from ddtestpy.internal.retry_handlers import RetryHandler
+from ddtestpy.internal.test_data import ITRSkippingLevel
+from ddtestpy.internal.test_data import SuiteRef
+from ddtestpy.internal.test_data import Test
+from ddtestpy.internal.test_data import TestModule
+from ddtestpy.internal.test_data import TestRef
+from ddtestpy.internal.test_data import TestSession
+from ddtestpy.internal.test_data import TestSuite
+from ddtestpy.internal.test_data import TestTag
+from ddtestpy.internal.utils import asbool
+from ddtestpy.internal.writer import TestCoverageWriter
+from ddtestpy.internal.writer import TestOptWriter
 
 
 log = logging.getLogger(__name__)

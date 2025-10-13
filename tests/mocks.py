@@ -1,7 +1,7 @@
 """Improved mock utilities for test optimization framework testing.
 
 This module provides flexible and easy-to-use mock builders and utilities
-for testing the ddtestopt framework. The design emphasizes:
+for testing the ddtestpy framework. The design emphasizes:
 - Builder pattern for flexible mock construction
 - Centralized default configurations
 - Simplified session manager creation
@@ -17,22 +17,22 @@ import typing as t
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from ddtestopt.internal.api_client import AutoTestRetriesSettings
-from ddtestopt.internal.api_client import EarlyFlakeDetectionSettings
-from ddtestopt.internal.api_client import Settings
-from ddtestopt.internal.api_client import TestManagementSettings
-from ddtestopt.internal.api_client import TestProperties
-from ddtestopt.internal.session_manager import SessionManager
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import Test
-from ddtestopt.internal.test_data import TestModule
-from ddtestopt.internal.test_data import TestRef
-from ddtestopt.internal.test_data import TestRun
-from ddtestopt.internal.test_data import TestSession
-from ddtestopt.internal.test_data import TestSuite
-from ddtestopt.internal.writer import Event
-from ddtestopt.internal.writer import TestOptWriter
+from ddtestpy.internal.api_client import AutoTestRetriesSettings
+from ddtestpy.internal.api_client import EarlyFlakeDetectionSettings
+from ddtestpy.internal.api_client import Settings
+from ddtestpy.internal.api_client import TestManagementSettings
+from ddtestpy.internal.api_client import TestProperties
+from ddtestpy.internal.session_manager import SessionManager
+from ddtestpy.internal.test_data import ModuleRef
+from ddtestpy.internal.test_data import SuiteRef
+from ddtestpy.internal.test_data import Test
+from ddtestpy.internal.test_data import TestModule
+from ddtestpy.internal.test_data import TestRef
+from ddtestpy.internal.test_data import TestRun
+from ddtestpy.internal.test_data import TestSession
+from ddtestpy.internal.test_data import TestSuite
+from ddtestpy.internal.writer import Event
+from ddtestpy.internal.writer import TestOptWriter
 
 
 def get_mock_git_instance() -> Mock:
@@ -164,7 +164,7 @@ class SessionManagerMockBuilder:
         if test_env is None:
             test_env = MockDefaults.test_environment()
 
-        with patch("ddtestopt.internal.session_manager.APIClient") as mock_api_client:
+        with patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
             # Configure API client mock
             mock_client = Mock()
             mock_client.get_settings.return_value = self._settings
@@ -175,9 +175,9 @@ class SessionManagerMockBuilder:
             mock_client.get_skippable_tests.return_value = (self._skippable_items, None)
             mock_api_client.return_value = mock_client
 
-            with patch("ddtestopt.internal.session_manager.get_git_tags", return_value={}), patch(
-                "ddtestopt.internal.session_manager.get_platform_tags", return_value={}
-            ), patch("ddtestopt.internal.session_manager.Git", return_value=get_mock_git_instance()), patch.dict(
+            with patch("ddtestpy.internal.session_manager.get_git_tags", return_value={}), patch(
+                "ddtestpy.internal.session_manager.get_platform_tags", return_value={}
+            ), patch("ddtestpy.internal.session_manager.Git", return_value=get_mock_git_instance()), patch.dict(
                 os.environ, test_env
             ):
 
@@ -419,7 +419,7 @@ class BackendConnectorMockBuilder:
 
     def build(self) -> Mock:
         """Build the BackendConnector mock."""
-        from ddtestopt.internal.http import BackendConnector
+        from ddtestpy.internal.http import BackendConnector
 
         mock_connector = Mock(spec=BackendConnector)
 
@@ -524,7 +524,7 @@ def mock_backend_connector() -> "BackendConnectorMockBuilder":
 def setup_standard_mocks() -> t.ContextManager[t.Any]:
     """Mock calls used by the session manager to get git and platform tags."""
     return patch.multiple(
-        "ddtestopt.internal.session_manager",
+        "ddtestpy.internal.session_manager",
         get_git_tags=Mock(return_value={}),
         get_platform_tags=Mock(return_value={}),
         Git=Mock(return_value=get_mock_git_instance()),
@@ -541,7 +541,7 @@ def network_mocks() -> t.ContextManager[t.Any]:
         # Mock the session manager dependencies
         stack.enter_context(
             patch.multiple(
-                "ddtestopt.internal.session_manager",
+                "ddtestpy.internal.session_manager",
                 get_git_tags=Mock(return_value={}),
                 get_platform_tags=Mock(return_value={}),
                 Git=Mock(return_value=get_mock_git_instance()),
@@ -550,17 +550,17 @@ def network_mocks() -> t.ContextManager[t.Any]:
 
         # Mock the HTTP connector to prevent any real HTTP calls
         mock_connector = mock_backend_connector().build()
-        stack.enter_context(patch("ddtestopt.internal.http.BackendConnector", return_value=mock_connector))
+        stack.enter_context(patch("ddtestpy.internal.http.BackendConnector", return_value=mock_connector))
 
         # Mock the API client constructor to ensure our mock is used
-        stack.enter_context(patch("ddtestopt.internal.session_manager.APIClient"))
+        stack.enter_context(patch("ddtestpy.internal.session_manager.APIClient"))
 
         # Mock the writer to prevent any HTTP calls from the writer
         mock_writer = Mock()
         mock_writer.flush.return_value = None
         mock_writer._send_events.return_value = None
-        stack.enter_context(patch("ddtestopt.internal.writer.TestOptWriter", return_value=mock_writer))
-        stack.enter_context(patch("ddtestopt.internal.writer.TestCoverageWriter", return_value=mock_writer))
+        stack.enter_context(patch("ddtestpy.internal.writer.TestOptWriter", return_value=mock_writer))
+        stack.enter_context(patch("ddtestpy.internal.writer.TestCoverageWriter", return_value=mock_writer))
 
         return stack
 

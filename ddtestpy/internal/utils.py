@@ -3,7 +3,7 @@ import random
 import typing as t
 
 
-DDTESTOPT_ROOT_SPAN_RESOURCE = "ddtestopt_root_span"
+DDTESTOPT_ROOT_SPAN_RESOURCE = "ddtestpy_root_span"
 
 
 def _gen_item_id() -> int:
