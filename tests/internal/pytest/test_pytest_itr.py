@@ -196,7 +196,7 @@ class TestITR:
 
     @pytest.mark.slow
     @pytest.mark.skipif("slipcover" in sys.modules, reason="slipcover is incompatible with ITR code coverage")
-    def test_itr_code_coverage(self, pytester: Pytester) -> None:
+    def test_itr_code_coverage_enabled(self, pytester: Pytester) -> None:
         pytester.makepyfile(
             lib_constants="""
             ANSWER = 42
@@ -218,3 +218,27 @@ class TestITR:
         coverage_events = [args[0] for args, kwargs in put_event_mock.call_args_list]
         covered_files = set(f["filename"] for f in coverage_events[0]["files"])
         assert covered_files == {"/test_foo.py", "/lib_constants.py"}
+
+    @pytest.mark.slow
+    @pytest.mark.skipif("slipcover" in sys.modules, reason="slipcover is incompatible with ITR code coverage")
+    def test_itr_code_coverage_disabled(self, pytester: Pytester) -> None:
+        pytester.makepyfile(
+            lib_constants="""
+            ANSWER = 42
+            """,
+            test_foo="""
+            from lib_constants import ANSWER
+
+            def test_answer():
+                assert ANSWER == 42
+            """,
+        )
+        with patch(
+            "ddtestpy.internal.session_manager.APIClient",
+            return_value=mock_api_client_settings(coverage_enabled=False),
+        ), setup_standard_mocks():
+            with patch.object(TestCoverageWriter, "put_event") as put_event_mock:
+                pytester.inline_run("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
+
+        coverage_events = [args[0] for args, kwargs in put_event_mock.call_args_list]
+        assert coverage_events == []
