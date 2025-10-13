@@ -1,8 +1,5 @@
 # Datadog Test Optimization for Python
 
-[![PypiVersions](https://img.shields.io/pypi/v/dd-test-py.svg)](https://pypi.org/project/dd-test-py/)
-[![Pyversions](https://img.shields.io/pypi/pyversions/dd-test-py.svg?style=flat)](https://pypi.org/project/dd-test-py/)
-
 <img align="right" src="https://user-images.githubusercontent.com/6321485/167082083-53f6e48f-1843-4708-9b98-587c94f7ddb3.png" alt="bits python" width="200px"/>
 
 Datadog's Python Library for instrumenting your tests.
