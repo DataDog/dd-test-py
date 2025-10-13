@@ -210,7 +210,7 @@ class TestITR:
         )
         with patch(
             "ddtestpy.internal.session_manager.APIClient",
-            return_value=mock_api_client_settings(skipping_enabled=True),
+            return_value=mock_api_client_settings(coverage_enabled=True),
         ), setup_standard_mocks():
             with patch.object(TestCoverageWriter, "put_event") as put_event_mock:
                 pytester.inline_run("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
