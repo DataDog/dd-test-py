@@ -1,11 +1,11 @@
-"""Tests for ddtestopt.internal.http module."""
+"""Tests for ddtestpy.internal.http module."""
 
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from ddtestopt.internal.http import DEFAULT_TIMEOUT_SECONDS
-from ddtestopt.internal.http import BackendConnector
-from ddtestopt.internal.http import FileAttachment
+from ddtestpy.internal.http import DEFAULT_TIMEOUT_SECONDS
+from ddtestpy.internal.http import BackendConnector
+from ddtestpy.internal.http import FileAttachment
 
 
 class TestBackendConnector:

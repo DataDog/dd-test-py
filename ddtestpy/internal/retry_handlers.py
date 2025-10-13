@@ -4,16 +4,16 @@ from collections import defaultdict
 import os
 import typing as t
 
-from ddtestopt.internal.constants import TAG_FALSE
-from ddtestopt.internal.constants import TAG_TRUE
-from ddtestopt.internal.test_data import Test
-from ddtestopt.internal.test_data import TestRun
-from ddtestopt.internal.test_data import TestStatus
-from ddtestopt.internal.test_data import TestTag
+from ddtestpy.internal.constants import TAG_FALSE
+from ddtestpy.internal.constants import TAG_TRUE
+from ddtestpy.internal.test_data import Test
+from ddtestpy.internal.test_data import TestRun
+from ddtestpy.internal.test_data import TestStatus
+from ddtestpy.internal.test_data import TestTag
 
 
 if t.TYPE_CHECKING:
-    from ddtestopt.internal.session_manager import SessionManager
+    from ddtestpy.internal.session_manager import SessionManager
 
 
 class RetryHandler(ABC):

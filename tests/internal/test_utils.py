@@ -1,8 +1,8 @@
-"""Tests for ddtestopt.internal.utils module."""
+"""Tests for ddtestpy.internal.utils module."""
 
-from ddtestopt.internal.utils import TestContext
-from ddtestopt.internal.utils import _gen_item_id
-from ddtestopt.internal.utils import asbool
+from ddtestpy.internal.utils import TestContext
+from ddtestpy.internal.utils import _gen_item_id
+from ddtestpy.internal.utils import asbool
 
 
 class TestGenItemId:

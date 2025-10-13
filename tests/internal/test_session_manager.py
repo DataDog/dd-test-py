@@ -1,8 +1,8 @@
 """Regression tests for SessionManager.is_skippable_test() method changes."""
 
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import TestRef
+from ddtestpy.internal.test_data import ModuleRef
+from ddtestpy.internal.test_data import SuiteRef
+from ddtestpy.internal.test_data import TestRef
 from tests.mocks import MockDefaults
 from tests.mocks import session_manager_mock
 

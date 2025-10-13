@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ddtestopt"
+name = "ddtestpy"
 dynamic = ["version"]
 dependencies = [
     "bytecode>=0.15.0",
@@ -12,10 +12,10 @@ dependencies = [
 license = "Apache-2.0"
 
 [project.entry-points.pytest11]
-ddtestopt = "ddtestopt.internal.pytest.plugin"
+ddtestpy = "ddtestpy.internal.pytest.plugin"
 
 [tool.hatch.version]
-path = "ddtestopt/__init__.py"
+path = "ddtestpy/__init__.py"
 
 
 [tool.hatch.envs.hatch-test]
@@ -49,9 +49,9 @@ matrix.pytest.dependencies = [
 ]
 
 [tool.hatch.envs.hatch-test.scripts]
-run = "pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
-run-cov = "python -m slipcover --source ddtestopt/internal --pretty-print -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
-cov-html = "python -m slipcover --source ddtestopt --html --out slipcover.html -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestopt {args:tests}"
+run = "pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestpy {args:tests}"
+run-cov = "python -m slipcover --source ddtestpy/internal --pretty-print -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestpy {args:tests}"
+cov-html = "python -m slipcover --source ddtestpy --html --out slipcover.html -m pytest{env:$HATCH_TEST_ARGS:} -p no:ddtestpy {args:tests}"
 cov-combine = "true"
 cov-report = "true"
 
@@ -85,35 +85,35 @@ dependencies = [
 [tool.hatch.envs.qa.scripts]
 # Combined QA check - runs all code quality tools
 qa = [
-    "black --check ddtestopt/ tests/",
-    "ruff check ddtestopt/ tests/",
-    "python -m mypy ddtestopt/ tests/",
+    "black --check ddtestpy/ tests/",
+    "ruff check ddtestpy/ tests/",
+    "python -m mypy ddtestpy/ tests/",
 ]
 fix = [
-    "black {args:ddtestopt/ tests/}",
-    "ruff check --fix --unsafe-fixes {args:ddtestopt/ tests/}",
-    "python -m mypy ddtestopt/ tests/",
+    "black {args:ddtestpy/ tests/}",
+    "ruff check --fix --unsafe-fixes {args:ddtestpy/ tests/}",
+    "python -m mypy ddtestpy/ tests/",
 ]
 # Individual commands for specific fixes
-lint = "ruff check {args:ddtestopt/ tests/}"
-lint-fix = "ruff check --fix {args:ddtestopt/ tests/}"
-format = "black {args:ddtestopt/ tests/}"
-format-check = "black --check {args:ddtestopt/ tests/}"
-typecheck = "python -m mypy {args:ddtestopt/ tests/}"
+lint = "ruff check {args:ddtestpy/ tests/}"
+lint-fix = "ruff check --fix {args:ddtestpy/ tests/}"
+format = "black {args:ddtestpy/ tests/}"
+format-check = "black --check {args:ddtestpy/ tests/}"
+typecheck = "python -m mypy {args:ddtestpy/ tests/}"
 
 [tool.black]
 line-length = 120
 target_version = ['py37', 'py38', 'py39', 'py310', 'py311', 'py312']
 extend-exclude = '''
 (
-  ddtestopt/vendor/    # exclude vendored third-party code
+  ddtestpy/vendor/    # exclude vendored third-party code
 )
 '''
 
 [tool.ruff]
 line-length = 120
 exclude = [
-    "ddtestopt/vendor/",
+    "ddtestpy/vendor/",
 ]
 lint.select = [
     "A",
@@ -142,18 +142,18 @@ convention = "pep257"
 force-single-line = true
 lines-after-imports = 2
 force-sort-within-sections = true
-known-first-party = [ "ddtestopt" ]
+known-first-party = [ "ddtestpy" ]
 relative-imports-order = "furthest-to-closest"
 
 
 [tool.ruff.lint.per-file-ignores]
-"ddtestopt/vendor/*" = ["D"]
+"ddtestpy/vendor/*" = ["D"]
 
 [tool.coverage.run]
-source = ["ddtestopt"]
+source = ["ddtestpy"]
 omit = [
     "tests/*",
-    "ddtestopt/vendor/*",
+    "ddtestpy/vendor/*",
 ]
 
 [tool.coverage.report]
@@ -172,7 +172,7 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["ddtestopt", "build", "dist", ".git"]
+norecursedirs = ["ddtestpy", "build", "dist", ".git"]
 # pytest-socket configuration - allow connections to localhost only
 addopts = "--allow-hosts=localhost,127.0.0.1,0.0.0.0,::1"
 markers = [
@@ -195,6 +195,6 @@ pretty = true
 exclude = [
     "build/",
     "dist/",
-    "ddtestopt/vendor/",
+    "ddtestpy/vendor/",
 ]
 

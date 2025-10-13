@@ -8,14 +8,14 @@ from pathlib import Path
 import typing as t
 import uuid
 
-from ddtestopt.internal.constants import EMPTY_NAME
-from ddtestopt.internal.git import GitTag
-from ddtestopt.internal.http import BackendConnector
-from ddtestopt.internal.http import FileAttachment
-from ddtestopt.internal.test_data import ITRSkippingLevel
-from ddtestopt.internal.test_data import ModuleRef
-from ddtestopt.internal.test_data import SuiteRef
-from ddtestopt.internal.test_data import TestRef
+from ddtestpy.internal.constants import EMPTY_NAME
+from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.http import BackendConnector
+from ddtestpy.internal.http import FileAttachment
+from ddtestpy.internal.test_data import ITRSkippingLevel
+from ddtestpy.internal.test_data import ModuleRef
+from ddtestpy.internal.test_data import SuiteRef
+from ddtestpy.internal.test_data import TestRef
 
 
 log = logging.getLogger(__name__)

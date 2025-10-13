@@ -1,20 +1,20 @@
-"""Tests for ddtestopt.internal.writer module."""
+"""Tests for ddtestpy.internal.writer module."""
 
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from ddtestopt.internal.test_data import TestModule
-from ddtestopt.internal.test_data import TestRun
-from ddtestopt.internal.test_data import TestSession
-from ddtestopt.internal.test_data import TestStatus
-from ddtestopt.internal.test_data import TestSuite
-from ddtestopt.internal.writer import Event
-from ddtestopt.internal.writer import TestCoverageWriter
-from ddtestopt.internal.writer import TestOptWriter
-from ddtestopt.internal.writer import serialize_module
-from ddtestopt.internal.writer import serialize_session
-from ddtestopt.internal.writer import serialize_suite
-from ddtestopt.internal.writer import serialize_test_run
+from ddtestpy.internal.test_data import TestModule
+from ddtestpy.internal.test_data import TestRun
+from ddtestpy.internal.test_data import TestSession
+from ddtestpy.internal.test_data import TestStatus
+from ddtestpy.internal.test_data import TestSuite
+from ddtestpy.internal.writer import Event
+from ddtestpy.internal.writer import TestCoverageWriter
+from ddtestpy.internal.writer import TestOptWriter
+from ddtestpy.internal.writer import serialize_module
+from ddtestpy.internal.writer import serialize_session
+from ddtestpy.internal.writer import serialize_suite
+from ddtestpy.internal.writer import serialize_test_run
 from tests.mocks import TestDataFactory
 from tests.mocks import mock_test_module
 from tests.mocks import mock_test_run
@@ -42,7 +42,7 @@ class TestEvent:
 class TestTestOptWriter:
     """Tests for TestOptWriter class."""
 
-    @patch("ddtestopt.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.writer.BackendConnector")
     def test_testopt_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestOptWriter initialization."""
         mock_connector = Mock()
@@ -68,7 +68,7 @@ class TestTestOptWriter:
         assert TestModule in writer.serializers
         assert TestSession in writer.serializers
 
-    @patch("ddtestopt.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.writer.BackendConnector")
     @patch("msgpack.packb")
     def test_send_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending events to backend."""
@@ -104,7 +104,7 @@ class TestTestOptWriter:
 class TestTestCoverageWriter:
     """Tests for TestCoverageWriter class."""
 
-    @patch("ddtestopt.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.writer.BackendConnector")
     def test_coverage_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestCoverageWriter initialization."""
         mock_connector = Mock()
@@ -121,7 +121,7 @@ class TestTestCoverageWriter:
             host="citestcov-intake.datadoghq.com", default_headers={"dd-api-key": "test_key"}
         )
 
-    @patch("ddtestopt.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.writer.BackendConnector")
     def test_put_coverage(self, mock_backend_connector: Mock) -> None:
         """Test putting coverage data."""
         writer = TestCoverageWriter(site="test", api_key="key")
@@ -147,7 +147,7 @@ class TestTestCoverageWriter:
         assert event["span_id"] == 789
         assert len(event["files"]) == 2
 
-    @patch("ddtestopt.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.writer.BackendConnector")
     @patch("msgpack.packb")
     def test_send_coverage_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending coverage events."""
