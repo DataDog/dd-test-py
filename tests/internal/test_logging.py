@@ -35,7 +35,7 @@ class TestSetupLogging:
         handler = ddtestpy_logger.handlers[0]
         assert isinstance(handler, logging.StreamHandler)
 
-    @patch.dict(os.environ, {"DDTESTOPT_DEBUG": "true"})
+    @patch.dict(os.environ, {"DD_TEST_DEBUG": "true"})
     def test_setup_logging_debug_level_true(self) -> None:
         """Test setup_logging with DEBUG level enabled via true."""
         setup_logging()
@@ -44,21 +44,21 @@ class TestSetupLogging:
         assert ddtestpy_logger.level == logging.DEBUG
         assert len(ddtestpy_logger.handlers) == 1
 
-    @patch.dict(os.environ, {"DDTESTOPT_DEBUG": "1"})
+    @patch.dict(os.environ, {"DD_TEST_DEBUG": "1"})
     def test_setup_logging_debug_level_one(self) -> None:
         """Test setup_logging with DEBUG level enabled via 1."""
         setup_logging()
 
         assert ddtestpy_logger.level == logging.DEBUG
 
-    @patch.dict(os.environ, {"DDTESTOPT_DEBUG": "false"})
+    @patch.dict(os.environ, {"DD_TEST_DEBUG": "false"})
     def test_setup_logging_debug_level_false(self) -> None:
         """Test setup_logging with DEBUG level disabled."""
         setup_logging()
 
         assert ddtestpy_logger.level == logging.INFO
 
-    @patch.dict(os.environ, {"DDTESTOPT_DEBUG": "0"})
+    @patch.dict(os.environ, {"DD_TEST_DEBUG": "0"})
     def test_setup_logging_debug_level_zero(self) -> None:
         """Test setup_logging with DEBUG level disabled via 0."""
         setup_logging()

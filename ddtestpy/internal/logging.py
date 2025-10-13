@@ -14,7 +14,7 @@ F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 def setup_logging() -> None:
     ddtestpy_logger.propagate = False
 
-    log_level = logging.DEBUG if asbool(os.getenv("DDTESTOPT_DEBUG")) else logging.INFO
+    log_level = logging.DEBUG if asbool(os.getenv("DD_TEST_DEBUG")) else logging.INFO
     ddtestpy_logger.setLevel(log_level)
 
     for handler in list(ddtestpy_logger.handlers):
