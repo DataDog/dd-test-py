@@ -19,6 +19,7 @@ from ddtestpy.internal.pytest.plugin import XdistTestOptPlugin
 from ddtestpy.internal.pytest.plugin import _encode_test_parameter
 from ddtestpy.internal.pytest.plugin import _get_exception_tags
 from ddtestpy.internal.pytest.plugin import _get_module_path_from_item
+from ddtestpy.internal.pytest.plugin import _get_test_command
 from ddtestpy.internal.pytest.plugin import _get_test_parameters_json
 from ddtestpy.internal.pytest.plugin import _get_user_property
 from ddtestpy.internal.pytest.plugin import nodeid_to_test_ref
@@ -41,12 +42,9 @@ class TestSkippingAndITRFeatures:
         # Create test references using TestDataFactory
         test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
 
-        # Create plugin and mock dependencies
-        plugin = TestOptPlugin()
-
         # Create mock session manager with test in skippable_items
         mock_manager = session_manager_mock().with_skipping_enabled(True).with_skippable_items({test_ref}).build_mock()
-        plugin.manager = mock_manager
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Create mock test that is NOT attempt_to_fix
         test = mock_test(test_ref)
@@ -77,12 +75,9 @@ class TestSkippingAndITRFeatures:
         # Create test references using TestDataFactory
         test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
 
-        # Create plugin and mock dependencies
-        plugin = TestOptPlugin()
-
         # Create mock session manager with test in skippable_items
         mock_manager = session_manager_mock().with_skipping_enabled(True).with_skippable_items({test_ref}).build_mock()
-        plugin.manager = mock_manager
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Create mock test that IS attempt_to_fix
         test = mock_test(test_ref)
@@ -120,9 +115,6 @@ class TestSkippingAndITRFeatures:
         test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
         suite_ref = test_ref.suite
 
-        # Create plugin and mock dependencies
-        plugin = TestOptPlugin()
-
         # Create mock session manager with SUITE in skippable_items (not individual test)
         mock_manager = (
             session_manager_mock()
@@ -130,7 +122,7 @@ class TestSkippingAndITRFeatures:
             .with_skippable_items({suite_ref})  # Suite is skippable, not individual test
             .build_mock()
         )
-        plugin.manager = mock_manager
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Create mock test that is NOT attempt_to_fix
         test = mock_test(test_ref)
@@ -162,9 +154,8 @@ class TestSkippingAndITRFeatures:
         test_ref = TestDataFactory.create_test_ref("test_module", "test_suite.py", "test_function")
 
         # Create plugin and mock dependencies
-        plugin = TestOptPlugin()
         mock_manager = session_manager_mock().build_mock()
-        plugin.manager = mock_manager
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Create mock test that is disabled but NOT attempt_to_fix
         test = mock_test(test_ref)
@@ -204,7 +195,8 @@ class TestSessionManagement:
 
     def test_plugin_initialization(self) -> None:
         """Test that TestOptPlugin initializes correctly."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         assert plugin.is_xdist_worker is False
         assert plugin.enable_ddtrace is False
@@ -214,7 +206,8 @@ class TestSessionManagement:
 
     def test_xdist_plugin_initialization(self) -> None:
         """Test that XdistTestOptPlugin initializes correctly."""
-        plugin = XdistTestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = XdistTestOptPlugin(session_manager=mock_manager)
 
         # Should inherit from TestOptPlugin
         assert plugin.is_xdist_worker is False
@@ -222,7 +215,8 @@ class TestSessionManagement:
 
     def test_session_start_with_xdist_worker_input(self) -> None:
         """Test plugin behavior with xdist worker configuration."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Mock session with xdist worker input
         mock_session = Mock()
@@ -242,34 +236,26 @@ class TestSessionManagement:
 
     def test_get_test_command_extraction(self) -> None:
         """Test that the pytest session command is properly extracted."""
-        plugin = TestOptPlugin()
-
-        # Mock session with various command parameters
-        mock_session = Mock()
+        # Mock config with various command parameters
         mock_config = Mock()
         mock_invocation_params = Mock()
         mock_invocation_params.args = ["--tb=short", "-v", "tests/"]
         mock_config.invocation_params = mock_invocation_params
-        mock_session.config = mock_config
 
         # Mock environment variable
         with patch.dict(os.environ, {"PYTEST_ADDOPTS": "--maxfail=1"}):
-            command = plugin._get_test_command(mock_session)
+            command = _get_test_command(mock_config)
 
         expected = "pytest --tb=short -v tests/ --maxfail=1"
         assert command == expected
 
     def test_get_test_command_no_params(self) -> None:
         """Test command extraction when no invocation params are available."""
-        plugin = TestOptPlugin()
-
-        mock_session = Mock()
         mock_config = Mock()
         mock_config.invocation_params = None
-        mock_session.config = mock_config
 
         with patch.dict(os.environ, {}, clear=True):
-            command = plugin._get_test_command(mock_session)
+            command = _get_test_command(mock_config)
 
         assert command == "pytest"
 
@@ -279,7 +265,8 @@ class TestReportGeneration:
 
     def test_pytest_report_teststatus_retry(self) -> None:
         """Test report status for retry scenarios."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Mock report with retry properties
         mock_report = Mock()
@@ -291,7 +278,8 @@ class TestReportGeneration:
 
     def test_pytest_report_teststatus_quarantined(self) -> None:
         """Test report status for quarantined tests in call phase."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Mock report with quarantined property (call phase)
         mock_report = Mock()
@@ -305,7 +293,8 @@ class TestReportGeneration:
 
     def test_pytest_report_teststatus_quarantined_teardown(self) -> None:
         """Test report status for quarantined tests in teardown phase."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Mock report with quarantined property (teardown phase)
         mock_report = Mock()
@@ -319,7 +308,8 @@ class TestReportGeneration:
 
     def test_pytest_report_teststatus_normal(self) -> None:
         """Test report status for normal tests."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Mock normal report
         mock_report = Mock()
@@ -499,7 +489,8 @@ class TestPrivateMethods:
 
     def test_extract_longrepr_call_phase(self) -> None:
         """Test _extract_longrepr prioritizes call phase."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         reports = {
             "setup": Mock(longrepr="setup error"),
@@ -512,7 +503,8 @@ class TestPrivateMethods:
 
     def test_extract_longrepr_setup_fallback(self) -> None:
         """Test _extract_longrepr falls back to setup when call is missing."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         reports = {
             "setup": Mock(longrepr="setup error"),
@@ -524,7 +516,8 @@ class TestPrivateMethods:
 
     def test_extract_longrepr_no_errors(self) -> None:
         """Test _extract_longrepr returns None when no errors."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         reports = {
             "setup": Mock(longrepr=None),
@@ -537,7 +530,8 @@ class TestPrivateMethods:
 
     def test_check_applicable_retry_handlers_found(self) -> None:
         """Test _check_applicable_retry_handlers when handler applies."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Mock retry handlers
         handler1 = Mock()
@@ -547,7 +541,7 @@ class TestPrivateMethods:
 
         mock_manager = Mock()
         mock_manager.retry_handlers = [handler1, handler2]
-        plugin.manager = mock_manager
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_test = Mock()
         result = plugin._check_applicable_retry_handlers(mock_test)
@@ -558,7 +552,8 @@ class TestPrivateMethods:
 
     def test_check_applicable_retry_handlers_none_found(self) -> None:
         """Test _check_applicable_retry_handlers when no handler applies."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Mock retry handlers that don't apply
         handler1 = Mock()
@@ -568,7 +563,7 @@ class TestPrivateMethods:
 
         mock_manager = Mock()
         mock_manager.retry_handlers = [handler1, handler2]
-        plugin.manager = mock_manager
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_test = Mock()
         result = plugin._check_applicable_retry_handlers(mock_test)
@@ -577,7 +572,8 @@ class TestPrivateMethods:
 
     def test_mark_quarantined_test_report_as_skipped_call_phase(self) -> None:
         """Test quarantined test report modification for call phase."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_report = Mock()
@@ -590,7 +586,8 @@ class TestPrivateMethods:
 
     def test_mark_quarantined_test_report_as_skipped_teardown_phase(self) -> None:
         """Test quarantined test report modification for teardown phase."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_report = Mock()
@@ -602,7 +599,8 @@ class TestPrivateMethods:
 
     def test_mark_quarantined_test_report_as_skipped_none_report(self) -> None:
         """Test quarantined test report modification with None report."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_item = pytest_item_mock("test_file.py::test_name").build()
 
@@ -620,7 +618,8 @@ class TestSessionLifecycleMethods:
 
     def test_pytest_sessionfinish_normal_completion(self) -> None:
         """Test pytest_sessionfinish with normal exit status."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Set up session and manager
         plugin.session = Mock()
@@ -643,7 +642,8 @@ class TestSessionLifecycleMethods:
 
     def test_pytest_sessionfinish_test_failure(self) -> None:
         """Test pytest_sessionfinish with test failures."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Set up session and manager
         plugin.session = Mock()
@@ -663,7 +663,8 @@ class TestSessionLifecycleMethods:
 
     def test_pytest_sessionfinish_xdist_worker(self) -> None:
         """Test pytest_sessionfinish as xdist worker."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Set up session and manager
         plugin.session = Mock()
@@ -688,7 +689,8 @@ class TestReportAndLoggingMethods:
 
     def test_mark_test_report_as_retry_success(self) -> None:
         """Test _mark_test_report_as_retry when report exists."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_handler = Mock()
         mock_handler.get_pretty_name.return_value = "Test Handler"
@@ -707,7 +709,8 @@ class TestReportAndLoggingMethods:
 
     def test_mark_test_report_as_retry_missing(self) -> None:
         """Test _mark_test_report_as_retry when report doesn't exist."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_handler = Mock()
         reports: t.Dict[str, Mock] = {}
@@ -718,7 +721,8 @@ class TestReportAndLoggingMethods:
 
     def test_mark_test_reports_as_retry_call_phase(self) -> None:
         """Test _mark_test_reports_as_retry prioritizes call phase."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_handler = Mock()
         mock_call_report = Mock()
@@ -737,7 +741,8 @@ class TestReportAndLoggingMethods:
 
     def test_mark_test_reports_as_retry_setup_fallback(self) -> None:
         """Test _mark_test_reports_as_retry falls back to setup when call missing."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_handler = Mock()
         mock_setup_report = Mock()
@@ -760,7 +765,8 @@ class TestQuarantineHandling:
 
     def test_mark_quarantined_test_report_group_as_skipped_with_call(self) -> None:
         """Test quarantine group marking when call report exists."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_call = Mock()
@@ -782,7 +788,8 @@ class TestQuarantineHandling:
 
     def test_mark_quarantined_test_report_group_as_skipped_no_call(self) -> None:
         """Test quarantine group marking when call report is missing."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         mock_item = pytest_item_mock("test_file.py::test_name").build()
         mock_setup = Mock()
@@ -805,7 +812,8 @@ class TestXdistPlugin:
 
     def test_pytest_configure_node(self) -> None:
         """Test pytest_configure_node method."""
-        plugin = XdistTestOptPlugin()
+        session_manager = session_manager_mock().build_mock()
+        plugin = XdistTestOptPlugin(session_manager=session_manager)
 
         # Mock session with session_id
         plugin.session = Mock()
@@ -826,7 +834,8 @@ class TestOutcomeProcessing:
 
     def test_get_test_outcome_pass(self) -> None:
         """Test _get_test_outcome for passing test."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Set up reports for a passing test
         setup_report = Mock()
@@ -862,7 +871,8 @@ class TestOutcomeProcessing:
 
     def test_get_test_outcome_fail(self) -> None:
         """Test _get_test_outcome for failing test."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Set up reports for a failing test
         setup_report = Mock()
@@ -899,7 +909,8 @@ class TestOutcomeProcessing:
 
     def test_get_test_outcome_skip_with_reason(self) -> None:
         """Test _get_test_outcome for skipped test with reason."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Set up reports for a skipped test
         setup_report = Mock()
@@ -928,7 +939,8 @@ class TestOutcomeProcessing:
 
     def test_get_test_outcome_skip_no_reason(self) -> None:
         """Test _get_test_outcome for skipped test without excinfo."""
-        plugin = TestOptPlugin()
+        mock_manager = session_manager_mock().build_mock()
+        plugin = TestOptPlugin(session_manager=mock_manager)
 
         # Set up reports for a skipped test
         setup_report = Mock()

@@ -149,6 +149,7 @@ class SessionManagerMockBuilder:
         mock_manager.workspace_path = self._workspace_path
         mock_manager.retry_handlers = self._retry_handlers
 
+        mock_manager.session = Mock()
         mock_manager.writer = Mock()
         mock_manager.coverage_writer = Mock()
 
@@ -323,6 +324,7 @@ class APIClientMockBuilder:
 
     def __init__(self) -> None:
         self._skipping_enabled = False
+        self._coverage_enabled = False
         self._auto_retries_enabled = False
         self._efd_enabled = False
         self._test_management_enabled = False
@@ -333,6 +335,11 @@ class APIClientMockBuilder:
     def with_skipping_enabled(self, enabled: bool = True) -> "APIClientMockBuilder":
         """Enable/disable test skipping."""
         self._skipping_enabled = enabled
+        return self
+
+    def with_coverage_enabled(self, enabled: bool = True) -> "APIClientMockBuilder":
+        """Enable/disable code coverage."""
+        self._coverage_enabled = enabled
         return self
 
     def with_early_flake_detection(self, enabled: bool = True) -> "APIClientMockBuilder":
@@ -381,7 +388,7 @@ class APIClientMockBuilder:
             test_management=TestManagementSettings(enabled=self._test_management_enabled),
             auto_test_retries=AutoTestRetriesSettings(enabled=self._auto_retries_enabled),
             known_tests_enabled=self._known_tests_enabled,
-            coverage_enabled=False,
+            coverage_enabled=self._coverage_enabled,
             skipping_enabled=self._skipping_enabled,
             require_git=False,
             itr_enabled=self._skipping_enabled,
@@ -490,6 +497,7 @@ def mock_test_run(test_ref: TestRef) -> TestRun:
 
 def mock_api_client_settings(
     skipping_enabled: bool = False,
+    coverage_enabled: bool = False,
     auto_retries_enabled: bool = False,
     efd_enabled: bool = False,
     test_management_enabled: bool = False,
@@ -502,6 +510,8 @@ def mock_api_client_settings(
 
     if skipping_enabled:
         builder = builder.with_skipping_enabled()
+    if coverage_enabled:
+        builder = builder.with_coverage_enabled()
     if auto_retries_enabled:
         builder = builder.with_auto_retries()
     if efd_enabled:

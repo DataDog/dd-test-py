@@ -40,6 +40,8 @@ DISABLED_BY_TEST_MANAGEMENT_REASON = "Flaky test is disabled by Datadog"
 SKIPPED_BY_ITR_REASON = "Skipped by Datadog Intelligent Test Runner"
 ITR_UNSKIPPABLE_REASON = "datadog_itr_unskippable"
 
+SESSION_MANAGER_STASH_KEY = pytest.StashKey[SessionManager]()
+
 
 log = logging.getLogger(__name__)
 
@@ -129,21 +131,17 @@ class TestOptPlugin:
 
     __test__ = False
 
-    def __init__(self) -> None:
+    def __init__(self, session_manager: SessionManager) -> None:
         self.enable_ddtrace = False  # TODO: make it configurable via command line.
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, t.Optional[pytest.ExceptionInfo[t.Any]]] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
         self.is_xdist_worker = False
 
-    def pytest_sessionstart(self, session: pytest.Session) -> None:
-        self.session = TestSession(name="pytest")
-        self.session.set_attributes(
-            test_command=self._get_test_command(session),
-            test_framework="pytest",
-            test_framework_version=pytest.__version__,
-        )
+        self.manager = session_manager
+        self.session = self.manager.session
 
+    def pytest_sessionstart(self, session: pytest.Session) -> None:
         if xdist_worker_input := getattr(session.config, "workerinput", None):
             if session_id := xdist_worker_input.get("dd_session_id"):
                 self.session.set_session_id(session_id)
@@ -189,15 +187,6 @@ class TestOptPlugin:
             test_module, test_suite, test = self._discover_test(item, test_ref)
 
         self.manager.finish_collection()
-
-    def _get_test_command(self, session: pytest.Session) -> str:
-        """Extract and re-create pytest session command from pytest config."""
-        command = "pytest"
-        if invocation_params := getattr(session.config, "invocation_params", None):
-            command += " {}".format(" ".join(invocation_params.args))
-        if addopts := os.environ.get("PYTEST_ADDOPTS"):
-            command += " {}".format(addopts)
-        return command
 
     def _discover_test(self, item: pytest.Item, test_ref: TestRef) -> t.Tuple[TestModule, TestSuite, Test]:
         """
@@ -583,7 +572,20 @@ def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
     setup_logging()
-    setup_coverage_collection()
+
+    session = TestSession(name="pytest")
+    session.set_attributes(
+        test_command=_get_test_command(early_config),
+        test_framework="pytest",
+        test_framework_version=pytest.__version__,
+    )
+    session_manager = SessionManager(session=session)
+
+    early_config.stash[SESSION_MANAGER_STASH_KEY] = session_manager
+
+    if session_manager.settings.coverage_enabled:
+        setup_coverage_collection()
+
     yield
 
 
@@ -594,14 +596,25 @@ def setup_coverage_collection() -> None:
 
 def pytest_configure(config: pytest.Config) -> None:
     plugin_class = XdistTestOptPlugin if config.pluginmanager.hasplugin("xdist") else TestOptPlugin
+    session_manager = config.stash[SESSION_MANAGER_STASH_KEY]
 
     try:
-        plugin = plugin_class()
+        plugin = plugin_class(session_manager=session_manager)
     except Exception:
         log.exception("Error setting up Test Optimization plugin")
         return
 
     config.pluginmanager.register(plugin)
+
+
+def _get_test_command(config: pytest.Config) -> str:
+    """Extract and re-create pytest session command from pytest config."""
+    command = "pytest"
+    if invocation_params := getattr(config, "invocation_params", None):
+        command += " {}".format(" ".join(invocation_params.args))
+    if addopts := os.environ.get("PYTEST_ADDOPTS"):
+        command += " {}".format(addopts)
+    return command
 
 
 def _get_exception_tags(excinfo: t.Optional[pytest.ExceptionInfo[t.Any]]) -> t.Dict[str, str]:
