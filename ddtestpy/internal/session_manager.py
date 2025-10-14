@@ -5,6 +5,7 @@ import re
 import typing as t
 
 from ddtestpy.internal.api_client import APIClient
+from ddtestpy.internal.api_client import SetupError
 from ddtestpy.internal.api_client import TestProperties
 from ddtestpy.internal.constants import DEFAULT_ENV_NAME
 from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
@@ -59,7 +60,7 @@ class SessionManager:
         self.api_key = os.environ.get("DD_API_KEY")
 
         if not self.api_key:
-            raise RuntimeError("DD_API_KEY environment variable is not set")
+            raise SetupError("DD_API_KEY environment variable is not set")
 
         self.api_client = APIClient(
             site=self.site,
@@ -136,6 +137,22 @@ class SessionManager:
 
         if self.settings.auto_test_retries.enabled and asbool(os.getenv("DD_CIVISIBILITY_FLAKY_RETRY_ENABLED", "true")):
             self.retry_handlers.append(AutoTestRetriesHandler(self))
+
+    def report_settings(self) -> None:
+        messages = [
+            f"Early Flake Detection: {self.settings.early_flake_detection.enabled}",
+
+            f"Auto Test Retries: {self.settings.auto_test_retries.enabled}",
+
+            f"Test Impact Analysis: {self.settings.itr_enabled}, "
+            f"Test skipping: {self.settings.skipping_enabled}, "
+            f"TIA coverage collection: {self.settings.coverage_enabled}",
+
+            f"Known Tests enabled: {self.settings.known_tests_enabled}",
+        ]
+
+        for message in messages:
+            log.info("API-provided settings: %s", message)
 
     def start(self) -> None:
         self.writer.start()

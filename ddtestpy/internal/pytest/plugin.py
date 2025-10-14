@@ -12,6 +12,9 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+
+from ddtestpy.internal.utils import asbool
+from ddtestpy.internal.api_client import SetupError
 from ddtestpy.internal.constants import EMPTY_NAME
 from ddtestpy.internal.coverage_api import coverage_collection
 from ddtestpy.internal.coverage_api import install_coverage
@@ -132,7 +135,7 @@ class TestOptPlugin:
     __test__ = False
 
     def __init__(self, session_manager: SessionManager) -> None:
-        self.enable_ddtrace = False  # TODO: make it configurable via command line.
+        self.enable_ddtrace = False
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, t.Optional[pytest.ExceptionInfo[t.Any]]] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
@@ -146,6 +149,9 @@ class TestOptPlugin:
             if session_id := xdist_worker_input.get("dd_session_id"):
                 self.session.set_session_id(session_id)
                 self.is_xdist_worker = True
+
+        if session.config.getoption("ddtrace-patch-all"):
+            self.enable_ddtrace = True
 
         self.session.start()
 
@@ -567,10 +573,53 @@ def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:
     return {report.when: report for report in reports}
 
 
+# -------- Options --------
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Add ddtrace options."""
+    group = parser.getgroup("ddtestpy")
+
+    group._addoption(
+        "--ddtestpy",
+        action="store_true",
+        dest="ddtestpy",
+        default=False,
+        help="Enable Datadog Test Optimization",
+    )
+
+    group._addoption(
+        "--no-ddtestpy",
+        action="store_true",
+        dest="no-ddtestpy",
+        default=False,
+        help="Disable Datadog Test Optimization",
+    )
+    parser.addini("ddtestpy", "Enable Test Optimization", type="bool")
+    parser.addini("no-ddtestpy", "Disable Test Optimization", type="bool")
+
+
+def _is_enabled_early(early_config, args):
+    if _is_option_true("no-ddtestpy", early_config, args):
+        return False
+
+    return (
+        _is_option_true("ddtestpy", early_config, args) or
+        (_is_option_true("ddtrace", early_config, args) and asbool(os.getenv("DD_PYTEST_USE_DDTESTPY")))
+    )
+
+
+def _is_option_true(option, early_config, args):
+    return early_config.getoption(option) or early_config.getini(option) or f"--{option}" in args
+# -------------------------
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
+    if not _is_enabled_early(early_config, args):
+        yield
+        return
+
     setup_logging()
 
     session = TestSession(name="pytest")
@@ -579,7 +628,16 @@ def pytest_load_initial_conftests(
         test_framework="pytest",
         test_framework_version=pytest.__version__,
     )
-    session_manager = SessionManager(session=session)
+
+    try:
+        session_manager = SessionManager(session=session)
+    except SetupError as e:
+        log.error(f"Error setting up Datadog Test Optimization: {e}")
+        log.info("Datadog Test Optimization will be disabled for the current session")
+        yield
+        return
+
+    session_manager.report_settings()
 
     early_config.stash[SESSION_MANAGER_STASH_KEY] = session_manager
 
@@ -595,8 +653,12 @@ def setup_coverage_collection() -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    session_manager = config.stash.get(SESSION_MANAGER_STASH_KEY, None)
+    if not session_manager:
+        log.debug("Session manager not initialized (plugin was not enabled)")
+        return
+
     plugin_class = XdistTestOptPlugin if config.pluginmanager.hasplugin("xdist") else TestOptPlugin
-    session_manager = config.stash[SESSION_MANAGER_STASH_KEY]
 
     try:
         plugin = plugin_class(session_manager=session_manager)
