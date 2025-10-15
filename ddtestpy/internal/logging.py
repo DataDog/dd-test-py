@@ -21,7 +21,10 @@ def setup_logging() -> None:
         ddtestpy_logger.removeHandler(handler)
 
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("[Datadog Test Optimization] %(levelname)-8s %(message)s"))
+
+    handler.setFormatter(
+        logging.Formatter("[Datadog Test Optimization] %(levelname)-8s %(name)s:%(filename)s:%(lineno)d %(message)s")
+    )
     ddtestpy_logger.addHandler(handler)
 
 

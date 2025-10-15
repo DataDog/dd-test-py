@@ -64,16 +64,14 @@ class APIClient:
             }
         }
 
-        response, response_data = self.connector.post_json("/api/v2/libraries/tests/services/setting", request_data)
-        if response.status in (401, 403):
-            raise SetupError(
-                "Authorization error while fetching settings; please check your DD_API_KEY environment variable"
-            )
-        elif response.status != 200:
-            raise SetupError(f"Error while fetching settings: {response_data}")
+        try:
+            response, response_data = self.connector.post_json("/api/v2/libraries/tests/services/setting", request_data)
+            attributes = response_data["data"]["attributes"]
+            return Settings.from_attributes(attributes)
 
-        attributes = response_data["data"]["attributes"]
-        return Settings.from_attributes(attributes)
+        except Exception:
+            log.exception("Error getting settings from API")
+            return Settings()
 
     def get_known_tests(self) -> t.Set[TestRef]:
         request_data = {
@@ -316,7 +314,3 @@ class TestProperties:
     attempt_to_fix: bool = False
 
     __test__ = False
-
-
-class SetupError(Exception):
-    pass

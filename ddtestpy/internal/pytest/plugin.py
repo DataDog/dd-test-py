@@ -14,7 +14,6 @@ import pytest
 
 from ddtestpy.ddtrace_integration.tracing import install_global_trace_filter
 from ddtestpy.ddtrace_integration.tracing import trace_context
-from ddtestpy.internal.api_client import SetupError
 from ddtestpy.internal.constants import EMPTY_NAME
 from ddtestpy.internal.coverage_api import coverage_collection
 from ddtestpy.internal.coverage_api import install_coverage
@@ -630,16 +629,7 @@ def pytest_load_initial_conftests(
         test_framework="pytest",
         test_framework_version=pytest.__version__,
     )
-
-    try:
-        session_manager = SessionManager(session=session)
-    except SetupError as e:
-        log.error("Error setting up Datadog Test Optimization: %s", e)
-        log.info("Datadog Test Optimization will be disabled for the current session")
-        yield
-        return
-
-    session_manager.report_settings()
+    session_manager = SessionManager(session=session)
 
     early_config.stash[SESSION_MANAGER_STASH_KEY] = session_manager
 
