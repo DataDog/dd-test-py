@@ -659,6 +659,7 @@ def pytest_configure(config: pytest.Config) -> None:
         return
 
     plugin_class = XdistTestOptPlugin if config.pluginmanager.hasplugin("xdist") else TestOptPlugin
+    session_manager = config.stash[SESSION_MANAGER_STASH_KEY]
 
     try:
         plugin = plugin_class(session_manager=session_manager)
