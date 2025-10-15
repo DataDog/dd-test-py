@@ -33,7 +33,6 @@ from ddtestpy.internal.test_data import TestStatus
 from ddtestpy.internal.test_data import TestSuite
 from ddtestpy.internal.test_data import TestTag
 from ddtestpy.internal.utils import TestContext
-from ddtestpy.internal.utils import asbool
 
 
 _NODEID_REGEX = re.compile("^(((?P<module>.*)/)?(?P<suite>[^/]*?))::(?P<name>.*?)$")
@@ -131,6 +130,8 @@ class TestOptPlugin:
     """
 
     __test__ = False
+
+    should_handle_ddtrace_options: bool = False
 
     def __init__(self, session_manager: SessionManager) -> None:
         self.enable_ddtrace = False
@@ -571,14 +572,11 @@ def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:
     return {report.when: report for report in reports}
 
 
-# -------- Options --------
-
-
 def pytest_addoption(parser: pytest.Parser) -> None:
-    """Add ddtrace options."""
+    """Add ddtestpy options."""
     group = parser.getgroup("ddtestpy")
 
-    group._addoption(
+    group.addoption(
         "--ddtestpy",
         action="store_true",
         dest="ddtestpy",
@@ -586,23 +584,26 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="Enable Datadog Test Optimization",
     )
 
-    group._addoption(
+    group.addoption(
         "--no-ddtestpy",
         action="store_true",
         dest="no-ddtestpy",
         default=False,
-        help="Disable Datadog Test Optimization",
+        help="Disable Datadog Test Optimization (overrides --ddtestpy)",
     )
-    parser.addini("ddtestpy", "Enable Test Optimization", type="bool")
-    parser.addini("no-ddtestpy", "Disable Test Optimization", type="bool")
+
+    parser.addini("ddtestpy", "Enable Datadog Test Optimization", type="bool")
+    parser.addini("no-ddtestpy", "Disable Datadog Test Optimization (overrides 'ddtestpy')", type="bool")
 
 
 def _is_enabled_early(early_config: pytest.Config, args: t.List[str]) -> bool:
-    if _is_option_true("no-ddtestpy", early_config, args):
+    if _is_option_true("no-ddtestpy", early_config, args) or (
+        TestOptPlugin.should_handle_ddtrace_options and _is_option_true("no-ddtrace", early_config, args)
+    ):
         return False
 
     return _is_option_true("ddtestpy", early_config, args) or (
-        asbool(os.getenv("DD_PYTEST_USE_DDTESTPY")) and _is_option_true("ddtrace", early_config, args)
+        TestOptPlugin.should_handle_ddtrace_options and _is_option_true("ddtrace", early_config, args)
     )
 
 

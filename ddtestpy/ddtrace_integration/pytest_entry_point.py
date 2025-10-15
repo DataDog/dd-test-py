@@ -25,30 +25,34 @@ if asbool(os.getenv("DD_USE_DDTESTPY")):
 
     def pytest_addoption(parser: pytest.Parser) -> None:
         """Add ddtrace options."""
+        from ddtestpy.internal.pytest.plugin import TestOptPlugin
+
+        TestOptPlugin.should_handle_ddtrace_options = True
+
         group = parser.getgroup("ddtestpy")
 
-        group._addoption(
+        group.addoption(
             "--ddtrace",
             action="store_true",
             dest="ddtrace",
             default=False,
             help="Enable Datadog Test Optimization + tracer features",
         )
-        group._addoption(
+        group.addoption(
             "--no-ddtrace",
             action="store_true",
             dest="no-ddtrace",
             default=False,
-            help="Disable Datadog Test Optimization + tracer features",
+            help="Disable Datadog Test Optimization + tracer features (overrides --ddtrace)",
         )
-        group._addoption(
+        group.addoption(
             "--ddtrace-patch-all",
             action="store_true",
             dest="ddtrace-patch-all",
             default=False,
             help="Enable all tracer integrations during tests",
         )
-        group._addoption(
+        group.addoption(
             "--ddtrace-iast-fail-tests",
             action="store_true",
             dest="ddtrace-iast-fail-tests",
@@ -57,7 +61,9 @@ if asbool(os.getenv("DD_USE_DDTESTPY")):
         )
 
         parser.addini("ddtrace", "Enable Datadog Test Optimization + tracer features", type="bool")
-        parser.addini("no-ddtrace", "Disable Datadog Test Optimization + tracer features", type="bool")
+        parser.addini(
+            "no-ddtrace", "Disable Datadog Test Optimization + tracer features (overrides 'ddtrace')", type="bool"
+        )
         parser.addini("ddtrace-patch-all", "Enable all tracer integrations during tests", type="bool")
 
     def pytest_configure(config: pytest.Config) -> None:
