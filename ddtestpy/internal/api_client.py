@@ -66,7 +66,9 @@ class APIClient:
 
         response, response_data = self.connector.post_json("/api/v2/libraries/tests/services/setting", request_data)
         if response.status in (401, 403):
-            raise SetupError("Authorization error while fetching settings; please check your DD_API_KEY environment variable")
+            raise SetupError(
+                "Authorization error while fetching settings; please check your DD_API_KEY environment variable"
+            )
         elif response.status != 200:
             raise SetupError(f"Error while fetching settings: {response_data}")
 

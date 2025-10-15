@@ -141,13 +141,10 @@ class SessionManager:
     def report_settings(self) -> None:
         messages = [
             f"Early Flake Detection: {self.settings.early_flake_detection.enabled}",
-
             f"Auto Test Retries: {self.settings.auto_test_retries.enabled}",
-
             f"Test Impact Analysis: {self.settings.itr_enabled}, "
             f"Test skipping: {self.settings.skipping_enabled}, "
             f"TIA coverage collection: {self.settings.coverage_enabled}",
-
             f"Known Tests enabled: {self.settings.known_tests_enabled}",
         ]
 

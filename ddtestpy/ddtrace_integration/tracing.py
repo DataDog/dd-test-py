@@ -38,8 +38,9 @@ def install_global_trace_filter(writer: TestOptWriter) -> None:
     # TODO: this should be somewhere else.
     try:
         from ddtrace._monkey import _patch_all
+
         _patch_all()
-    except Exception as e:
+    except Exception:
         log.exception("Error enabling --ddtrace-patch-all")
 
 
