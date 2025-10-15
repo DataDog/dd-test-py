@@ -611,9 +611,6 @@ def _is_option_true(option: str, early_config: pytest.Config, args: t.List[str])
     return early_config.getoption(option) or early_config.getini(option) or f"--{option}" in args
 
 
-# -------------------------
-
-
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
