@@ -26,7 +26,7 @@ class TestFeaturesWithMocking:
 
     @pytest.mark.slow
     def test_simple_plugin_enabled(self, pytester: Pytester) -> None:
-        """Test basic plugin functionality without complex dependencies."""
+        """Test that plugin runs when --ddtestpy is used."""
         # Create a simple test file
         pytester.makepyfile(
             """
@@ -41,6 +41,80 @@ class TestFeaturesWithMocking:
             mock_api_client.return_value = mock_api_client_settings()
 
             result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 1
+
+        # Test should pass
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+    @pytest.mark.slow
+    def test_simple_plugin_disabled(self, pytester: Pytester) -> None:
+        """Test that plugin does not run when --no-ddtestpy is used."""
+        # Create a simple test file
+        pytester.makepyfile(
+            """
+            def test_simple():
+                '''A simple test.'''
+                assert True
+        """
+        )
+
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings()
+
+            result = pytester.runpytest("--no-ddtestpy", "-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 0
+
+        # Test should pass
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+    @pytest.mark.slow
+    def test_simple_plugin_not_explicitly_enabled(self, pytester: Pytester) -> None:
+        """Test that plugin does not run when neither --ddtestpy nor --no-ddtestpy is used."""
+        # Create a simple test file
+        pytester.makepyfile(
+            """
+            def test_simple():
+                '''A simple test.'''
+                assert True
+        """
+        )
+
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings()
+
+            result = pytester.runpytest("-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 0
+
+        # Test should pass
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+    @pytest.mark.slow
+    def test_simple_plugin_disabled_overrides_enabled(self, pytester: Pytester) -> None:
+        """Test that plugin does not run when both --ddtestpy nor --no-ddtestpy is used."""
+        # Create a simple test file
+        pytester.makepyfile(
+            """
+            def test_simple():
+                '''A simple test.'''
+                assert True
+        """
+        )
+
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings()
+
+            result = pytester.runpytest("--ddtestpy", "--no-ddtestpy", "-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 0
 
         # Test should pass
         assert result.ret == 0

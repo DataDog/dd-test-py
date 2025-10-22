@@ -151,8 +151,6 @@ class TestOptPlugin:
             self.enable_ddtrace = True
 
         self.session.start()
-
-        self.manager = SessionManager(session=self.session)
         self.manager.start()
 
         if self.enable_ddtrace:
