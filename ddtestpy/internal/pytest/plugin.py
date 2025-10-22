@@ -147,7 +147,7 @@ class TestOptPlugin:
                 self.session.set_session_id(session_id)
                 self.is_xdist_worker = True
 
-        if session.config.getoption("ddtestpy-patch-all"):
+        if session.config.getoption("ddtestpy-with-ddtrace"):
             self.enable_ddtrace = True
 
         self.session.start()
@@ -591,16 +591,16 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
     group.addoption(
-        "--ddtestpy-patch-all",
+        "--ddtestpy-with-ddtrace",
         action="store_true",
-        dest="ddtestpy-patch-all",
+        dest="ddtestpy-with-ddtrace",
         default=False,
         help="Enable all integrations with ddtrace",
     )
 
     parser.addini("ddtestpy", "Enable Datadog Test Optimization", type="bool")
     parser.addini("no-ddtestpy", "Disable Datadog Test Optimization (overrides 'ddtestpy')", type="bool")
-    parser.addini("ddtestpy-patch-all", "Enable all integrations with ddtrace", type="bool")
+    parser.addini("ddtestpy-with-ddtrace", "Enable all integrations with ddtrace", type="bool")
 
 
 def _is_enabled_early(early_config: pytest.Config, args: t.List[str]) -> bool:
