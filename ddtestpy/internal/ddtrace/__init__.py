@@ -41,7 +41,7 @@ def install_global_trace_filter(writer: TestOptWriter) -> None:
 
         _patch_all()
     except Exception:
-        log.exception("Error enabling --ddtrace-patch-all")
+        log.exception("Error enabling ddtrace integrations")
 
 
 def uninstall_global_trace_filter() -> None:
