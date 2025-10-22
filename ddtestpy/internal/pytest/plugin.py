@@ -132,7 +132,7 @@ class TestOptPlugin:
     __test__ = False
 
     def __init__(self, session_manager: SessionManager) -> None:
-        self.enable_ddtrace = False  # TODO: make it configurable via command line.
+        self.enable_ddtrace = False
         self.reports_by_nodeid: t.Dict[str, _ReportGroup] = defaultdict(lambda: {})
         self.excinfo_by_report: t.Dict[pytest.TestReport, t.Optional[pytest.ExceptionInfo[t.Any]]] = {}
         self.tests_by_nodeid: t.Dict[str, Test] = {}
@@ -147,9 +147,10 @@ class TestOptPlugin:
                 self.session.set_session_id(session_id)
                 self.is_xdist_worker = True
 
-        self.session.start()
+        if session.config.getoption("ddtestpy-with-ddtrace"):
+            self.enable_ddtrace = True
 
-        self.manager = SessionManager(session=self.session)
+        self.session.start()
         self.manager.start()
 
         if self.enable_ddtrace:
@@ -567,10 +568,58 @@ def _make_reports_dict(reports: t.List[pytest.TestReport]) -> _ReportGroup:
     return {report.when: report for report in reports}
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Add ddtestpy options."""
+    group = parser.getgroup("ddtestpy")
+
+    group.addoption(
+        "--ddtestpy",
+        action="store_true",
+        dest="ddtestpy",
+        default=False,
+        help="Enable Datadog Test Optimization",
+    )
+
+    group.addoption(
+        "--no-ddtestpy",
+        action="store_true",
+        dest="no-ddtestpy",
+        default=False,
+        help="Disable Datadog Test Optimization (overrides --ddtestpy)",
+    )
+
+    group.addoption(
+        "--ddtestpy-with-ddtrace",
+        action="store_true",
+        dest="ddtestpy-with-ddtrace",
+        default=False,
+        help="Enable all integrations with ddtrace",
+    )
+
+    parser.addini("ddtestpy", "Enable Datadog Test Optimization", type="bool")
+    parser.addini("no-ddtestpy", "Disable Datadog Test Optimization (overrides 'ddtestpy')", type="bool")
+    parser.addini("ddtestpy-with-ddtrace", "Enable all integrations with ddtrace", type="bool")
+
+
+def _is_enabled_early(early_config: pytest.Config, args: t.List[str]) -> bool:
+    if _is_option_true("no-ddtestpy", early_config, args):
+        return False
+
+    return _is_option_true("ddtestpy", early_config, args)
+
+
+def _is_option_true(option: str, early_config: pytest.Config, args: t.List[str]) -> bool:
+    return early_config.getoption(option) or early_config.getini(option) or f"--{option}" in args
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
+    if not _is_enabled_early(early_config, args):
+        yield
+        return
+
     setup_logging()
 
     session = TestSession(name="pytest")
@@ -595,8 +644,12 @@ def setup_coverage_collection() -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    session_manager = config.stash.get(SESSION_MANAGER_STASH_KEY, None)
+    if not session_manager:
+        log.debug("Session manager not initialized (plugin was not enabled)")
+        return
+
     plugin_class = XdistTestOptPlugin if config.pluginmanager.hasplugin("xdist") else TestOptPlugin
-    session_manager = config.stash[SESSION_MANAGER_STASH_KEY]
 
     try:
         plugin = plugin_class(session_manager=session_manager)

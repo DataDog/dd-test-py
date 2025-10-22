@@ -26,7 +26,7 @@ class TestFeaturesWithMocking:
 
     @pytest.mark.slow
     def test_simple_plugin_enabled(self, pytester: Pytester) -> None:
-        """Test basic plugin functionality without complex dependencies."""
+        """Test that plugin runs when --ddtestpy is used."""
         # Create a simple test file
         pytester.makepyfile(
             """
@@ -40,7 +40,81 @@ class TestFeaturesWithMocking:
         with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
             mock_api_client.return_value = mock_api_client_settings()
 
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "-v")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 1
+
+        # Test should pass
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+    @pytest.mark.slow
+    def test_simple_plugin_disabled(self, pytester: Pytester) -> None:
+        """Test that plugin does not run when --no-ddtestpy is used."""
+        # Create a simple test file
+        pytester.makepyfile(
+            """
+            def test_simple():
+                '''A simple test.'''
+                assert True
+        """
+        )
+
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings()
+
+            result = pytester.runpytest("--no-ddtestpy", "-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 0
+
+        # Test should pass
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+    @pytest.mark.slow
+    def test_simple_plugin_not_explicitly_enabled(self, pytester: Pytester) -> None:
+        """Test that plugin does not run when neither --ddtestpy nor --no-ddtestpy is used."""
+        # Create a simple test file
+        pytester.makepyfile(
+            """
+            def test_simple():
+                '''A simple test.'''
+                assert True
+        """
+        )
+
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings()
+
+            result = pytester.runpytest("-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 0
+
+        # Test should pass
+        assert result.ret == 0
+        result.assert_outcomes(passed=1)
+
+    @pytest.mark.slow
+    def test_simple_plugin_disabled_overrides_enabled(self, pytester: Pytester) -> None:
+        """Test that plugin does not run when both --ddtestpy nor --no-ddtestpy is used."""
+        # Create a simple test file
+        pytester.makepyfile(
+            """
+            def test_simple():
+                '''A simple test.'''
+                assert True
+        """
+        )
+
+        # Use network mocks to prevent all real HTTP calls
+        with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
+            mock_api_client.return_value = mock_api_client_settings()
+
+            result = pytester.runpytest("--ddtestpy", "--no-ddtestpy", "-p", "no:ddtrace", "-v")
+
+        assert mock_api_client.call_count == 0
 
         # Test should pass
         assert result.ret == 0
@@ -66,7 +140,7 @@ class TestFeaturesWithMocking:
         with network_mocks(), patch("ddtestpy.internal.session_manager.APIClient") as mock_api_client:
             mock_api_client.return_value = mock_api_client_settings(auto_retries_enabled=True)
             monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -122,7 +196,7 @@ class TestFeaturesWithMocking:
             ),
         ), setup_standard_mocks():
 
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that the test failed after EFD retries
         assert result.ret == 1  # Exit code 1 indicates test failures
@@ -175,7 +249,7 @@ class TestFeaturesWithMocking:
             return_value=mock_api_client_settings(skipping_enabled=True, skippable_items={skippable_test_ref}),
         ), setup_standard_mocks():
 
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "-v", "-s")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v", "-s")
 
         # Check that tests completed successfully
         assert result.ret == 0  # Exit code 0 indicates success
@@ -221,7 +295,7 @@ class TestPytestPluginIntegration:
             "ddtestpy.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ), setup_standard_mocks():
 
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "-v")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v")
 
         # Check that tests ran successfully
         assert result.ret == 0
@@ -248,7 +322,7 @@ class TestPytestPluginIntegration:
             "ddtestpy.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ), setup_standard_mocks():
 
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "-v")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v")
 
         # Check that one test failed and one passed
         assert result.ret == 1  # pytest exits with 1 when tests fail
@@ -271,7 +345,7 @@ class TestPytestPluginIntegration:
             "ddtestpy.internal.session_manager.APIClient", return_value=mock_api_client_settings()
         ), setup_standard_mocks():
 
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "--tb=short", "-v")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "--tb=short", "-v")
 
         # Should run without plugin loading errors
         assert result.ret == 0
@@ -299,7 +373,7 @@ class TestPytestPluginIntegration:
         ), setup_standard_mocks():
 
             # Run with specific arguments that should be captured
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "--tb=short", "-x", "-v")
 
         assert result.ret == 0
         result.assert_outcomes(passed=1)
@@ -333,7 +407,7 @@ class TestPytestPluginIntegration:
             monkeypatch.setenv("DD_CIVISIBILITY_FLAKY_RETRY_COUNT", "2")
             monkeypatch.setenv("DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT", "5")
 
-            result = pytester.runpytest("-p", "ddtestpy", "-p", "no:ddtrace", "-v")
+            result = pytester.runpytest("--ddtestpy", "-p", "no:ddtrace", "-v")
 
         # Tests should pass
         assert result.ret == 0
