@@ -167,7 +167,7 @@ def get_git_tags() -> t.Dict[str, str]:
         return {}
 
     tags = {}
-    tags[GitTag.REPOSITORY_URL] = os.getenv("DD_GIT_REPOSITORY_URL") or git.get_repository_url()
+    tags[GitTag.REPOSITORY_URL] = "https://github.com/vitor-de-araujo/test-dogweb" or git.get_repository_url()
     tags[GitTag.COMMIT_SHA] = git.get_commit_sha()
     tags[GitTag.BRANCH] = git.get_branch()
     tags[GitTag.COMMIT_MESSAGE] = git.get_commit_message()
