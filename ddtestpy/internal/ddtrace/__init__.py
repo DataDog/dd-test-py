@@ -35,8 +35,13 @@ def install_global_trace_filter(writer: TestOptWriter) -> None:
         # ddtrace 2.x compatibility
         ddtrace.tracer.configure(settings={"FILTERS": [span_processor]})  # type: ignore
 
-    # TODO: this should be somewhere else, and should not be specific to flask.
-    ddtrace.patch(flask=True)
+    # TODO: this should be somewhere else.
+    try:
+        from ddtrace._monkey import _patch_all
+
+        _patch_all()
+    except Exception:
+        log.exception("Error enabling --ddtrace-patch-all")
 
 
 def uninstall_global_trace_filter() -> None:
