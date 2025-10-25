@@ -1,5 +1,5 @@
 import abc
-from dataclasses import dataclass
+import dataclasses
 from pathlib import Path
 import typing as t
 
@@ -22,12 +22,12 @@ class PushSpanProtocol(t.Protocol):
     ) -> None: ...
 
 
-@dataclass
+@dataclasses.dataclass
 class CoverageData:
-    bitmaps: t.Dict[str, bytes]
+    bitmaps: t.Dict[str, bytes] = dataclasses.field(default_factory=dict)
 
 
-@dataclass
+@dataclasses.dataclass
 class TraceContext:
     trace_id: int
     span_id: int

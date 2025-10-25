@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import contextmanager
 from io import StringIO
 import json
 import logging
@@ -12,10 +13,9 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestpy.ddtrace_interface import CoverageData
 from ddtestpy.ddtrace_interface import tracer_interface_instance
 from ddtestpy.internal.constants import EMPTY_NAME
-from ddtestpy.internal.coverage_api import coverage_collection
-from ddtestpy.internal.coverage_api import install_coverage
 from ddtestpy.internal.ddtrace import install_global_trace_filter
 from ddtestpy.internal.ddtrace import trace_context
 from ddtestpy.internal.git import get_workspace_path
@@ -268,9 +268,7 @@ class TestOptPlugin:
 
         test.finish()
 
-        self.manager.coverage_writer.put_coverage(
-            test.last_test_run, coverage_data.get_coverage_bitmaps(relative_to=self.manager.workspace_path)
-        )
+        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.bitmaps.items())
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
@@ -646,8 +644,22 @@ def pytest_load_initial_conftests(
 
 
 def setup_coverage_collection() -> None:
+    if not tracer_interface_instance:
+        log.warning("ddtrace interface not available, code coverage will not be collected")
+        return
+
     workspace_path = get_workspace_path()
-    install_coverage(workspace_path)
+    tracer_interface_instance.enable_coverage_collection(workspace_path)
+
+
+@contextmanager
+def coverage_collection() -> t.Generator[CoverageData, None, None]:
+    if not tracer_interface_instance:
+        yield CoverageData()
+        return
+
+    with tracer_interface_instance.coverage_context() as coverage_data:
+        yield coverage_data
 
 
 def pytest_configure(config: pytest.Config) -> None:
