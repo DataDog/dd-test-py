@@ -105,7 +105,7 @@ class Git:
 
         author_name, author_email, author_date, committer_name, committer_email, committer_date = output.split("|||")
         return {
-            GitTag.COMMIT_AUTHOR_DATE: author_name,
+            GitTag.COMMIT_AUTHOR_NAME: author_name,
             GitTag.COMMIT_AUTHOR_EMAIL: author_email,
             GitTag.COMMIT_AUTHOR_DATE: author_date,
             GitTag.COMMIT_COMMITTER_NAME: committer_name,

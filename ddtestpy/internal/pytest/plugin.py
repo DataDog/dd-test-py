@@ -12,6 +12,7 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestpy.ddtrace_interface import tracer_interface_instance
 from ddtestpy.internal.constants import EMPTY_NAME
 from ddtestpy.internal.coverage_api import coverage_collection
 from ddtestpy.internal.coverage_api import install_coverage
@@ -147,7 +148,9 @@ class TestOptPlugin:
                 self.session.set_session_id(session_id)
                 self.is_xdist_worker = True
 
-        if session.config.getoption("ddtestpy-with-ddtrace"):
+        if session.config.getoption("ddtestpy-with-ddtrace") or (
+            tracer_interface_instance and tracer_interface_instance.should_enable_trace_collection()
+        ):
             self.enable_ddtrace = True
 
         self.session.start()
@@ -605,17 +608,21 @@ def _is_enabled_early(early_config: pytest.Config, args: t.List[str]) -> bool:
     if _is_option_true("no-ddtestpy", early_config, args):
         return False
 
-    return _is_option_true("ddtestpy", early_config, args)
+    return _is_option_true("ddtestpy", early_config, args) or bool(
+        tracer_interface_instance and tracer_interface_instance.should_enable_test_optimization()
+    )
 
 
 def _is_option_true(option: str, early_config: pytest.Config, args: t.List[str]) -> bool:
     return early_config.getoption(option) or early_config.getini(option) or f"--{option}" in args
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+@pytest.hookimpl(trylast=True, hookwrapper=True)
 def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
+    # DEV: We use trylast=True because ddtrace's pytest_load_initial_conftests has to run first.
+
     if not _is_enabled_early(early_config, args):
         yield
         return
