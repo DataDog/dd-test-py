@@ -288,10 +288,10 @@ class Settings:
         )
         atr_enabled = bool(attributes.get("flaky_test_retries_enabled"))
         known_tests_enabled = bool(attributes.get("known_tests_enabled"))
-        coverage_enabled = bool(attributes.get("code_coverage"))
-        skipping_enabled = bool(attributes.get("tests_skipping"))
-        require_git = bool(attributes.get("require_git"))
-        itr_enabled = bool(attributes.get("itr_enabled"))
+        coverage_enabled = True, # bool(attributes.get("code_coverage"))
+        skipping_enabled = True, # bool(attributes.get("tests_skipping"))
+        require_git = True, # bool(attributes.get("require_git"))
+        itr_enabled = True, # bool(attributes.get("itr_enabled"))
 
         settings = cls(
             early_flake_detection=efd_settings,
