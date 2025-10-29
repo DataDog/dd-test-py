@@ -109,6 +109,8 @@ class SessionManager:
             itr_event = "test" if self.itr_skipping_level == ITRSkippingLevel.TEST else "test_suite_end"
             self.writer.add_metadata(itr_event, {"itr_correlation_id": self.itr_correlation_id})
 
+        print(f"ꙮꙮꙮ writer metadata = {self.writer.metadata}")
+
     def finish_collection(self) -> None:
         self.setup_retry_handlers()
 
