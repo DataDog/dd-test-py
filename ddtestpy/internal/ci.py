@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 import typing as t
 
@@ -96,6 +97,9 @@ def get_env_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:  # ꙮ
         tags[GitTag.TAG] = git.normalize_ref(tags.get(GitTag.TAG))
 
     tags[GitTag.REPOSITORY_URL] = _filter_sensitive_info(tags.get(GitTag.REPOSITORY_URL))
+
+    if workspace_path := tags.get(CITag.WORKSPACE_PATH):
+        tags[CITag.WORKSPACE_PATH] = os.path.expanduser(workspace_path)
 
     return tags
 

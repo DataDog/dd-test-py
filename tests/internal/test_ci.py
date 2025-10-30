@@ -20,8 +20,13 @@ def _ci_fixtures() -> t.Iterable[t.Tuple[str, int, t.Dict[str, str], t.Dict[str,
 
 
 @pytest.mark.parametrize("name,i,environment,tags", _ci_fixtures())
-def test_ci_providers(name: str, i: int, environment: t.Dict[str, str], tags: t.Dict[str, str]) -> None:
+def test_ci_providers(
+    monkeypatch: pytest.MonkeyPatch, name: str, i: int, environment: t.Dict[str, str], tags: t.Dict[str, str]
+) -> None:
     """Make sure all provided environment variables from each CI provider are tagged correctly."""
+    for k, v in environment.items():
+        monkeypatch.setenv(k, v)
+
     extracted_tags = get_env_tags(environment)
     for key, value in tags.items():
         if key == CITag.NODE_LABELS:
