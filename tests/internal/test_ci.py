@@ -6,7 +6,7 @@ import typing as t
 import pytest
 
 from ddtestpy.internal.ci import CITag
-from ddtestpy.internal.ci import get_ci_tags
+from ddtestpy.internal.ci import get_env_tags
 
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "ci"
@@ -22,7 +22,7 @@ def _ci_fixtures() -> t.Iterable[t.Tuple[str, int, t.Dict[str, str], t.Dict[str,
 @pytest.mark.parametrize("name,i,environment,tags", _ci_fixtures())
 def test_ci_providers(name: str, i: int, environment: t.Dict[str, str], tags: t.Dict[str, str]) -> None:
     """Make sure all provided environment variables from each CI provider are tagged correctly."""
-    extracted_tags = get_ci_tags(environment)
+    extracted_tags = get_env_tags(environment)
     for key, value in tags.items():
         if key == CITag.NODE_LABELS:
             assert Counter(json.loads(extracted_tags[key])) == Counter(json.loads(value))

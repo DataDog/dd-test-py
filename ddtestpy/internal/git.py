@@ -221,3 +221,29 @@ def normalize_ref(name: t.Optional[str]) -> t.Optional[str]:
 
 def is_ref_a_tag(ref: t.Optional[str]) -> bool:
     return "tags/" in ref if ref else False
+
+
+def get_git_tags_from_dd_variables(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:
+    """Extract git commit metadata from user-provided env vars."""
+    branch = normalize_ref(env.get("DD_GIT_BRANCH"))
+    tag = normalize_ref(env.get("DD_GIT_TAG"))
+
+    # if DD_GIT_BRANCH is a tag, we associate its value to TAG instead of BRANCH
+    if is_ref_a_tag(env.get("DD_GIT_BRANCH")):
+        tag = branch
+        branch = None
+
+    tags = {}
+    tags[GitTag.REPOSITORY_URL] = env.get("DD_GIT_REPOSITORY_URL")
+    tags[GitTag.COMMIT_SHA] = env.get("DD_GIT_COMMIT_SHA")
+    tags[GitTag.BRANCH] = branch
+    tags[GitTag.TAG] = tag
+    tags[GitTag.COMMIT_MESSAGE] = env.get("DD_GIT_COMMIT_MESSAGE")
+    tags[GitTag.COMMIT_AUTHOR_DATE] = env.get("DD_GIT_COMMIT_AUTHOR_DATE")
+    tags[GitTag.COMMIT_AUTHOR_EMAIL] = env.get("DD_GIT_COMMIT_AUTHOR_EMAIL")
+    tags[GitTag.COMMIT_AUTHOR_NAME] = env.get("DD_GIT_COMMIT_AUTHOR_NAME")
+    tags[GitTag.COMMIT_COMMITTER_DATE] = env.get("DD_GIT_COMMIT_COMMITTER_DATE")
+    tags[GitTag.COMMIT_COMMITTER_EMAIL] = env.get("DD_GIT_COMMIT_COMMITTER_EMAIL")
+    tags[GitTag.COMMIT_COMMITTER_NAME] = env.get("DD_GIT_COMMIT_COMMITTER_NAME")
+
+    return {k: v for k, v in tags.items() if v}

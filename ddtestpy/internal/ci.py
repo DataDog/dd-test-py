@@ -3,8 +3,8 @@ import logging
 import re
 import typing as t
 
+from ddtestpy.internal import git
 from ddtestpy.internal.git import GitTag
-from ddtestpy.internal.git import normalize_ref
 
 
 log = logging.getLogger(__name__)
@@ -79,6 +79,25 @@ def get_ci_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:
             return {k: v for k, v in extract(env).items() if v is not None}
 
     return {}
+
+
+def get_env_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:  # ꙮ
+    tags = get_ci_tags(env) | git.get_git_tags_from_dd_variables(env)
+
+    # if git.BRANCH is a tag, we associate its value to TAG instead of BRANCH
+    if git.is_ref_a_tag(tags.get(GitTag.BRANCH)):
+        if not tags.get(GitTag.TAG):
+            tags[GitTag.TAG] = git.normalize_ref(tags.get(GitTag.BRANCH))
+        else:
+            tags[GitTag.TAG] = git.normalize_ref(tags.get(GitTag.TAG))
+        del tags[GitTag.BRANCH]
+    else:
+        tags[GitTag.BRANCH] = git.normalize_ref(tags.get(GitTag.BRANCH))
+        tags[GitTag.TAG] = git.normalize_ref(tags.get(GitTag.TAG))
+
+    tags[GitTag.REPOSITORY_URL] = _filter_sensitive_info(tags.get(GitTag.REPOSITORY_URL))
+
+    return tags
 
 
 @register_provider("APPVEYOR")
@@ -362,7 +381,7 @@ def extract_jenkins(env: t.MutableMapping[str, str]) -> t.Dict[str, t.Optional[s
     branch = env.get("GIT_BRANCH", "")
     name = env.get("JOB_NAME")
     if name and branch:
-        name = re.sub("/{0}".format(normalize_ref(branch)), "", name)
+        name = re.sub("/{0}".format(git.normalize_ref(branch)), "", name)
     if name:
         name = "/".join((v for v in name.split("/") if v and "=" not in v))
     node_labels_list: t.List[str] = []
