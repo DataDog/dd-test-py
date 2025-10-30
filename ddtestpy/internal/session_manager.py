@@ -6,6 +6,7 @@ import typing as t
 
 from ddtestpy.internal.api_client import APIClient
 from ddtestpy.internal.api_client import TestProperties
+from ddtestpy.internal.ci import get_ci_tags
 from ddtestpy.internal.constants import DEFAULT_ENV_NAME
 from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestpy.internal.constants import DEFAULT_SITE
@@ -36,6 +37,7 @@ log = logging.getLogger(__name__)
 
 class SessionManager:
     def __init__(self, session: TestSession) -> None:
+        self.ci_tags = get_ci_tags()
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
         self.workspace_path = get_workspace_path()

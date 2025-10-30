@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import logging
 from pathlib import Path
 import random
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,9 @@ class GitTag:
 
     # Git Branch
     BRANCH = "git.branch"
+
+    # Git Tag
+    TAG = "git.tag"
 
     # Git Commit Message
     COMMIT_MESSAGE = "git.commit.message"
@@ -41,6 +45,30 @@ class GitTag:
 
     # Git Commit Committer Date (UTC)
     COMMIT_COMMITTER_DATE = "git.commit.committer.date"
+
+    # Git Commit HEAD SHA
+    COMMIT_HEAD_SHA = "git.commit.head.sha"
+
+    # Git Commit HEAD message
+    COMMIT_HEAD_MESSAGE = "git.commit.head.message"
+
+    # Git Commit HEAD author date
+    COMMIT_HEAD_AUTHOR_DATE = "git.commit.head.author.date"
+
+    # Git Commit HEAD author email
+    COMMIT_HEAD_AUTHOR_EMAIL = "git.commit.head.author.email"
+
+    # Git Commit HEAD author name
+    COMMIT_HEAD_AUTHOR_NAME = "git.commit.head.author.name"
+
+    # Git Commit HEAD committer date
+    COMMIT_HEAD_COMMITTER_DATE = "git.commit.head.committer.date"
+
+    # Git Commit HEAD committer email
+    COMMIT_HEAD_COMMITTER_EMAIL = "git.commit.head.committer.email"
+
+    # Git Commit HEAD committer name
+    COMMIT_HEAD_COMMITTER_NAME = "git.commit.head.committer.name"
 
 
 @dataclass
@@ -180,3 +208,16 @@ def get_workspace_path() -> Path:
         return Path(Git().get_workspace_path()).absolute()
     except RuntimeError:
         return Path.cwd()
+
+
+_RE_REFS = re.compile(r"^refs/(heads/)?")
+_RE_ORIGIN = re.compile(r"^origin/")
+_RE_TAGS = re.compile(r"^tags/")
+
+
+def normalize_ref(name: t.Optional[str]) -> t.Optional[str]:
+    return _RE_TAGS.sub("", _RE_ORIGIN.sub("", _RE_REFS.sub("", name))) if name is not None else None
+
+
+def is_ref_a_tag(ref: t.Optional[str]) -> bool:
+    return "tags/" in ref if ref else False
