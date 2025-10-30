@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 
 class SessionManager:
     def __init__(self, session: TestSession) -> None:
-        self.ci_tags = get_ci_tags()
+        self.ci_tags = get_ci_tags(os.environ)
         self.git_tags = get_git_tags()
         self.platform_tags = get_platform_tags()
         self.workspace_path = get_workspace_path()

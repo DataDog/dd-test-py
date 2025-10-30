@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import re
 import typing as t
 
@@ -56,6 +55,12 @@ PROVIDERS: t.List[t.Tuple[str, TProviderFunction]] = []
 
 
 def register_provider(key: str) -> t.Callable[[TProviderFunction], TProviderFunction]:
+    """
+    Register a handler to extract tags from the environment for a given CI provider.
+
+    The handler will be used if the environment contains an environment variable named by `key`.
+    """
+
     def decorator(f: TProviderFunction) -> TProviderFunction:
         PROVIDERS.append((key, f))
         return f
@@ -67,11 +72,11 @@ def _filter_sensitive_info(url: t.Optional[str]) -> t.Optional[str]:
     return _RE_URL.sub("\\1", url) if url is not None else None
 
 
-def get_ci_tags() -> t.Dict[str, str]:
+def get_ci_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:
     """Extract tags from CI  provider environment variables."""
     for key, extract in PROVIDERS:
-        if key in os.environ:
-            return {k: v for k, v in extract(os.environ).items() if v is not None}
+        if key in env:
+            return {k: v for k, v in extract(env).items() if v is not None}
 
     return {}
 
