@@ -197,7 +197,24 @@ class SessionManager:
         git = Git()
         latest_commits = git.get_latest_commits()
         backend_commits = self.api_client.get_known_commits(latest_commits)
+        # TODO: ddtrace has a "backend_commits is None" logic here with early return (is it correct?).
         commits_not_in_backend = list(set(latest_commits) - set(backend_commits))
+
+        if len(commits_not_in_backend) == 0:
+            log.debug("All latest commits found in backend, skipping metadata upload")
+            return
+
+        if git.is_shallow_repository() and git.get_git_version() >= (2, 27, 0):
+            log.debug("Shallow repository detected on git > 2.27 detected, unshallowing")
+            unshallow_successful = git.try_all_unshallow_repository_methods()
+            if unshallow_successful:
+                log.debug("Unshallow successful, geting latest commits from backend based on unshallowed commits")
+                latest_commits = git.get_latest_commits()
+                backend_commits = self.api_client.get_known_commits(latest_commits)
+                # TODO: ddtrace has a "backend_commits is None" logic here with early return (is it correct?).
+                commits_not_in_backend = list(set(latest_commits) - set(backend_commits))
+            else:
+                log.warning("Failed to unshallow repository, continuing to send pack data")
 
         revisions_to_send = git.get_filtered_revisions(
             excluded_commits=backend_commits, included_commits=commits_not_in_backend

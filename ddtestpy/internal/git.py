@@ -112,11 +112,24 @@ class Git:
             return ""
         return result.stdout
 
+    def get_git_version(self) -> t.Tuple[int, ...]:
+        output = self._git_output(["--version"])  # "git version 1.2.3"
+        try:
+            version_string = output.split()[2]
+            version_tuple = tuple(int(part) for part in version_string.split("."))
+            return version_tuple
+        except (IndexError, ValueError):
+            log.error("Could not parse git --version output: %s", output)
+            return (0, 0, 0)
+
     def get_repository_url(self) -> str:
         return self._git_output(["ls-remote", "--get-url"])
 
     def get_commit_sha(self) -> str:
         return self._git_output(["rev-parse", "HEAD"])
+
+    def get_upstream_sha(self) -> str:
+        return self._git_output(["rev-parse", "@{upstream}"])
 
     def get_branch(self) -> str:
         return self._git_output(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -144,6 +157,9 @@ class Git:
     def get_workspace_path(self) -> str:
         return self._git_output(["rev-parse", "--show-toplevel"])
 
+    def get_remote_name(self) -> str:
+        return self._git_output(["config", "--default", "origin", "--get", "clone.defaultRemoteName"])
+
     def get_latest_commits(self) -> t.List[str]:
         output = self._git_output(["log", "--format=%H", "-n", "1000", '--since="1 month ago"'])
         return output.split("\n") if output else []
@@ -163,6 +179,56 @@ class Git:
             ]
         )
         return output.split("\n")
+
+    def is_shallow_repository(self) -> bool:
+        output = self._git_output(["rev-parse", "--is-shallow-repository"])
+        return output == "true"
+
+    def unshallow_repository(self, refspec: t.Optional[str]) -> bool:
+        remote_name = self.get_remote_name()
+        parent_only = False  # when is it true?
+        command = [
+            "fetch",
+            "--deepen=1" if parent_only else '--shallow-since="1 month ago"',
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            remote_name,
+        ]
+        if refspec:
+            command.append(refspec)
+
+        result = self._call_git(command)
+        if result.return_code != 0:
+            log.warning("Error unshallowing repo for refspec %s: %s", refspec, result.stderr)
+        return result.return_code == 0
+
+    def unshallow_repository_to_local_head(self) -> bool:
+        return self.unshallow_repository(self.get_commit_sha())
+
+    def unshallow_repository_to_upstream(self) -> bool:
+        upstream_sha = self.get_upstream_sha()
+        if not upstream_sha:
+            log.warning("Error unshallowing repo to upstream: no upstream sha")
+            return False
+
+        return self.unshallow_repository(self.get_upstream_sha())
+
+    def unshallow_repository_to_default(self) -> bool:
+        return self.unshallow_repository(None)
+
+    def try_all_unshallow_repository_methods(self) -> bool:
+        if self.unshallow_repository_to_local_head():
+            return True
+
+        if self.unshallow_repository_to_upstream():
+            return True
+
+        if self.unshallow_repository_to_default():
+            return True
+
+        log.debug("Unshallow failed")
+        return False
 
     def pack_objects(self, revisions: t.List[str]) -> t.Iterable[Path]:
         base_name = str(random.randint(1, 1000000))
