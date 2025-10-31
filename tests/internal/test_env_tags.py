@@ -6,7 +6,7 @@ import typing as t
 import pytest
 
 from ddtestpy.internal.ci import CITag
-from ddtestpy.internal.ci import get_env_tags
+from ddtestpy.internal.env_tags import get_env_tags
 
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "ci"
@@ -27,7 +27,7 @@ def test_ci_providers(
     for k, v in environment.items():
         monkeypatch.setenv(k, v)
 
-    extracted_tags = get_env_tags(environment)
+    extracted_tags = get_env_tags()
     for key, value in tags.items():
         if key == CITag.NODE_LABELS:
             assert Counter(json.loads(extracted_tags[key])) == Counter(json.loads(value))

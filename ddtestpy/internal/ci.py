@@ -1,11 +1,11 @@
 import json
 import logging
-import os
 import re
 import typing as t
 
 from ddtestpy.internal import git
 from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.utils import _filter_sensitive_info
 
 
 log = logging.getLogger(__name__)
@@ -49,8 +49,6 @@ class CITag:
     _CI_ENV_VARS = "_dd.ci.env_vars"
 
 
-_RE_URL = re.compile(r"(https?://|ssh://)[^/]*@")
-
 TProviderFunction = t.Callable[[t.MutableMapping[str, str]], t.Dict[str, t.Optional[str]]]
 PROVIDERS: t.List[t.Tuple[str, TProviderFunction]] = []
 
@@ -69,10 +67,6 @@ def register_provider(key: str) -> t.Callable[[TProviderFunction], TProviderFunc
     return decorator
 
 
-def _filter_sensitive_info(url: t.Optional[str]) -> t.Optional[str]:
-    return _RE_URL.sub("\\1", url) if url is not None else None
-
-
 def get_ci_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:
     """Extract tags from CI  provider environment variables."""
     for key, extract in PROVIDERS:
@@ -80,28 +74,6 @@ def get_ci_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:
             return {k: v for k, v in extract(env).items() if v is not None}
 
     return {}
-
-
-def get_env_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:  # ꙮ
-    tags = get_ci_tags(env) | git.get_git_tags_from_dd_variables(env)
-
-    # if git.BRANCH is a tag, we associate its value to TAG instead of BRANCH
-    if git.is_ref_a_tag(tags.get(GitTag.BRANCH)):
-        if not tags.get(GitTag.TAG):
-            tags[GitTag.TAG] = git.normalize_ref(tags.get(GitTag.BRANCH))
-        else:
-            tags[GitTag.TAG] = git.normalize_ref(tags.get(GitTag.TAG))
-        del tags[GitTag.BRANCH]
-    else:
-        tags[GitTag.BRANCH] = git.normalize_ref(tags.get(GitTag.BRANCH))
-        tags[GitTag.TAG] = git.normalize_ref(tags.get(GitTag.TAG))
-
-    tags[GitTag.REPOSITORY_URL] = _filter_sensitive_info(tags.get(GitTag.REPOSITORY_URL))
-
-    if workspace_path := tags.get(CITag.WORKSPACE_PATH):
-        tags[CITag.WORKSPACE_PATH] = os.path.expanduser(workspace_path)
-
-    return tags
 
 
 @register_provider("APPVEYOR")
