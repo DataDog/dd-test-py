@@ -11,6 +11,7 @@ from ddtestpy.internal.ci import CITag
 from ddtestpy.internal.env_tags import get_env_tags
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.git import get_git_tags_from_git_command
 from ddtestpy.internal.utils import _filter_sensitive_info
 
 
@@ -31,7 +32,9 @@ def test_ci_providers(
     """Make sure all provided environment variables from each CI provider are tagged correctly."""
     monkeypatch.setattr(os, "environ", environment)
 
-    extracted_tags = get_env_tags()
+    with mock.patch("ddtestpy.internal.git.get_git_tags_from_git_command", return_value={}):
+        extracted_tags = get_env_tags()
+
     for key, value in tags.items():
         if key == CITag.NODE_LABELS:
             assert Counter(json.loads(extracted_tags[key])) == Counter(json.loads(value))
@@ -80,7 +83,7 @@ def test_git_extract_no_info_available(monkeypatch: pytest.MonkeyPatch, git_repo
     monkeypatch.chdir(git_repo_empty)
 
     tags = get_env_tags()
-    assert tags == {}
+    assert tags == {CITag.WORKSPACE_PATH: git_repo_empty}  # We still get the workspace path from the current directory.
 
 
 def test_git_extract_repository_url(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
@@ -141,3 +144,141 @@ def test_git_extract_workspace_path(monkeypatch: pytest.MonkeyPatch, git_repo: s
 
     tags = get_env_tags()
     assert tags[CITag.WORKSPACE_PATH] == git_repo
+
+
+def test_git_extract_workspace_path_error(monkeypatch: pytest.MonkeyPatch, tmpdir: t.Any) -> None:
+    """On a non-git folder, workspace path should be the current directory."""
+    monkeypatch.setattr(os, "environ", {})
+    monkeypatch.chdir(str(tmpdir))
+
+    tags = get_env_tags()
+    assert tags[CITag.WORKSPACE_PATH] == str(tmpdir)
+
+
+def test_git_extract_metadata(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
+    """Make sure that all Git metadata is extracted and tagged correctly."""
+    monkeypatch.setattr(os, "environ", {})
+    monkeypatch.chdir(git_repo)
+
+    tags = get_env_tags()
+
+    assert tags[GitTag.REPOSITORY_URL] == "git@github.com:test-repo-url.git"
+    assert tags[GitTag.COMMIT_MESSAGE] == "this is a commit msg"
+    assert tags[GitTag.COMMIT_AUTHOR_NAME] == "John Doe"
+    assert tags[GitTag.COMMIT_AUTHOR_EMAIL] == "john@doe.com"
+    assert tags[GitTag.COMMIT_AUTHOR_DATE] == "2021-01-19T09:24:53-0400"
+    assert tags[GitTag.COMMIT_COMMITTER_NAME] == "Jane Doe"
+    assert tags[GitTag.COMMIT_COMMITTER_EMAIL] == "jane@doe.com"
+    assert tags[GitTag.COMMIT_COMMITTER_DATE] == "2021-01-20T04:37:21-0400"
+    assert tags[GitTag.BRANCH] == "master"
+    assert tags[GitTag.COMMIT_SHA] is not None  # Commit hash will always vary, just ensure a value is set
+
+
+def test_extract_git_user_provided_metadata_overwrites_ci(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
+    """Test that user-provided git metadata overwrites CI provided env vars."""
+    ci_env = {
+        "DD_GIT_REPOSITORY_URL": "https://github.com/user-repo-name.git",
+        "DD_GIT_COMMIT_SHA": "1234",
+        "DD_GIT_BRANCH": "branch",
+        "DD_GIT_COMMIT_MESSAGE": "message",
+        "DD_GIT_COMMIT_AUTHOR_NAME": "author name",
+        "DD_GIT_COMMIT_AUTHOR_EMAIL": "author email",
+        "DD_GIT_COMMIT_AUTHOR_DATE": "author date",
+        "DD_GIT_COMMIT_COMMITTER_NAME": "committer name",
+        "DD_GIT_COMMIT_COMMITTER_EMAIL": "committer email",
+        "DD_GIT_COMMIT_COMMITTER_DATE": "committer date",
+        "APPVEYOR": "true",
+        "APPVEYOR_BUILD_FOLDER": "/foo/bar",
+        "APPVEYOR_BUILD_ID": "appveyor-build-id",
+        "APPVEYOR_BUILD_NUMBER": "appveyor-pipeline-number",
+        "APPVEYOR_REPO_BRANCH": "master",
+        "APPVEYOR_REPO_COMMIT": "appveyor-repo-commit",
+        "APPVEYOR_REPO_NAME": "appveyor-repo-name",
+        "APPVEYOR_REPO_PROVIDER": "github",
+        "APPVEYOR_REPO_COMMIT_MESSAGE": "this is the correct commit message",
+        "APPVEYOR_REPO_COMMIT_AUTHOR": "John Jack",
+        "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL": "john@jack.com",
+    }
+    monkeypatch.setattr(os, "environ", ci_env)
+    monkeypatch.chdir(git_repo)
+
+    tags = get_env_tags()
+
+    assert tags["git.repository_url"] == "https://github.com/user-repo-name.git"
+    assert tags["git.commit.sha"] == "1234"
+    assert tags["git.branch"] == "branch"
+    assert tags["git.commit.message"] == "message"
+    assert tags["git.commit.author.name"] == "author name"
+    assert tags["git.commit.author.email"] == "author email"
+    assert tags["git.commit.author.date"] == "author date"
+    assert tags["git.commit.committer.name"] == "committer name"
+    assert tags["git.commit.committer.email"] == "committer email"
+    assert tags["git.commit.committer.date"] == "committer date"
+
+
+def test_git_executable_not_found_error(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
+    """If git executable not available, should raise internally, log, and not extract any tags."""
+    monkeypatch.setattr(os, "environ", {})
+    monkeypatch.chdir(git_repo)
+
+    with mock.patch("ddtestpy.internal.git.log") as log:
+        with mock.patch("shutil.which", return_value=None):
+            tags = get_git_tags_from_git_command()
+
+    assert log.warning.call_count == 1
+    assert tags == {}
+
+
+def test_ci_provider_tags_not_overwritten_by_git_executable(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
+    """If non-Falsey values from CI provider env, should not be overwritten by extracted git metadata."""
+    ci_provider_env = {
+        "APPVEYOR": "true",
+        "APPVEYOR_BUILD_FOLDER": "/foo/bar",
+        "APPVEYOR_BUILD_ID": "appveyor-build-id",
+        "APPVEYOR_BUILD_NUMBER": "appveyor-pipeline-number",
+        "APPVEYOR_REPO_BRANCH": "master",
+        "APPVEYOR_REPO_COMMIT": "appveyor-repo-commit",
+        "APPVEYOR_REPO_NAME": "appveyor-repo-name",
+        "APPVEYOR_REPO_PROVIDER": "github",
+        "APPVEYOR_REPO_COMMIT_MESSAGE": "this is the correct commit message",
+        "APPVEYOR_REPO_COMMIT_AUTHOR": "John Jack",
+        "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL": "john@jack.com",
+    }
+    monkeypatch.setattr(os, "environ", ci_provider_env)
+    monkeypatch.chdir(git_repo)
+
+    tags = get_env_tags()
+
+    assert tags["git.repository_url"] == "https://github.com/appveyor-repo-name.git"
+    assert tags["git.commit.message"] == "this is the correct commit message"
+    assert tags["git.commit.author.name"] == "John Jack"
+    assert tags["git.commit.author.email"] == "john@jack.com"
+
+
+def test_falsey_ci_provider_values_overwritten_by_git_executable(
+    monkeypatch: pytest.MonkeyPatch, git_repo: str
+) -> None:
+    """If no or None or empty string values from CI provider env, should be overwritten by extracted git metadata."""
+    ci_provider_env = {
+        "APPVEYOR": "true",
+        "APPVEYOR_BUILD_FOLDER": "",
+        "APPVEYOR_BUILD_ID": "appveyor-build-id",
+        "APPVEYOR_BUILD_NUMBER": "appveyor-pipeline-number",
+        "APPVEYOR_REPO_BRANCH": "master",
+        "APPVEYOR_REPO_COMMIT": "appveyor-repo-commit",
+        "APPVEYOR_REPO_NAME": "appveyor-repo-name",
+        "APPVEYOR_REPO_PROVIDER": "not-github",
+        "APPVEYOR_REPO_COMMIT_MESSAGE": None,
+        "APPVEYOR_REPO_COMMIT_AUTHOR": "",
+    }
+
+    monkeypatch.setattr(os, "environ", ci_provider_env)
+    monkeypatch.chdir(git_repo)
+
+    tags = get_env_tags()
+
+    assert tags["git.repository_url"] == "git@github.com:test-repo-url.git"
+    assert tags["git.commit.message"] == "this is a commit msg"
+    assert tags["git.commit.author.name"] == "John Doe"
+    assert tags["git.commit.author.email"] == "john@doe.com"
+    assert tags["ci.workspace_path"] == git_repo
