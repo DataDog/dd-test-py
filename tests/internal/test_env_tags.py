@@ -1,5 +1,6 @@
 from collections import Counter
 import json
+import os
 from pathlib import Path
 import typing as t
 
@@ -24,8 +25,7 @@ def test_ci_providers(
     monkeypatch: pytest.MonkeyPatch, name: str, i: int, environment: t.Dict[str, str], tags: t.Dict[str, str]
 ) -> None:
     """Make sure all provided environment variables from each CI provider are tagged correctly."""
-    for k, v in environment.items():
-        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(os, "environ", environment)
 
     extracted_tags = get_env_tags()
     for key, value in tags.items():
