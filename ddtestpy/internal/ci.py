@@ -67,11 +67,11 @@ def register_provider(key: str) -> t.Callable[[TProviderFunction], TProviderFunc
     return decorator
 
 
-def get_ci_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:
+def get_ci_tags(env: t.MutableMapping[str, str]) -> t.Dict[str, t.Optional[str]]:
     """Extract tags from CI  provider environment variables."""
     for key, extract in PROVIDERS:
         if key in env:
-            return {k: v for k, v in extract(env).items() if v is not None}
+            return extract(env)
 
     return {}
 

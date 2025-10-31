@@ -186,14 +186,14 @@ class Git:
                 yield packfile
 
 
-def get_git_tags_from_git_command() -> t.Dict[str, str]:
+def get_git_tags_from_git_command() -> t.Dict[str, t.Optional[str]]:
     try:
         git = Git()
     except RuntimeError as e:
         log.warning("Error getting git data: %s", e)
         return {}
 
-    tags = {}
+    tags: t.Dict[str, t.Optional[str]] = {}
     tags[GitTag.REPOSITORY_URL] = git.get_repository_url()
     tags[GitTag.COMMIT_SHA] = git.get_commit_sha()
     tags[GitTag.BRANCH] = git.get_branch()
@@ -223,7 +223,7 @@ def is_ref_a_tag(ref: t.Optional[str]) -> bool:
     return "tags/" in ref if ref else False
 
 
-def get_git_tags_from_dd_variables(env: t.MutableMapping[str, str]) -> t.Dict[str, str]:
+def get_git_tags_from_dd_variables(env: t.MutableMapping[str, str]) -> t.Dict[str, t.Optional[str]]:
     """Extract git commit metadata from user-provided env vars."""
     branch = normalize_ref(env.get("DD_GIT_BRANCH"))
     tag = normalize_ref(env.get("DD_GIT_TAG"))
@@ -246,4 +246,4 @@ def get_git_tags_from_dd_variables(env: t.MutableMapping[str, str]) -> t.Dict[st
     tags[GitTag.COMMIT_COMMITTER_EMAIL] = env.get("DD_GIT_COMMIT_COMMITTER_EMAIL")
     tags[GitTag.COMMIT_COMMITTER_NAME] = env.get("DD_GIT_COMMIT_COMMITTER_NAME")
 
-    return {k: v for k, v in tags.items() if v}
+    return tags
