@@ -74,7 +74,7 @@ def test_git_extract_user_info_with_commas(monkeypatch: pytest.MonkeyPatch) -> N
     assert tags[GitTag.COMMIT_COMMITTER_DATE] == "2021-01-20T04:37:21-0400"
 
 
-def test_git_extract_user_info_error(monkeypatch: pytest.MonkeyPatch, git_repo_empty: str) -> None:
+def test_git_extract_no_info_available(monkeypatch: pytest.MonkeyPatch, git_repo_empty: str) -> None:
     """When git data is not available, return no tags."""
     monkeypatch.setattr(os, "environ", {})
     monkeypatch.chdir(git_repo_empty)
@@ -120,3 +120,24 @@ def test_git_filter_repository_url_invalid() -> None:
 
     assert _filter_sensitive_info(invalid_url_3) == "ssh://github.com/DataDog/dd-trace-py.git"
     assert _filter_sensitive_info(invalid_url_4) == "ssh://github.com/DataDog/dd-trace-py.git"
+
+
+def test_git_extract_commit_message(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
+    """Make sure that the git commit message is extracted properly."""
+    monkeypatch.setattr(os, "environ", {})
+    monkeypatch.chdir(git_repo)
+
+    expected_msg = "this is a commit msg"
+
+    tags = get_env_tags()
+
+    assert tags[GitTag.COMMIT_MESSAGE] == expected_msg
+
+
+def test_git_extract_workspace_path(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
+    """Make sure that workspace path is correctly extracted."""
+    monkeypatch.setattr(os, "environ", {})
+    monkeypatch.chdir(git_repo)
+
+    tags = get_env_tags()
+    assert tags[CITag.WORKSPACE_PATH] == git_repo

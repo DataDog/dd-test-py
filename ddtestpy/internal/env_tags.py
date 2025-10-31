@@ -5,6 +5,7 @@ from ddtestpy.internal import ci
 from ddtestpy.internal import git
 from ddtestpy.internal.ci import CITag
 from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.git import get_workspace_path
 from ddtestpy.internal.utils import _filter_sensitive_info
 
 
@@ -40,6 +41,8 @@ def get_env_tags() -> t.Dict[str, str]:
         # DEV: expanduser() requires HOME to be correctly set, so there is no point in accepting the environment as a
         # parameter in this function, the variables have to be in os.environ.
         tags[CITag.WORKSPACE_PATH] = os.path.expanduser(workspace_path)
+    else:
+        tags[CITag.WORKSPACE_PATH] = str(get_workspace_path())
 
     return {k: v for k, v in tags.items() if v}
 
