@@ -186,7 +186,7 @@ class Git:
                 yield packfile
 
 
-def get_git_tags() -> t.Dict[str, str]:
+def get_git_tags_from_git_command() -> t.Dict[str, str]:
     try:
         git = Git()
     except RuntimeError as e:

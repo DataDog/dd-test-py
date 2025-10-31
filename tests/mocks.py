@@ -176,7 +176,7 @@ class SessionManagerMockBuilder:
             mock_client.get_skippable_tests.return_value = (self._skippable_items, None)
             mock_api_client.return_value = mock_client
 
-            with patch("ddtestpy.internal.session_manager.get_git_tags", return_value={}), patch(
+            with patch("ddtestpy.internal.session_manager.get_env_tags", return_value={}), patch(
                 "ddtestpy.internal.session_manager.get_platform_tags", return_value={}
             ), patch("ddtestpy.internal.session_manager.Git", return_value=get_mock_git_instance()), patch.dict(
                 os.environ, test_env
@@ -535,7 +535,7 @@ def setup_standard_mocks() -> t.ContextManager[t.Any]:
     """Mock calls used by the session manager to get git and platform tags."""
     return patch.multiple(
         "ddtestpy.internal.session_manager",
-        get_git_tags=Mock(return_value={}),
+        get_env_tags=Mock(return_value={}),
         get_platform_tags=Mock(return_value={}),
         Git=Mock(return_value=get_mock_git_instance()),
     )
@@ -552,7 +552,7 @@ def network_mocks() -> t.ContextManager[t.Any]:
         stack.enter_context(
             patch.multiple(
                 "ddtestpy.internal.session_manager",
-                get_git_tags=Mock(return_value={}),
+                get_env_tags=Mock(return_value={}),
                 get_platform_tags=Mock(return_value={}),
                 Git=Mock(return_value=get_mock_git_instance()),
             )

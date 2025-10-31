@@ -9,7 +9,11 @@ from ddtestpy.internal.utils import _filter_sensitive_info
 
 
 def get_env_tags() -> t.Dict[str, str]:
-    tags = ci.get_ci_tags(os.environ) | git.get_git_tags_from_dd_variables(os.environ)
+    tags = (
+        git.get_git_tags_from_git_command()
+        | ci.get_ci_tags(os.environ)
+        | git.get_git_tags_from_dd_variables(os.environ)
+    )
 
     # if git.BRANCH is a tag, we associate its value to TAG instead of BRANCH
     if git.is_ref_a_tag(tags.get(GitTag.BRANCH)):

@@ -6,13 +6,12 @@ import typing as t
 
 from ddtestpy.internal.api_client import APIClient
 from ddtestpy.internal.api_client import TestProperties
-from ddtestpy.internal.env_tags import get_env_tags
 from ddtestpy.internal.constants import DEFAULT_ENV_NAME
 from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestpy.internal.constants import DEFAULT_SITE
+from ddtestpy.internal.env_tags import get_env_tags
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
-from ddtestpy.internal.git import get_git_tags
 from ddtestpy.internal.git import get_workspace_path
 from ddtestpy.internal.platform import get_platform_tags
 from ddtestpy.internal.retry_handlers import AttemptToFixHandler

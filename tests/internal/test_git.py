@@ -8,7 +8,7 @@ import pytest
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
 from ddtestpy.internal.git import _GitSubprocessDetails
-from ddtestpy.internal.git import get_git_tags
+from ddtestpy.internal.git import get_git_tags_from_git_command
 
 
 class TestGitTag:
@@ -141,9 +141,9 @@ class TestGit:
             result = git.get_user_info()
 
         expected = {
-            GitTag.COMMIT_AUTHOR_DATE: "John Doe",  # Note: there's a bug in the original code
+            GitTag.COMMIT_AUTHOR_NAME: "John Doe",
             GitTag.COMMIT_AUTHOR_EMAIL: "john@example.com",
-            GitTag.COMMIT_AUTHOR_DATE: "2023-01-01T12:00:00+0000",  # This overwrites the previous one
+            GitTag.COMMIT_AUTHOR_DATE: "2023-01-01T12:00:00+0000",
             GitTag.COMMIT_COMMITTER_NAME: "Jane Committer",
             GitTag.COMMIT_COMMITTER_EMAIL: "jane@example.com",
             GitTag.COMMIT_COMMITTER_DATE: "2023-01-01T12:30:00+0000",
@@ -228,11 +228,11 @@ class TestGit:
 
 
 class TestGetGitTags:
-    """Tests for get_git_tags function."""
+    """Tests for get_git_tags_from_git_command function."""
 
     @patch("ddtestpy.internal.git.Git")
     def test_get_git_tags_success(self, mock_git_class: Mock) -> None:
-        """Test get_git_tags with successful Git operations."""
+        """Test get_git_tags_from_git_command with successful Git operations."""
         mock_git = Mock()
         mock_git.get_repository_url.return_value = "https://github.com/user/repo.git"
         mock_git.get_commit_sha.return_value = "abc123"
@@ -241,7 +241,7 @@ class TestGetGitTags:
         mock_git.get_user_info.return_value = {"author": "John Doe"}
         mock_git_class.return_value = mock_git
 
-        result = get_git_tags()
+        result = get_git_tags_from_git_command()
 
         expected = {
             GitTag.REPOSITORY_URL: "https://github.com/user/repo.git",
@@ -255,10 +255,10 @@ class TestGetGitTags:
     @patch("ddtestpy.internal.git.Git")
     @patch("ddtestpy.internal.git.log")
     def test_get_git_tags_git_not_available(self, mock_log: Mock, mock_git_class: Mock) -> None:
-        """Test get_git_tags when Git is not available."""
+        """Test get_git_tags_from_git_command when Git is not available."""
         mock_git_class.side_effect = RuntimeError("git command not found")
 
-        result = get_git_tags()
+        result = get_git_tags_from_git_command()
 
         assert result == {}
         mock_log.warning.assert_called_once_with("Error getting git data: %s", mock_git_class.side_effect)
