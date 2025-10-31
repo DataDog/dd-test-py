@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import logging
 from pathlib import Path
 import random
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,9 @@ class GitTag:
 
     # Git Branch
     BRANCH = "git.branch"
+
+    # Git Tag
+    TAG = "git.tag"
 
     # Git Commit Message
     COMMIT_MESSAGE = "git.commit.message"
@@ -41,6 +45,30 @@ class GitTag:
 
     # Git Commit Committer Date (UTC)
     COMMIT_COMMITTER_DATE = "git.commit.committer.date"
+
+    # Git Commit HEAD SHA
+    COMMIT_HEAD_SHA = "git.commit.head.sha"
+
+    # Git Commit HEAD message
+    COMMIT_HEAD_MESSAGE = "git.commit.head.message"
+
+    # Git Commit HEAD author date
+    COMMIT_HEAD_AUTHOR_DATE = "git.commit.head.author.date"
+
+    # Git Commit HEAD author email
+    COMMIT_HEAD_AUTHOR_EMAIL = "git.commit.head.author.email"
+
+    # Git Commit HEAD author name
+    COMMIT_HEAD_AUTHOR_NAME = "git.commit.head.author.name"
+
+    # Git Commit HEAD committer date
+    COMMIT_HEAD_COMMITTER_DATE = "git.commit.head.committer.date"
+
+    # Git Commit HEAD committer email
+    COMMIT_HEAD_COMMITTER_EMAIL = "git.commit.head.committer.email"
+
+    # Git Commit HEAD committer name
+    COMMIT_HEAD_COMMITTER_NAME = "git.commit.head.committer.name"
 
 
 @dataclass
@@ -105,7 +133,7 @@ class Git:
 
         author_name, author_email, author_date, committer_name, committer_email, committer_date = output.split("|||")
         return {
-            GitTag.COMMIT_AUTHOR_DATE: author_name,
+            GitTag.COMMIT_AUTHOR_NAME: author_name,
             GitTag.COMMIT_AUTHOR_EMAIL: author_email,
             GitTag.COMMIT_AUTHOR_DATE: author_date,
             GitTag.COMMIT_COMMITTER_NAME: committer_name,
@@ -158,14 +186,14 @@ class Git:
                 yield packfile
 
 
-def get_git_tags() -> t.Dict[str, str]:
+def get_git_tags_from_git_command() -> t.Dict[str, t.Optional[str]]:
     try:
         git = Git()
     except RuntimeError as e:
         log.warning("Error getting git data: %s", e)
         return {}
 
-    tags = {}
+    tags: t.Dict[str, t.Optional[str]] = {}
     tags[GitTag.REPOSITORY_URL] = git.get_repository_url()
     tags[GitTag.COMMIT_SHA] = git.get_commit_sha()
     tags[GitTag.BRANCH] = git.get_branch()
@@ -180,3 +208,42 @@ def get_workspace_path() -> Path:
         return Path(Git().get_workspace_path()).absolute()
     except RuntimeError:
         return Path.cwd()
+
+
+_RE_REFS = re.compile(r"^refs/(heads/)?")
+_RE_ORIGIN = re.compile(r"^origin/")
+_RE_TAGS = re.compile(r"^tags/")
+
+
+def normalize_ref(name: t.Optional[str]) -> t.Optional[str]:
+    return _RE_TAGS.sub("", _RE_ORIGIN.sub("", _RE_REFS.sub("", name))) if name is not None else None
+
+
+def is_ref_a_tag(ref: t.Optional[str]) -> bool:
+    return "tags/" in ref if ref else False
+
+
+def get_git_tags_from_dd_variables(env: t.MutableMapping[str, str]) -> t.Dict[str, t.Optional[str]]:
+    """Extract git commit metadata from user-provided env vars."""
+    branch = normalize_ref(env.get("DD_GIT_BRANCH"))
+    tag = normalize_ref(env.get("DD_GIT_TAG"))
+
+    # if DD_GIT_BRANCH is a tag, we associate its value to TAG instead of BRANCH
+    if is_ref_a_tag(env.get("DD_GIT_BRANCH")):
+        tag = branch
+        branch = None
+
+    tags = {}
+    tags[GitTag.REPOSITORY_URL] = env.get("DD_GIT_REPOSITORY_URL")
+    tags[GitTag.COMMIT_SHA] = env.get("DD_GIT_COMMIT_SHA")
+    tags[GitTag.BRANCH] = branch
+    tags[GitTag.TAG] = tag
+    tags[GitTag.COMMIT_MESSAGE] = env.get("DD_GIT_COMMIT_MESSAGE")
+    tags[GitTag.COMMIT_AUTHOR_DATE] = env.get("DD_GIT_COMMIT_AUTHOR_DATE")
+    tags[GitTag.COMMIT_AUTHOR_EMAIL] = env.get("DD_GIT_COMMIT_AUTHOR_EMAIL")
+    tags[GitTag.COMMIT_AUTHOR_NAME] = env.get("DD_GIT_COMMIT_AUTHOR_NAME")
+    tags[GitTag.COMMIT_COMMITTER_DATE] = env.get("DD_GIT_COMMIT_COMMITTER_DATE")
+    tags[GitTag.COMMIT_COMMITTER_EMAIL] = env.get("DD_GIT_COMMIT_COMMITTER_EMAIL")
+    tags[GitTag.COMMIT_COMMITTER_NAME] = env.get("DD_GIT_COMMIT_COMMITTER_NAME")
+
+    return tags

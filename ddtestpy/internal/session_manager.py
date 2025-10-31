@@ -9,9 +9,9 @@ from ddtestpy.internal.api_client import TestProperties
 from ddtestpy.internal.constants import DEFAULT_ENV_NAME
 from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestpy.internal.constants import DEFAULT_SITE
+from ddtestpy.internal.env_tags import get_env_tags
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
-from ddtestpy.internal.git import get_git_tags
 from ddtestpy.internal.git import get_workspace_path
 from ddtestpy.internal.platform import get_platform_tags
 from ddtestpy.internal.retry_handlers import AttemptToFixHandler
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 
 class SessionManager:
     def __init__(self, session: TestSession) -> None:
-        self.git_tags = get_git_tags()
+        self.env_tags = get_env_tags()
         self.platform_tags = get_platform_tags()
         self.workspace_path = get_workspace_path()
         self.collected_tests: t.Set[TestRef] = set()
@@ -52,7 +52,7 @@ class SessionManager:
             self.service = dd_service
         else:
             self.is_user_provided_service = False
-            self.service = _get_service_name_from_git_repo(self.git_tags) or DEFAULT_SERVICE_NAME
+            self.service = _get_service_name_from_git_repo(self.env_tags) or DEFAULT_SERVICE_NAME
 
         self.env = os.environ.get("DD_ENV") or DEFAULT_ENV_NAME
         self.site = os.environ.get("DD_SITE") or DEFAULT_SITE
@@ -66,7 +66,7 @@ class SessionManager:
             api_key=self.api_key,
             service=self.service,
             env=self.env,
-            git_tags=self.git_tags,
+            env_tags=self.env_tags,
             itr_skipping_level=self.itr_skipping_level,
             configurations=self.platform_tags,
         )
@@ -92,7 +92,7 @@ class SessionManager:
         self.session = session
         self.session.set_service(self.service)
 
-        self.writer.add_metadata("*", self.git_tags)
+        self.writer.add_metadata("*", self.env_tags)
         self.writer.add_metadata("*", self.platform_tags)
         self.writer.add_metadata(
             "*",
@@ -213,8 +213,8 @@ class SessionManager:
         return test_ref in self.skippable_items or test_ref.suite in self.skippable_items
 
 
-def _get_service_name_from_git_repo(git_tags: t.Dict[str, str]) -> t.Optional[str]:
-    repo_name = git_tags.get(GitTag.REPOSITORY_URL)
+def _get_service_name_from_git_repo(env_tags: t.Dict[str, str]) -> t.Optional[str]:
+    repo_name = env_tags.get(GitTag.REPOSITORY_URL)
     if repo_name and (m := re.match(r".*/([^/]+)(?:.git)/?", repo_name)):
         return m.group(1).lower()
     else:

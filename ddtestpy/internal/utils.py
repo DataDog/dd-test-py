@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import random
+import re
 import typing as t
 
 
@@ -18,6 +19,13 @@ def asbool(value: t.Union[str, bool, None]) -> bool:
         return value
 
     return value.lower() in ("true", "1")
+
+
+_RE_URL = re.compile(r"(https?://|ssh://)[^/]*@")
+
+
+def _filter_sensitive_info(url: t.Optional[str]) -> t.Optional[str]:
+    return _RE_URL.sub("\\1", url) if url is not None else None
 
 
 @dataclass

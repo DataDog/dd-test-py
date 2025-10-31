@@ -28,7 +28,7 @@ class APIClient:
         api_key: str,
         service: str,
         env: str,
-        git_tags: t.Dict[str, str],
+        env_tags: t.Dict[str, str],
         itr_skipping_level: ITRSkippingLevel,
         configurations: t.Dict[str, str],
     ) -> None:
@@ -36,7 +36,7 @@ class APIClient:
         self.api_key = api_key
         self.service = service
         self.env = env
-        self.git_tags = git_tags
+        self.env_tags = env_tags
         self.itr_skipping_level = itr_skipping_level
         self.configurations = configurations
 
@@ -56,9 +56,9 @@ class APIClient:
                     "test_level": self.itr_skipping_level.value,
                     "service": self.service,
                     "env": self.env,
-                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
-                    "sha": self.git_tags[GitTag.COMMIT_SHA],
-                    "branch": self.git_tags[GitTag.BRANCH],
+                    "repository_url": self.env_tags[GitTag.REPOSITORY_URL],
+                    "sha": self.env_tags[GitTag.COMMIT_SHA],
+                    "branch": self.env_tags[GitTag.BRANCH],
                     "configurations": self.configurations,
                 },
             }
@@ -81,7 +81,7 @@ class APIClient:
                 "attributes": {
                     "service": self.service,
                     "env": self.env,
-                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+                    "repository_url": self.env_tags[GitTag.REPOSITORY_URL],
                     "configurations": self.configurations,
                 },
             }
@@ -111,9 +111,9 @@ class APIClient:
                 "id": str(uuid.uuid4()),
                 "type": "ci_app_libraries_tests_request",
                 "attributes": {
-                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
-                    "commit_message": self.git_tags[GitTag.COMMIT_MESSAGE],
-                    "sha": self.git_tags[GitTag.COMMIT_SHA],
+                    "repository_url": self.env_tags[GitTag.REPOSITORY_URL],
+                    "commit_message": self.env_tags[GitTag.COMMIT_MESSAGE],
+                    "sha": self.env_tags[GitTag.COMMIT_SHA],
                 },
             }
         }
@@ -149,7 +149,7 @@ class APIClient:
     def get_known_commits(self, latest_commits: t.List[str]) -> t.List[str]:
         request_data = {
             "meta": {
-                "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
+                "repository_url": self.env_tags[GitTag.REPOSITORY_URL],
             },
             "data": [{"id": sha, "type": "commit"} for sha in latest_commits],
         }
@@ -164,8 +164,8 @@ class APIClient:
 
     def send_git_pack_file(self, packfile: Path) -> None:
         metadata = {
-            "data": {"id": self.git_tags[GitTag.COMMIT_SHA], "type": "commit"},
-            "meta": {"repository_url": self.git_tags[GitTag.REPOSITORY_URL]},
+            "data": {"id": self.env_tags[GitTag.COMMIT_SHA], "type": "commit"},
+            "meta": {"repository_url": self.env_tags[GitTag.REPOSITORY_URL]},
         }
         content = packfile.read_bytes()
         files = [
@@ -194,8 +194,8 @@ class APIClient:
                 "attributes": {
                     "service": self.service,
                     "env": self.env,
-                    "repository_url": self.git_tags[GitTag.REPOSITORY_URL],
-                    "sha": self.git_tags[GitTag.COMMIT_SHA],
+                    "repository_url": self.env_tags[GitTag.REPOSITORY_URL],
+                    "sha": self.env_tags[GitTag.COMMIT_SHA],
                     "configurations": self.configurations,
                     "test_level": self.itr_skipping_level.value,
                 },
