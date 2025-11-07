@@ -184,19 +184,18 @@ class Git:
         output = self._git_output(["rev-parse", "--is-shallow-repository"])
         return output == "true"
 
-    def unshallow_repository(self, refspec: t.Optional[str]) -> bool:
+    def unshallow_repository(self, refspec: str) -> bool:
         remote_name = self.get_remote_name()
-        parent_only = False  # when is it true?
         command = [
             "fetch",
-            "--deepen=1" if parent_only else '--shallow-since="1 month ago"',
+            '--shallow-since="1 month ago"',
             "--update-shallow",
             "--filter=blob:none",
             "--recurse-submodules=no",
+            "--no-tags",
             remote_name,
+            refspec,
         ]
-        if refspec:
-            command.append(refspec)
 
         result = self._call_git(command)
         if result.return_code != 0:

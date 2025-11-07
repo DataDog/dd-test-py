@@ -262,3 +262,65 @@ class TestGetGitTags:
 
         assert result == {}
         mock_log.warning.assert_called_once_with("Error getting git data: %s", mock_git_class.side_effect)
+
+
+class TestGitUnshallow:
+    """Tests for git unshallow logic."""
+
+    def test_git_unshallow_repository(self):
+        with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ):
+            Git().unshallow_repository("some-sha")
+
+        [([git_command], _)] = call_git_mock.call_args_list
+        assert git_command == [
+            "fetch",
+            '--shallow-since="1 month ago"',
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            "--no-tags",
+            "some-remote",
+            "some-sha",
+        ]
+
+    def test_git_unshallow_repository_to_local_head(self):
+        with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch(
+            "ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"
+        ):
+            Git().unshallow_repository_to_local_head()
+
+        [([git_command], _)] = call_git_mock.call_args_list
+        assert git_command == [
+            "fetch",
+            '--shallow-since="1 month ago"',
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            "--no-tags",
+            "some-remote",
+            "head-sha",
+        ]
+
+    def test_git_unshallow_repository_to_upstream(self):
+        with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            Git().unshallow_repository_to_upstream()
+
+        [([git_command], _)] = call_git_mock.call_args_list
+        assert git_command == [
+            "fetch",
+            '--shallow-since="1 month ago"',
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            "--no-tags",
+            "some-remote",
+            "upstream-sha",
+        ]
