@@ -262,3 +262,242 @@ class TestGetGitTags:
 
         assert result == {}
         mock_log.warning.assert_called_once_with("Error getting git data: %s", mock_git_class.side_effect)
+
+
+class TestGitUnshallow:
+    """Tests for git unshallow logic."""
+
+    @pytest.mark.parametrize("return_code", [0, 1])
+    def test_git_unshallow_repository(self, return_code: int) -> None:
+        with patch(
+            "ddtestpy.internal.git.Git._call_git",
+            return_value=_GitSubprocessDetails(stdout="", stderr="", return_code=return_code),
+        ) as call_git_mock, patch("ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"):
+            result = Git().unshallow_repository("some-sha")
+
+        assert result == (return_code == 0)
+
+        [([git_command], _)] = call_git_mock.call_args_list
+        assert git_command == [
+            "fetch",
+            '--shallow-since="1 month ago"',
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            "--no-tags",
+            "some-remote",
+            "some-sha",
+        ]
+
+    @pytest.mark.parametrize("return_code", [0, 1])
+    def test_git_unshallow_repository_to_local_head(self, return_code: int) -> None:
+        with patch(
+            "ddtestpy.internal.git.Git._call_git",
+            return_value=_GitSubprocessDetails(stdout="", stderr="", return_code=return_code),
+        ) as call_git_mock, patch("ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"), patch(
+            "ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"
+        ):
+            result = Git().unshallow_repository_to_local_head()
+
+        assert result == (return_code == 0)
+
+        [([git_command], _)] = call_git_mock.call_args_list
+        assert git_command == [
+            "fetch",
+            '--shallow-since="1 month ago"',
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            "--no-tags",
+            "some-remote",
+            "head-sha",
+        ]
+
+    @pytest.mark.parametrize("return_code", [0, 1])
+    def test_git_unshallow_repository_to_upstream(self, return_code: int) -> None:
+        with patch(
+            "ddtestpy.internal.git.Git._call_git",
+            return_value=_GitSubprocessDetails(stdout="", stderr="", return_code=return_code),
+        ) as call_git_mock, patch("ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().unshallow_repository_to_upstream()
+
+        assert result == (return_code == 0)
+
+        [([git_command], _)] = call_git_mock.call_args_list
+        assert git_command == [
+            "fetch",
+            '--shallow-since="1 month ago"',
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            "--no-tags",
+            "some-remote",
+            "upstream-sha",
+        ]
+
+    def test_git_try_all_unshallow_methods_1st_suceeds(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=0),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ]
+        ]
+
+    def test_git_try_all_unshallow_methods_2nd_suceeds(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=0),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "upstream-sha",
+            ],
+        ]
+
+    def test_git_try_all_unshallow_methods_3rd_suceeds(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=0),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "upstream-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+            ],
+        ]
+
+    def test_git_try_all_unshallow_methods_all_fail(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert not result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "upstream-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+            ],
+        ]
