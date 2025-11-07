@@ -271,7 +271,9 @@ class TestGitUnshallow:
         with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
             "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
         ):
-            Git().unshallow_repository("some-sha")
+            result = Git().unshallow_repository("some-sha")
+
+        assert result
 
         [([git_command], _)] = call_git_mock.call_args_list
         assert git_command == [
@@ -289,7 +291,9 @@ class TestGitUnshallow:
         with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
             "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
         ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"):
-            Git().unshallow_repository_to_local_head()
+            result = Git().unshallow_repository_to_local_head()
+
+        assert result
 
         [([git_command], _)] = call_git_mock.call_args_list
         assert git_command == [
@@ -307,7 +311,9 @@ class TestGitUnshallow:
         with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
             "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
         ), patch("ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"):
-            Git().unshallow_repository_to_upstream()
+            result = Git().unshallow_repository_to_upstream()
+
+        assert result
 
         [([git_command], _)] = call_git_mock.call_args_list
         assert git_command == [
