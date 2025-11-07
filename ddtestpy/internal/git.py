@@ -184,7 +184,7 @@ class Git:
         output = self._git_output(["rev-parse", "--is-shallow-repository"])
         return output == "true"
 
-    def unshallow_repository(self, refspec: str) -> bool:
+    def unshallow_repository(self, refspec: t.Optional[str]) -> bool:
         remote_name = self.get_remote_name()
         command = [
             "fetch",
@@ -194,8 +194,9 @@ class Git:
             "--recurse-submodules=no",
             "--no-tags",
             remote_name,
-            refspec,
         ]
+        if refspec:
+            command.append(refspec)
 
         result = self._call_git(command)
         if result.return_code != 0:

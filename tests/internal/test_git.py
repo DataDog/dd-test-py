@@ -267,7 +267,7 @@ class TestGetGitTags:
 class TestGitUnshallow:
     """Tests for git unshallow logic."""
 
-    def test_git_unshallow_repository(self):
+    def test_git_unshallow_repository(self) -> None:
         with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
             "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
         ):
@@ -285,12 +285,10 @@ class TestGitUnshallow:
             "some-sha",
         ]
 
-    def test_git_unshallow_repository_to_local_head(self):
+    def test_git_unshallow_repository_to_local_head(self) -> None:
         with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
             "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
-        ), patch(
-            "ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"
-        ):
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"):
             Git().unshallow_repository_to_local_head()
 
         [([git_command], _)] = call_git_mock.call_args_list
@@ -305,12 +303,10 @@ class TestGitUnshallow:
             "head-sha",
         ]
 
-    def test_git_unshallow_repository_to_upstream(self):
+    def test_git_unshallow_repository_to_upstream(self) -> None:
         with patch("ddtestpy.internal.git.Git._call_git") as call_git_mock, patch(
             "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
-        ), patch(
-            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
-        ):
+        ), patch("ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"):
             Git().unshallow_repository_to_upstream()
 
         [([git_command], _)] = call_git_mock.call_args_list
@@ -323,4 +319,169 @@ class TestGitUnshallow:
             "--no-tags",
             "some-remote",
             "upstream-sha",
+        ]
+
+    def test_git_try_all_unshallow_methods_1st_suceeds(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=0),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ]
+        ]
+
+    def test_git_try_all_unshallow_methods_2nd_suceeds(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=0),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "upstream-sha",
+            ],
+        ]
+
+    def test_git_try_all_unshallow_methods_3rd_suceeds(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=0),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "upstream-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+            ],
+        ]
+
+    def test_git_try_all_unshallow_methods_all_fail(self) -> None:
+        call_git_results = [
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+            _GitSubprocessDetails(stdout="", stderr="", return_code=1),
+        ]
+
+        with patch("ddtestpy.internal.git.Git._call_git", side_effect=call_git_results) as call_git_mock, patch(
+            "ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"
+        ), patch("ddtestpy.internal.git.Git.get_commit_sha", return_value="head-sha"), patch(
+            "ddtestpy.internal.git.Git.get_upstream_sha", return_value="upstream-sha"
+        ):
+            result = Git().try_all_unshallow_repository_methods()
+
+        assert not result
+
+        git_commands = [git_command for ([git_command], _) in call_git_mock.call_args_list]
+        assert git_commands == [
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "head-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+                "upstream-sha",
+            ],
+            [
+                "fetch",
+                '--shallow-since="1 month ago"',
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                "--no-tags",
+                "some-remote",
+            ],
         ]
