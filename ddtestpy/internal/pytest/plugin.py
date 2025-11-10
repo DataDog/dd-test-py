@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import contextmanager
 from io import StringIO
 import json
 import logging
@@ -12,9 +13,9 @@ from _pytest.runner import runtestprotocol
 import pluggy
 import pytest
 
+from ddtestpy.ddtrace_interface import CoverageData
+from ddtestpy.ddtrace_interface import tracer_interface_instance
 from ddtestpy.internal.constants import EMPTY_NAME
-from ddtestpy.internal.coverage_api import coverage_collection
-from ddtestpy.internal.coverage_api import install_coverage
 from ddtestpy.internal.ddtrace import install_global_trace_filter
 from ddtestpy.internal.ddtrace import trace_context
 from ddtestpy.internal.git import get_workspace_path
@@ -147,7 +148,9 @@ class TestOptPlugin:
                 self.session.set_session_id(session_id)
                 self.is_xdist_worker = True
 
-        if session.config.getoption("ddtestpy-with-ddtrace"):
+        if session.config.getoption("ddtestpy-with-ddtrace") or (
+            tracer_interface_instance and tracer_interface_instance.should_enable_trace_collection()
+        ):
             self.enable_ddtrace = True
 
         self.session.start()
@@ -265,9 +268,7 @@ class TestOptPlugin:
 
         test.finish()
 
-        self.manager.coverage_writer.put_coverage(
-            test.last_test_run, coverage_data.get_coverage_bitmaps(relative_to=self.manager.workspace_path)
-        )
+        self.manager.coverage_writer.put_coverage(test.last_test_run, coverage_data.bitmaps.items())
 
         if not next_test_ref or test_ref.suite != next_test_ref.suite:
             test_suite.finish()
@@ -605,17 +606,21 @@ def _is_enabled_early(early_config: pytest.Config, args: t.List[str]) -> bool:
     if _is_option_true("no-ddtestpy", early_config, args):
         return False
 
-    return _is_option_true("ddtestpy", early_config, args)
+    return _is_option_true("ddtestpy", early_config, args) or bool(
+        tracer_interface_instance and tracer_interface_instance.should_enable_test_optimization()
+    )
 
 
 def _is_option_true(option: str, early_config: pytest.Config, args: t.List[str]) -> bool:
     return early_config.getoption(option) or early_config.getini(option) or f"--{option}" in args
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+@pytest.hookimpl(trylast=True, hookwrapper=True)
 def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
+    # DEV: We use trylast=True because ddtrace's pytest_load_initial_conftests has to run first.
+
     if not _is_enabled_early(early_config, args):
         yield
         return
@@ -639,8 +644,22 @@ def pytest_load_initial_conftests(
 
 
 def setup_coverage_collection() -> None:
+    if not tracer_interface_instance:
+        log.warning("ddtrace interface not available, code coverage will not be collected")
+        return
+
     workspace_path = get_workspace_path()
-    install_coverage(workspace_path)
+    tracer_interface_instance.enable_coverage_collection(workspace_path)
+
+
+@contextmanager
+def coverage_collection() -> t.Generator[CoverageData, None, None]:
+    if not tracer_interface_instance:
+        yield CoverageData()
+        return
+
+    with tracer_interface_instance.coverage_context() as coverage_data:
+        yield coverage_data
 
 
 def pytest_configure(config: pytest.Config) -> None:
