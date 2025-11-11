@@ -35,6 +35,9 @@ def get_env_tags() -> t.Dict[str, str]:
         git.get_git_tags_from_dd_variables(os.environ),
     )
 
+    if head_sha := tags.get(GitTag.COMMIT_HEAD_SHA):
+        merge_tags(tags, git.get_git_head_tags_from_git_command(head_sha))
+
     normalize_git_tags(tags)
 
     if workspace_path := tags.get(CITag.WORKSPACE_PATH):

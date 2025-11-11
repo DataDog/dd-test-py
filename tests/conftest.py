@@ -46,6 +46,12 @@ def git_repo(git_repo_empty: str) -> str:
     # Set committer user to be "Jane Doe"
     subprocess.check_output('git config --local user.name "Jane Doe"', cwd=cwd, shell=True)
     subprocess.check_output('git config --local user.email "jane@doe.com"', cwd=cwd, shell=True)
+    subprocess.check_output(
+        'GIT_COMMITTER_DATE="2020-01-20T04:37:21-0400" git commit --date="2020-01-19T09:24:53-0400" '
+        '-m "initial commit" --author="John Doe <john@doe.com>" --no-edit --allow-empty',
+        cwd=cwd,
+        shell=True,
+    )
     subprocess.check_output("touch tmp.py", cwd=cwd, shell=True)
     subprocess.check_output("git add tmp.py", cwd=cwd, shell=True)
     # Override author to be "John Doe"
@@ -56,3 +62,16 @@ def git_repo(git_repo_empty: str) -> str:
         shell=True,
     )
     return cwd
+
+
+@pytest.fixture
+def git_shallow_repo(git_repo: str, tmpdir: t.Any) -> t.Tuple[str, str]:
+    """Create temporary shallow git directory.
+
+    Returns the shallow repo dir and the commit sha one level deeper than HEAD.
+    """
+    cwd = str(tmpdir)
+    subprocess.check_output(f"git clone --depth=1 file://{git_repo} shallow_repo", cwd=cwd, shell=True)
+    subprocess.check_output("git rev-parse HEAD", shell=True, text=True, cwd=git_repo).strip()
+    head_sha = subprocess.check_output("git rev-parse HEAD^", shell=True, text=True, cwd=git_repo).strip()
+    return (f"{cwd}/shallow_repo", head_sha)

@@ -78,6 +78,16 @@ class _GitSubprocessDetails:
     return_code: int
 
 
+@dataclass
+class GitUserInfo:
+    author_name: str
+    author_email: str
+    author_date: str
+    committer_name: str
+    committer_email: str
+    committer_date: str
+
+
 class Git:
     def __init__(self, cwd: t.Optional[str] = None):
         git_command = shutil.which("git")
@@ -91,6 +101,7 @@ class Git:
 
     def _call_git(self, args: t.List[str], input_string: t.Optional[str] = None) -> _GitSubprocessDetails:
         git_cmd = [self.git_command, *args]
+        log.debug("Running git command: %r", git_cmd)
 
         process = subprocess.Popen(
             git_cmd,
@@ -134,25 +145,31 @@ class Git:
     def get_branch(self) -> str:
         return self._git_output(["rev-parse", "--abbrev-ref", "HEAD"])
 
-    def get_commit_message(self) -> str:
-        return self._git_output(["show", "-s", "--format=%s"])
+    def get_commit_message(self, commit_sha: t.Optional[str] = None) -> str:
+        command = ["show", "-s", "--format=%s"]
+        if commit_sha:
+            command.append(commit_sha)
 
-    def get_user_info(self) -> t.Dict[str, str]:
-        output = self._git_output(
-            ["show", "-s", "--format=%an|||%ae|||%ad|||%cn|||%ce|||%cd", "--date=format:%Y-%m-%dT%H:%M:%S%z"]
-        )
+        return self._git_output(command)
+
+    def get_user_info(self, commit_sha: t.Optional[str] = None) -> t.Optional[GitUserInfo]:
+        command = ["show", "-s", "--format=%an|||%ae|||%ad|||%cn|||%ce|||%cd", "--date=format:%Y-%m-%dT%H:%M:%S%z"]
+        if commit_sha:
+            command.append(commit_sha)
+
+        output = self._git_output(command)
         if not output:
-            return {}
+            return None
 
         author_name, author_email, author_date, committer_name, committer_email, committer_date = output.split("|||")
-        return {
-            GitTag.COMMIT_AUTHOR_NAME: author_name,
-            GitTag.COMMIT_AUTHOR_EMAIL: author_email,
-            GitTag.COMMIT_AUTHOR_DATE: author_date,
-            GitTag.COMMIT_COMMITTER_NAME: committer_name,
-            GitTag.COMMIT_COMMITTER_EMAIL: committer_email,
-            GitTag.COMMIT_COMMITTER_DATE: committer_date,
-        }
+        return GitUserInfo(
+            author_name=author_name,
+            author_email=author_email,
+            author_date=author_date,
+            committer_name=committer_name,
+            committer_email=committer_email,
+            committer_date=committer_date,
+        )
 
     def get_workspace_path(self) -> str:
         return self._git_output(["rev-parse", "--show-toplevel"])
@@ -184,11 +201,11 @@ class Git:
         output = self._git_output(["rev-parse", "--is-shallow-repository"])
         return output == "true"
 
-    def unshallow_repository(self, refspec: t.Optional[str]) -> bool:
+    def unshallow_repository(self, refspec: t.Optional[str] = None, parent_only: bool = False) -> bool:
         remote_name = self.get_remote_name()
         command = [
             "fetch",
-            '--shallow-since="1 month ago"',
+            "--deepen=1" if parent_only else '--shallow-since="1 month ago"',
             "--update-shallow",
             "--filter=blob:none",
             "--recurse-submodules=no",
@@ -259,12 +276,53 @@ def get_git_tags_from_git_command() -> t.Dict[str, t.Optional[str]]:
         log.warning("Error getting git data: %s", e)
         return {}
 
-    tags: t.Dict[str, t.Optional[str]] = {}
-    tags[GitTag.REPOSITORY_URL] = git.get_repository_url()
-    tags[GitTag.COMMIT_SHA] = git.get_commit_sha()
-    tags[GitTag.BRANCH] = git.get_branch()
-    tags[GitTag.COMMIT_MESSAGE] = git.get_commit_message()
-    tags.update(git.get_user_info())
+    tags: t.Dict[str, t.Optional[str]] = {
+        GitTag.REPOSITORY_URL: git.get_repository_url(),
+        GitTag.COMMIT_SHA: git.get_commit_sha(),
+        GitTag.BRANCH: git.get_branch(),
+        GitTag.COMMIT_MESSAGE: git.get_commit_message(),
+    }
+
+    if user_info := git.get_user_info():
+        tags.update(
+            {
+                GitTag.COMMIT_AUTHOR_NAME: user_info.author_name,
+                GitTag.COMMIT_AUTHOR_EMAIL: user_info.author_email,
+                GitTag.COMMIT_AUTHOR_DATE: user_info.author_date,
+                GitTag.COMMIT_COMMITTER_NAME: user_info.committer_name,
+                GitTag.COMMIT_COMMITTER_EMAIL: user_info.committer_email,
+                GitTag.COMMIT_COMMITTER_DATE: user_info.committer_date,
+            }
+        )
+
+    return tags
+
+
+def get_git_head_tags_from_git_command(head_sha: str) -> t.Dict[str, t.Optional[str]]:
+    try:
+        git = Git()
+    except RuntimeError as e:
+        log.warning("Error getting git data: %s", e)
+        return {}
+
+    if git.is_shallow_repository():
+        git.unshallow_repository(parent_only=True)
+
+    tags: t.Dict[str, t.Optional[str]] = {
+        GitTag.COMMIT_HEAD_MESSAGE: git.get_commit_message(head_sha),
+    }
+
+    if user_info := git.get_user_info(head_sha):
+        tags.update(
+            {
+                GitTag.COMMIT_HEAD_AUTHOR_NAME: user_info.author_name,
+                GitTag.COMMIT_HEAD_AUTHOR_EMAIL: user_info.author_email,
+                GitTag.COMMIT_HEAD_AUTHOR_DATE: user_info.author_date,
+                GitTag.COMMIT_HEAD_COMMITTER_NAME: user_info.committer_name,
+                GitTag.COMMIT_HEAD_COMMITTER_EMAIL: user_info.committer_email,
+                GitTag.COMMIT_HEAD_COMMITTER_DATE: user_info.committer_date,
+            }
+        )
 
     return tags
 
@@ -299,17 +357,18 @@ def get_git_tags_from_dd_variables(env: t.MutableMapping[str, str]) -> t.Dict[st
         tag = branch
         branch = None
 
-    tags = {}
-    tags[GitTag.REPOSITORY_URL] = env.get("DD_GIT_REPOSITORY_URL")
-    tags[GitTag.COMMIT_SHA] = env.get("DD_GIT_COMMIT_SHA")
-    tags[GitTag.BRANCH] = branch
-    tags[GitTag.TAG] = tag
-    tags[GitTag.COMMIT_MESSAGE] = env.get("DD_GIT_COMMIT_MESSAGE")
-    tags[GitTag.COMMIT_AUTHOR_DATE] = env.get("DD_GIT_COMMIT_AUTHOR_DATE")
-    tags[GitTag.COMMIT_AUTHOR_EMAIL] = env.get("DD_GIT_COMMIT_AUTHOR_EMAIL")
-    tags[GitTag.COMMIT_AUTHOR_NAME] = env.get("DD_GIT_COMMIT_AUTHOR_NAME")
-    tags[GitTag.COMMIT_COMMITTER_DATE] = env.get("DD_GIT_COMMIT_COMMITTER_DATE")
-    tags[GitTag.COMMIT_COMMITTER_EMAIL] = env.get("DD_GIT_COMMIT_COMMITTER_EMAIL")
-    tags[GitTag.COMMIT_COMMITTER_NAME] = env.get("DD_GIT_COMMIT_COMMITTER_NAME")
+    tags: t.Dict[str, t.Optional[str]] = {
+        GitTag.REPOSITORY_URL: env.get("DD_GIT_REPOSITORY_URL"),
+        GitTag.COMMIT_SHA: env.get("DD_GIT_COMMIT_SHA"),
+        GitTag.BRANCH: branch,
+        GitTag.TAG: tag,
+        GitTag.COMMIT_MESSAGE: env.get("DD_GIT_COMMIT_MESSAGE"),
+        GitTag.COMMIT_AUTHOR_DATE: env.get("DD_GIT_COMMIT_AUTHOR_DATE"),
+        GitTag.COMMIT_AUTHOR_EMAIL: env.get("DD_GIT_COMMIT_AUTHOR_EMAIL"),
+        GitTag.COMMIT_AUTHOR_NAME: env.get("DD_GIT_COMMIT_AUTHOR_NAME"),
+        GitTag.COMMIT_COMMITTER_DATE: env.get("DD_GIT_COMMIT_COMMITTER_DATE"),
+        GitTag.COMMIT_COMMITTER_EMAIL: env.get("DD_GIT_COMMIT_COMMITTER_EMAIL"),
+        GitTag.COMMIT_COMMITTER_NAME: env.get("DD_GIT_COMMIT_COMMITTER_NAME"),
+    }
 
     return tags
