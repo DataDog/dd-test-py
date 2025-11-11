@@ -7,6 +7,7 @@ import pytest
 
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.git import GitUserInfo
 from ddtestpy.internal.git import _GitSubprocessDetails
 from ddtestpy.internal.git import get_git_tags_from_git_command
 
@@ -140,14 +141,14 @@ class TestGit:
         with patch.object(git, "_git_output", return_value=mock_output):
             result = git.get_user_info()
 
-        expected = {
-            GitTag.COMMIT_AUTHOR_NAME: "John Doe",
-            GitTag.COMMIT_AUTHOR_EMAIL: "john@example.com",
-            GitTag.COMMIT_AUTHOR_DATE: "2023-01-01T12:00:00+0000",
-            GitTag.COMMIT_COMMITTER_NAME: "Jane Committer",
-            GitTag.COMMIT_COMMITTER_EMAIL: "jane@example.com",
-            GitTag.COMMIT_COMMITTER_DATE: "2023-01-01T12:30:00+0000",
-        }
+        expected = GitUserInfo(
+            author_name="John Doe",
+            author_email="john@example.com",
+            author_date="2023-01-01T12:00:00+0000",
+            committer_name="Jane Committer",
+            committer_email="jane@example.com",
+            committer_date="2023-01-01T12:30:00+0000",
+        )
         assert result == expected
 
     @patch("shutil.which")
@@ -159,7 +160,7 @@ class TestGit:
         with patch.object(git, "_git_output", return_value=""):
             result = git.get_user_info()
 
-        assert result == {}
+        assert result is None
 
     @patch("shutil.which")
     def test_get_workspace_path(self, mock_which: Mock) -> None:
