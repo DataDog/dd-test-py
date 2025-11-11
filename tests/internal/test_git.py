@@ -239,7 +239,14 @@ class TestGetGitTags:
         mock_git.get_commit_sha.return_value = "abc123"
         mock_git.get_branch.return_value = "main"
         mock_git.get_commit_message.return_value = "Test commit"
-        mock_git.get_user_info.return_value = {"author": "John Doe"}
+        mock_git.get_user_info.return_value = GitUserInfo(
+            author_name="John Doe",
+            author_email="john@example.com",
+            author_date="2023-01-01T12:00:00+0000",
+            committer_name="Jane Committer",
+            committer_email="jane@example.com",
+            committer_date="2023-01-01T12:30:00+0000",
+        )
         mock_git_class.return_value = mock_git
 
         result = get_git_tags_from_git_command()
@@ -249,7 +256,12 @@ class TestGetGitTags:
             GitTag.COMMIT_SHA: "abc123",
             GitTag.BRANCH: "main",
             GitTag.COMMIT_MESSAGE: "Test commit",
-            "author": "John Doe",
+            GitTag.COMMIT_AUTHOR_NAME: "John Doe",
+            GitTag.COMMIT_AUTHOR_EMAIL: "john@example.com",
+            GitTag.COMMIT_AUTHOR_DATE: "2023-01-01T12:00:00+0000",
+            GitTag.COMMIT_COMMITTER_NAME: "Jane Committer",
+            GitTag.COMMIT_COMMITTER_EMAIL: "jane@example.com",
+            GitTag.COMMIT_COMMITTER_DATE: "2023-01-01T12:30:00+0000",
         }
         assert result == expected
 
