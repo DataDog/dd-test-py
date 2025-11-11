@@ -145,8 +145,12 @@ class Git:
     def get_branch(self) -> str:
         return self._git_output(["rev-parse", "--abbrev-ref", "HEAD"])
 
-    def get_commit_message(self) -> str:
-        return self._git_output(["show", "-s", "--format=%s"])
+    def get_commit_message(self, commit_sha: t.Optional[str] = None) -> str:
+        command = ["show", "-s", "--format=%s"]
+        if commit_sha:
+            command.append(commit_sha)
+
+        return self._git_output(command)
 
     def get_user_info(self, commit_sha: t.Optional[str] = None) -> t.Optional[GitUserInfo]:
         command = ["show", "-s", "--format=%an|||%ae|||%ad|||%cn|||%ce|||%cd", "--date=format:%Y-%m-%dT%H:%M:%S%z"]
@@ -304,7 +308,9 @@ def get_git_head_tags_from_git_command(head_sha: str) -> t.Dict[str, t.Optional[
     if git.is_shallow_repository():
         git.unshallow_repository(parent_only=True)
 
-    tags: t.Dict[str, t.Optional[str]] = {}
+    tags: t.Dict[str, t.Optional[str]] = {
+        GitTag.COMMIT_HEAD_MESSAGE: git.get_commit_message(head_sha),
+    }
 
     if user_info := git.get_user_info(head_sha):
         tags.update(
