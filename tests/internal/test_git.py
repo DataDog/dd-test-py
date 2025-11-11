@@ -9,6 +9,7 @@ from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
 from ddtestpy.internal.git import GitUserInfo
 from ddtestpy.internal.git import _GitSubprocessDetails
+from ddtestpy.internal.git import get_git_head_tags_from_git_command
 from ddtestpy.internal.git import get_git_tags_from_git_command
 
 
@@ -276,6 +277,66 @@ class TestGetGitTags:
         assert result == {}
         mock_log.warning.assert_called_once_with("Error getting git data: %s", mock_git_class.side_effect)
 
+    @patch("ddtestpy.internal.git.Git")
+    def test_get_git_head_tags_success(self, mock_git_class: Mock) -> None:
+        """Test get_git_head_tags_from_git_command with successful Git operations."""
+        mock_parent_user = GitUserInfo(
+            author_name="Parent Doe",
+            author_email="parent@example.com",
+            author_date="2020-01-01T12:00:00+0000",
+            committer_name="Parent Committer",
+            committer_email="parent@committer.com",
+            committer_date="2020-01-01T12:30:00+0000",
+        )
+
+        mock_user = GitUserInfo(
+            author_name="John Doe",
+            author_email="john@example.com",
+            author_date="2023-01-01T12:00:00+0000",
+            committer_name="Jane Committer",
+            committer_email="jane@example.com",
+            committer_date="2023-01-01T12:30:00+0000",
+        )
+
+        mock_git = Mock()
+        mock_git.get_repository_url.return_value = "https://github.com/user/repo.git"
+        mock_git.get_commit_sha.return_value = "abc123"
+        mock_git.get_branch.return_value = "main"
+        mock_git.get_commit_message.side_effect = lambda sha=None: "Parent commit" if sha else "Test commit"
+        mock_git.get_user_info.side_effect = lambda sha=None: mock_parent_user if sha else mock_user
+        mock_git_class.return_value = mock_git
+
+        result = get_git_head_tags_from_git_command("parent-sha")
+
+        expected = {
+            GitTag.COMMIT_HEAD_MESSAGE: "Parent commit",
+            GitTag.COMMIT_HEAD_AUTHOR_NAME: "Parent Doe",
+            GitTag.COMMIT_HEAD_AUTHOR_EMAIL: "parent@example.com",
+            GitTag.COMMIT_HEAD_AUTHOR_DATE: "2020-01-01T12:00:00+0000",
+            GitTag.COMMIT_HEAD_COMMITTER_NAME: "Parent Committer",
+            GitTag.COMMIT_HEAD_COMMITTER_EMAIL: "parent@committer.com",
+            GitTag.COMMIT_HEAD_COMMITTER_DATE: "2020-01-01T12:30:00+0000",
+        }
+        assert result == expected
+
+    @patch("ddtestpy.internal.git.Git")
+    def test_get_git_head_tags_with_no_user_info_available(self, mock_git_class: Mock) -> None:
+        """Test get_git_head_tags_from_git_command with no user info available."""
+        mock_git = Mock()
+        mock_git.get_repository_url.return_value = "https://github.com/user/repo.git"
+        mock_git.get_commit_sha.return_value = "abc123"
+        mock_git.get_branch.return_value = "main"
+        mock_git.get_commit_message.side_effect = lambda sha=None: "Parent commit" if sha else "Test commit"
+        mock_git.get_user_info.return_value = None
+        mock_git_class.return_value = mock_git
+
+        result = get_git_head_tags_from_git_command("parent-sha")
+
+        expected = {
+            GitTag.COMMIT_HEAD_MESSAGE: "Parent commit",
+        }
+        assert result == expected
+
 
 class TestGitUnshallow:
     """Tests for git unshallow logic."""
@@ -300,6 +361,27 @@ class TestGitUnshallow:
             "--no-tags",
             "some-remote",
             "some-sha",
+        ]
+
+    @pytest.mark.parametrize("return_code", [0, 1])
+    def test_git_unshallow_repository_parent_only(self, return_code: int) -> None:
+        with patch(
+            "ddtestpy.internal.git.Git._call_git",
+            return_value=_GitSubprocessDetails(stdout="", stderr="", return_code=return_code),
+        ) as call_git_mock, patch("ddtestpy.internal.git.Git.get_remote_name", return_value="some-remote"):
+            result = Git().unshallow_repository(parent_only=True)
+
+        assert result == (return_code == 0)
+
+        [([git_command], _)] = call_git_mock.call_args_list
+        assert git_command == [
+            "fetch",
+            "--deepen=1",
+            "--update-shallow",
+            "--filter=blob:none",
+            "--recurse-submodules=no",
+            "--no-tags",
+            "some-remote",
         ]
 
     @pytest.mark.parametrize("return_code", [0, 1])
