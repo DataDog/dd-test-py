@@ -216,6 +216,43 @@ def test_extract_git_user_provided_metadata_overwrites_ci(monkeypatch: pytest.Mo
     assert tags["git.commit.committer.date"] == "committer date"
 
 
+def test_extract_git_head_commit_data(monkeypatch: pytest.MonkeyPatch, git_shallow_repo: t.Tuple[str, str]) -> None:
+    git_repo, head_sha = git_shallow_repo
+    github_sha = "abcd1234"
+
+    github_event_path = f"{git_repo}/event.json"
+    with open(github_event_path, "w") as f:
+        json.dump({"pull_request": {"head": {"sha": head_sha}}}, f)
+
+    ci_env = {
+        "GITHUB_SHA": github_sha,
+        "GITHUB_EVENT_PATH": github_event_path,
+    }
+
+    monkeypatch.setattr(os, "environ", ci_env)
+    monkeypatch.chdir(git_repo)
+
+    tags = get_env_tags()
+
+    assert tags[GitTag.COMMIT_AUTHOR_NAME] == "John Doe"
+    assert tags[GitTag.COMMIT_AUTHOR_EMAIL] == "john@doe.com"
+    assert tags[GitTag.COMMIT_AUTHOR_DATE] == "2021-01-19T09:24:53-0400"
+    assert tags[GitTag.COMMIT_COMMITTER_NAME] == "Jane Doe"
+    assert tags[GitTag.COMMIT_COMMITTER_EMAIL] == "jane@doe.com"
+    assert tags[GitTag.COMMIT_COMMITTER_DATE] == "2021-01-20T04:37:21-0400"
+    assert tags[GitTag.COMMIT_MESSAGE] == "this is a commit msg"
+    assert tags[GitTag.COMMIT_SHA] == github_sha
+
+    assert tags[GitTag.COMMIT_HEAD_AUTHOR_NAME] == "John Doe"
+    assert tags[GitTag.COMMIT_HEAD_AUTHOR_EMAIL] == "john@doe.com"
+    assert tags[GitTag.COMMIT_HEAD_AUTHOR_DATE] == "2020-01-19T09:24:53-0400"
+    assert tags[GitTag.COMMIT_HEAD_COMMITTER_NAME] == "Jane Doe"
+    assert tags[GitTag.COMMIT_HEAD_COMMITTER_EMAIL] == "jane@doe.com"
+    assert tags[GitTag.COMMIT_HEAD_COMMITTER_DATE] == "2020-01-20T04:37:21-0400"
+    assert tags[GitTag.COMMIT_HEAD_MESSAGE] == "initial commit"
+    assert tags[GitTag.COMMIT_HEAD_SHA] == head_sha
+
+
 def test_git_executable_not_found_error(monkeypatch: pytest.MonkeyPatch, git_repo: str) -> None:
     """If git executable not available, should raise internally, log, and not extract any tags."""
     monkeypatch.setattr(os, "environ", {})
