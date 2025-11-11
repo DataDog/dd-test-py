@@ -101,6 +101,7 @@ class Git:
 
     def _call_git(self, args: t.List[str], input_string: t.Optional[str] = None) -> _GitSubprocessDetails:
         git_cmd = [self.git_command, *args]
+        log.debug("Running git command: %r", git_cmd)
 
         process = subprocess.Popen(
             git_cmd,
@@ -196,11 +197,11 @@ class Git:
         output = self._git_output(["rev-parse", "--is-shallow-repository"])
         return output == "true"
 
-    def unshallow_repository(self, refspec: t.Optional[str]) -> bool:
+    def unshallow_repository(self, refspec: t.Optional[str] = None, parent_only: bool = False) -> bool:
         remote_name = self.get_remote_name()
         command = [
             "fetch",
-            '--shallow-since="1 month ago"',
+            "--deepen=1" if parent_only else '--shallow-since="1 month ago"',
             "--update-shallow",
             "--filter=blob:none",
             "--recurse-submodules=no",
@@ -301,7 +302,7 @@ def get_git_head_tags_from_git_command(head_sha: str) -> t.Dict[str, t.Optional[
         return {}
 
     if git.is_shallow_repository():
-        git.unshallow_repository(head_sha)
+        git.unshallow_repository(parent_only=True)
 
     tags: t.Dict[str, t.Optional[str]] = {}
 
