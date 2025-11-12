@@ -17,8 +17,14 @@ ddtestpy = "ddtestpy.internal.pytest.plugin"
 [tool.hatch.version]
 source = "versioningit"
 
+[tool.versioningit.vcs]
+method = "git"
+match = ["v*.*.*"]
+# Fallback when a tag is not available. GitHub actions run on shallow clones, so the tags are not there in PRs.
+default-tag = "0.0.0"
+
 # [tool.hatch.version.format]
-# https://versioningit.readthedocs.io/en/stable/configuration.html#the-tool-versioningit-format-subtable
+# # https://versioningit.readthedocs.io/en/stable/configuration.html#the-tool-versioningit-format-subtable
 # distance = "{next_version}.dev{distance}+{vcs}{rev}"
 # dirty = "{version}+dirty"
 # distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.dirty"
