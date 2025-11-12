@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
@@ -15,7 +15,13 @@ license = "Apache-2.0"
 ddtestpy = "ddtestpy.internal.pytest.plugin"
 
 [tool.hatch.version]
-path = "ddtestpy/__init__.py"
+source = "versioningit"
+
+[tool.versioningit.vcs]
+method = "git"
+match = ["v*.*.*"]
+# Fallback when a tag is not available. GitHub actions run on shallow clones, so the tags are not there in PRs.
+default-tag = "0.0.0"
 
 
 [tool.hatch.envs.hatch-test]
