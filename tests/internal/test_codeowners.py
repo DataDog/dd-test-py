@@ -4,7 +4,6 @@ from ddtestpy.internal.codeowners import Codeowners
 
 
 def test_invalid_codeowners(testdir: t.Any) -> None:
-    breakpoint()
     """Skip invalid lines and still match valid rules."""
     codeowners = """
     [invalid section
