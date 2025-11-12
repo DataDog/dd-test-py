@@ -1,6 +1,7 @@
 import atexit
 import logging
 import os
+from pathlib import Path
 import re
 import typing as t
 
@@ -198,10 +199,29 @@ class SessionManager:
                     is_attempt_to_fix=test_properties.attempt_to_fix,
                 )
                 on_new_test(test)
+                self._set_codeowners(test)
             except Exception:
                 log.exception("Error during discovery of test %s", test)
 
         return test_module, test_suite, test
+
+    def _set_codeowners(self, test: Test) -> None:
+        if not self.codeowners:
+            return
+
+        source_file = test.get_source_file()
+        if not source_file:
+            log.debug("Could not get source file for test %s", test)
+            return
+
+        try:
+            repo_relative_path = str(Path(source_file).relative_to(self.workspace_path))
+        except ValueError:
+            log.debug("Could not get repo relative path for %r", source_file)
+            repo_relative_path = source_file
+
+        codeowners = self.codeowners.of(repo_relative_path)
+        test.set_codeowners(codeowners)
 
     def upload_git_data(self) -> None:
         git = Git()
