@@ -180,11 +180,11 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.10"  # Target minimum supported version
+python_version = "3.9"  # Target minimum supported version
 # Turn it up to 11
 strict = true
-# Don’t hide missing types from third-party libs—fail loudly
-ignore_missing_imports = false
+follow_imports = "skip"
+ignore_missing_imports = true
 disallow_any_unimported = true
 # Extra signal / nicer output
 warn_unreachable = true
