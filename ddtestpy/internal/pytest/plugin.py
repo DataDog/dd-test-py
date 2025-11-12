@@ -108,7 +108,7 @@ def _get_module_path_from_item(item: pytest.Item) -> Path:
     try:
         item_path = getattr(item, "path", None)
         if item_path is not None:
-            return Path(item.path).absolute().parent
+            return item.path.absolute().parent  # type: ignore[no-any-return]
         return Path(item.module.__file__).absolute().parent
     except Exception:  # noqa: E722
         return Path.cwd()
