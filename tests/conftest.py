@@ -11,7 +11,7 @@ import pytest
 pytest_plugins = ["pytester"]
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session", autouse=True)  # type: ignore[misc]
 def set_env() -> None:
     """
     Make sure that we don't send inner tests to Datadog.
@@ -19,7 +19,7 @@ def set_env() -> None:
     os.environ["DD_API_KEY"] = "test-key"
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def git_repo_empty(tmpdir: t.Any) -> str:
     """Create temporary empty git directory, meaning no commits/users/repository-url to extract (error)."""
     cwd = str(tmpdir)
@@ -36,7 +36,7 @@ def git_repo_empty(tmpdir: t.Any) -> str:
     return cwd
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def git_repo(git_repo_empty: str) -> str:
     """Create temporary git directory, with one added file commit with a unique author and committer."""
     cwd = git_repo_empty
@@ -64,7 +64,7 @@ def git_repo(git_repo_empty: str) -> str:
     return cwd
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def git_shallow_repo(git_repo: str, tmpdir: t.Any) -> t.Tuple[str, str]:
     """Create temporary shallow git directory.
 

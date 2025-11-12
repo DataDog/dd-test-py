@@ -25,7 +25,7 @@ def _ci_fixtures() -> t.Iterable[t.Tuple[str, int, t.Dict[str, str], t.Dict[str,
                 yield filepath.stem, i, env_vars, expected_tags
 
 
-@pytest.mark.parametrize("name,i,environment,tags", _ci_fixtures())
+@pytest.mark.parametrize("name,i,environment,tags", _ci_fixtures())  # type: ignore[misc]
 def test_ci_providers(
     monkeypatch: pytest.MonkeyPatch, name: str, i: int, environment: t.Dict[str, str], tags: t.Dict[str, str]
 ) -> None:

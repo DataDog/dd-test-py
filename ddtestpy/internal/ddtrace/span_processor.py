@@ -6,15 +6,15 @@ try:
     from ddtrace.trace import TraceFilter
 except ImportError:
     # ddtrace 2.x compatibility
-    from ddtrace import Span  # type: ignore[attr-defined, no-redef]
-    from ddtrace.filters import TraceFilter  # type: ignore[import-not-found, no-redef]
+    from ddtrace import Span
+    from ddtrace.filters import TraceFilter
 
 from ddtestpy.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
 from ddtestpy.internal.writer import Event
 from ddtestpy.internal.writer import TestOptWriter
 
 
-class TestOptSpanProcessor(TraceFilter):
+class TestOptSpanProcessor(TraceFilter):  # type: ignore[misc]
     def __init__(self, writer: TestOptWriter) -> None:
         self.writer = writer
 

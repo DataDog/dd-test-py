@@ -5,7 +5,7 @@ import threading
 import typing as t
 import uuid
 
-import msgpack  # type: ignore
+import msgpack
 
 from ddtestpy.internal.http import BackendConnector
 from ddtestpy.internal.http import FileAttachment

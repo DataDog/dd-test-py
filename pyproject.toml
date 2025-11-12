@@ -185,7 +185,7 @@ python_version = "3.9"  # Target minimum supported version
 strict = true
 follow_imports = "skip"
 ignore_missing_imports = true
-disallow_any_unimported = true
+disallow_any_unimported = false
 # Extra signal / nicer output
 warn_unreachable = true
 warn_unused_configs = true

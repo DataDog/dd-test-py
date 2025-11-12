@@ -17,7 +17,7 @@ def install_coverage(workspace_path: Path) -> None:
     ddtestpy.vendor.ddtrace_coverage.installer.install(
         include_paths=[workspace_path], collect_import_time_coverage=True
     )
-    ModuleCodeCollector.start_coverage()  # type: ignore[no-untyped-call]
+    ModuleCodeCollector.start_coverage()
 
 
 class CoverageData:

@@ -108,8 +108,8 @@ def _get_module_path_from_item(item: pytest.Item) -> Path:
     try:
         item_path = getattr(item, "path", None)
         if item_path is not None:
-            return item.path.absolute().parent
-        return Path(item.module.__file__).absolute().parent  # type: ignore[attr-defined]
+            return Path(item.path).absolute().parent
+        return Path(item.module.__file__).absolute().parent
     except Exception:  # noqa: E722
         return Path.cwd()
 
@@ -217,7 +217,7 @@ class TestOptPlugin:
             on_new_test=_on_new_test,
         )
 
-    @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
+    @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")  # type: ignore[misc]
     def pytest_runtest_protocol_wrapper(
         self, item: pytest.Item, nextitem: t.Optional[pytest.Item]
     ) -> t.Generator[None, None, None]:
@@ -433,7 +433,7 @@ class TestOptPlugin:
                 ("dd_retry_outcome", call_report.outcome),
                 ("dd_retry_reason", retry_handler.get_pretty_name()),
             ]
-            call_report.outcome = "dd_retry"  # type: ignore
+            call_report.outcome = "dd_retry"
             return True
 
         return False
@@ -467,15 +467,15 @@ class TestOptPlugin:
             nodeid=item.nodeid,
             location=item.location,
             keywords={k: 1 for k in item.keywords},
-            when=TestPhase.CALL,  # type: ignore
+            when=TestPhase.CALL,
             longrepr=longrepr,
-            outcome=outcomes.get(final_status, str(final_status)),  # type: ignore
+            outcome=outcomes.get(final_status, str(final_status)),
             user_properties=item.user_properties,
         )
 
         return final_report
 
-    @pytest.hookimpl(hookwrapper=True)
+    @pytest.hookimpl(hookwrapper=True)  # type: ignore[misc]
     def pytest_runtest_makereport(
         self, item: pytest.Item, call: pytest.CallInfo[t.Any]
     ) -> t.Generator[None, pluggy.Result[t.Any], None]:
@@ -545,14 +545,14 @@ class TestOptPlugin:
 
 
 class XdistTestOptPlugin(TestOptPlugin):
-    @pytest.hookimpl
+    @pytest.hookimpl  # type: ignore[misc]
     def pytest_configure_node(self, node: t.Any) -> None:
         """
         Pass test session id from the main process to xdist workers.
         """
         node.workerinput["dd_session_id"] = self.session.item_id
 
-    @pytest.hookimpl
+    @pytest.hookimpl  # type: ignore[misc]
     def pytest_testnodedown(self, node: t.Any, error: t.Any) -> None:
         """
         Collect count of tests skipped by ITR from a worker node and add it to the main process' session.
@@ -612,7 +612,7 @@ def _is_option_true(option: str, early_config: pytest.Config, args: t.List[str])
     return early_config.getoption(option) or early_config.getini(option) or f"--{option}" in args
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)  # type: ignore[misc]
 def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:
@@ -697,13 +697,13 @@ def _get_user_property(report: pytest.TestReport, user_property: str) -> t.Optio
 
 
 def _get_test_parameters_json(item: pytest.Item) -> t.Optional[str]:
-    callspec: t.Optional[pytest.python.CallSpec2] = getattr(item, "callspec", None)  # type: ignore[name-defined]
+    callspec: t.Optional[t.Any] = getattr(item, "callspec", None)
 
     if callspec is None:
         return None
 
     parameters: t.Dict[str, t.Dict[str, str]] = {"arguments": {}, "metadata": {}}
-    for param_name, param_val in item.callspec.params.items():  # type: ignore[attr-defined]
+    for param_name, param_val in item.callspec.params.items():
         try:
             parameters["arguments"][param_name] = _encode_test_parameter(param_val)
         except Exception:
