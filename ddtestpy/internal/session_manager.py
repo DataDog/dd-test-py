@@ -6,6 +6,8 @@ import typing as t
 
 from ddtestpy.internal.api_client import APIClient
 from ddtestpy.internal.api_client import TestProperties
+from ddtestpy.internal.ci import CITag
+from ddtestpy.internal.codeowners import Codeowners
 from ddtestpy.internal.constants import DEFAULT_ENV_NAME
 from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestpy.internal.constants import DEFAULT_SITE
@@ -108,6 +110,14 @@ class SessionManager:
         if self.itr_correlation_id:
             itr_event = "test" if self.itr_skipping_level == ITRSkippingLevel.TEST else "test_suite_end"
             self.writer.add_metadata(itr_event, {"itr_correlation_id": self.itr_correlation_id})
+
+        self.codeowners: t.Optional[Codeowners] = None
+        try:
+            self.codeowners = Codeowners(cwd=self.env_tags[CITag.WORKSPACE_PATH])
+        except ValueError:
+            log.warning("CODEOWNERS file is not available")
+        except Exception:
+            log.warning("Failed to load CODEOWNERS", exc_info=True)
 
     def finish_collection(self) -> None:
         self.setup_retry_handlers()
