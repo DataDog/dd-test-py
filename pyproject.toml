@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
@@ -15,8 +15,13 @@ license = "Apache-2.0"
 ddtestpy = "ddtestpy.internal.pytest.plugin"
 
 [tool.hatch.version]
-path = "ddtestpy/__init__.py"
+source = "versioningit"
 
+# [tool.hatch.version.format]
+# https://versioningit.readthedocs.io/en/stable/configuration.html#the-tool-versioningit-format-subtable
+# distance = "{next_version}.dev{distance}+{vcs}{rev}"
+# dirty = "{version}+dirty"
+# distance-dirty = "{next_version}.dev{distance}+{vcs}{rev}.dirty"
 
 [tool.hatch.envs.hatch-test]
 dependencies = [

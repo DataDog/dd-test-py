@@ -7,6 +7,7 @@ import uuid
 
 import msgpack  # type: ignore
 
+import ddtestpy
 from ddtestpy.internal.http import BackendConnector
 from ddtestpy.internal.http import FileAttachment
 from ddtestpy.internal.test_data import TestItem
@@ -92,7 +93,7 @@ class TestOptWriter(BaseWriter):
             "*": {
                 "language": "python",
                 "runtime-id": uuid.uuid4().hex,
-                "library_version": "0.0.0",
+                "library_version": f"{ddtestpy.__version__}+ddtestpy",
                 "_dd.origin": "ciapp-test",
                 "_dd.p.dm": "-0",  # what is this?
             },
