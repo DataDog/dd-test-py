@@ -15,7 +15,6 @@ from ddtestpy.internal.constants import DEFAULT_SITE
 from ddtestpy.internal.env_tags import get_env_tags
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
-from ddtestpy.internal.git import get_workspace_path
 from ddtestpy.internal.platform import get_platform_tags
 from ddtestpy.internal.retry_handlers import AttemptToFixHandler
 from ddtestpy.internal.retry_handlers import AutoTestRetriesHandler
@@ -40,8 +39,12 @@ log = logging.getLogger(__name__)
 class SessionManager:
     def __init__(self, session: TestSession) -> None:
         self.env_tags = get_env_tags()
+        if workspace_path := self.env_tags.get(CITag.WORKSPACE_PATH):
+            self.workspace_path = Path(workspace_path)
+        else:
+            self.workspace_path = Path.cwd()
+
         self.platform_tags = get_platform_tags()
-        self.workspace_path = get_workspace_path()
         self.collected_tests: t.Set[TestRef] = set()
         self.skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
         self.itr_correlation_id: t.Optional[str] = None
@@ -113,8 +116,9 @@ class SessionManager:
             self.writer.add_metadata(itr_event, {"itr_correlation_id": self.itr_correlation_id})
 
         self.codeowners: t.Optional[Codeowners] = None
+
         try:
-            self.codeowners = Codeowners(cwd=self.env_tags[CITag.WORKSPACE_PATH])
+            self.codeowners = Codeowners(cwd=str(self.workspace_path))
         except ValueError:
             log.warning("CODEOWNERS file is not available")
         except Exception:

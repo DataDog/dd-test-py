@@ -1,9 +1,9 @@
-import typing as t
+import pytest
 
 from ddtestpy.internal.codeowners import Codeowners
 
 
-def test_invalid_codeowners(testdir: t.Any) -> None:
+def test_valid_and_invalid_codeowners(testdir: pytest.Testdir) -> None:
     """Skip invalid lines and still match valid rules."""
     codeowners = """
     [invalid section
