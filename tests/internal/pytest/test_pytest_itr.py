@@ -17,7 +17,7 @@ from tests.mocks import setup_standard_mocks
 
 
 class TestITR:
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_itr_one_skipped_test(self, pytester: Pytester) -> None:
         """Test that IntelligentTestRunner skips tests marked as skippable."""
         # Create a test file with multiple tests
@@ -71,7 +71,7 @@ class TestITR:
         assert session["content"]["meta"]["test.itr.tests_skipping.type"] == "test"
         assert session["content"]["metrics"]["test.itr.tests_skipping.count"] == 1
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_itr_disabled(self, pytester: Pytester) -> None:
         """Test that IntelligentTestRunner does not skip tests when ITR is disabled."""
         # Create a test file with multiple tests
@@ -125,7 +125,7 @@ class TestITR:
         assert session["content"]["meta"].get("test.itr.tests_skipping.type") is None
         assert session["content"]["metrics"].get("test.itr.tests_skipping.count") is None
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_itr_one_unskippable_test(self, pytester: Pytester) -> None:
         """Test that IntelligentTestRunner skips tests marked as skippable."""
         # Create a test file with multiple tests
@@ -194,8 +194,8 @@ class TestITR:
         assert session["content"]["meta"]["test.itr.tests_skipping.type"] == "test"
         assert session["content"]["metrics"]["test.itr.tests_skipping.count"] == 1
 
-    @pytest.mark.slow  # type: ignore[misc]
-    @pytest.mark.skipif("slipcover" in sys.modules, reason="slipcover is incompatible with ITR code coverage")  # type: ignore[misc]
+    @pytest.mark.slow
+    @pytest.mark.skipif("slipcover" in sys.modules, reason="slipcover is incompatible with ITR code coverage")
     def test_itr_code_coverage_enabled(self, pytester: Pytester) -> None:
         pytester.makepyfile(
             lib_constants="""
@@ -219,8 +219,8 @@ class TestITR:
         covered_files = set(f["filename"] for f in coverage_events[0]["files"])
         assert covered_files == {"/test_foo.py", "/lib_constants.py"}
 
-    @pytest.mark.slow  # type: ignore[misc]
-    @pytest.mark.skipif("slipcover" in sys.modules, reason="slipcover is incompatible with ITR code coverage")  # type: ignore[misc]
+    @pytest.mark.slow
+    @pytest.mark.skipif("slipcover" in sys.modules, reason="slipcover is incompatible with ITR code coverage")
     def test_itr_code_coverage_disabled(self, pytester: Pytester) -> None:
         pytester.makepyfile(
             lib_constants="""

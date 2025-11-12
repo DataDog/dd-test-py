@@ -217,7 +217,7 @@ class TestOptPlugin:
             on_new_test=_on_new_test,
         )
 
-    @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")  # type: ignore[misc]
+    @pytest.hookimpl(tryfirst=True, hookwrapper=True, specname="pytest_runtest_protocol")
     def pytest_runtest_protocol_wrapper(
         self, item: pytest.Item, nextitem: t.Optional[pytest.Item]
     ) -> t.Generator[None, None, None]:
@@ -475,7 +475,7 @@ class TestOptPlugin:
 
         return final_report
 
-    @pytest.hookimpl(hookwrapper=True)  # type: ignore[misc]
+    @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(
         self, item: pytest.Item, call: pytest.CallInfo[t.Any]
     ) -> t.Generator[None, pluggy.Result[t.Any], None]:
@@ -545,14 +545,14 @@ class TestOptPlugin:
 
 
 class XdistTestOptPlugin(TestOptPlugin):
-    @pytest.hookimpl  # type: ignore[misc]
+    @pytest.hookimpl
     def pytest_configure_node(self, node: t.Any) -> None:
         """
         Pass test session id from the main process to xdist workers.
         """
         node.workerinput["dd_session_id"] = self.session.item_id
 
-    @pytest.hookimpl  # type: ignore[misc]
+    @pytest.hookimpl
     def pytest_testnodedown(self, node: t.Any, error: t.Any) -> None:
         """
         Collect count of tests skipped by ITR from a worker node and add it to the main process' session.
@@ -612,7 +612,7 @@ def _is_option_true(option: str, early_config: pytest.Config, args: t.List[str])
     return early_config.getoption(option) or early_config.getini(option) or f"--{option}" in args
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)  # type: ignore[misc]
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_load_initial_conftests(
     early_config: pytest.Config, parser: pytest.Parser, args: t.List[str]
 ) -> t.Generator[None, None, None]:

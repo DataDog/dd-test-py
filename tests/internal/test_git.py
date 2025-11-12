@@ -341,7 +341,7 @@ class TestGetGitTags:
 class TestGitUnshallow:
     """Tests for git unshallow logic."""
 
-    @pytest.mark.parametrize("return_code", [0, 1])  # type: ignore[misc]
+    @pytest.mark.parametrize("return_code", [0, 1])
     def test_git_unshallow_repository(self, return_code: int) -> None:
         with patch(
             "ddtestpy.internal.git.Git._call_git",
@@ -363,7 +363,7 @@ class TestGitUnshallow:
             "some-sha",
         ]
 
-    @pytest.mark.parametrize("return_code", [0, 1])  # type: ignore[misc]
+    @pytest.mark.parametrize("return_code", [0, 1])
     def test_git_unshallow_repository_parent_only(self, return_code: int) -> None:
         with patch(
             "ddtestpy.internal.git.Git._call_git",
@@ -384,7 +384,7 @@ class TestGitUnshallow:
             "some-remote",
         ]
 
-    @pytest.mark.parametrize("return_code", [0, 1])  # type: ignore[misc]
+    @pytest.mark.parametrize("return_code", [0, 1])
     def test_git_unshallow_repository_to_local_head(self, return_code: int) -> None:
         with patch(
             "ddtestpy.internal.git.Git._call_git",
@@ -408,7 +408,7 @@ class TestGitUnshallow:
             "head-sha",
         ]
 
-    @pytest.mark.parametrize("return_code", [0, 1])  # type: ignore[misc]
+    @pytest.mark.parametrize("return_code", [0, 1])
     def test_git_unshallow_repository_to_upstream(self, return_code: int) -> None:
         with patch(
             "ddtestpy.internal.git.Git._call_git",

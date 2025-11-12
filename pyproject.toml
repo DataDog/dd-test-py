@@ -186,6 +186,8 @@ strict = true
 follow_imports = "skip"
 ignore_missing_imports = true
 disallow_any_unimported = false
+# Allow untyped decorators (pytest decorators often lack complete type hints)
+disallow_untyped_decorators = false
 # Extra signal / nicer output
 warn_unreachable = true
 warn_unused_configs = true

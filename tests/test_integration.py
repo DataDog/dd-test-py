@@ -24,7 +24,7 @@ from tests.mocks import setup_standard_mocks
 class TestFeaturesWithMocking:
     """High-level feature tests using pytester with mocked dependencies."""
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_simple_plugin_enabled(self, pytester: Pytester) -> None:
         """Test that plugin runs when --ddtestpy is used."""
         # Create a simple test file
@@ -48,7 +48,7 @@ class TestFeaturesWithMocking:
         assert result.ret == 0
         result.assert_outcomes(passed=1)
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_simple_plugin_disabled(self, pytester: Pytester) -> None:
         """Test that plugin does not run when --no-ddtestpy is used."""
         # Create a simple test file
@@ -72,7 +72,7 @@ class TestFeaturesWithMocking:
         assert result.ret == 0
         result.assert_outcomes(passed=1)
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_simple_plugin_not_explicitly_enabled(self, pytester: Pytester) -> None:
         """Test that plugin does not run when neither --ddtestpy nor --no-ddtestpy is used."""
         # Create a simple test file
@@ -96,7 +96,7 @@ class TestFeaturesWithMocking:
         assert result.ret == 0
         result.assert_outcomes(passed=1)
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_simple_plugin_disabled_overrides_enabled(self, pytester: Pytester) -> None:
         """Test that plugin does not run when both --ddtestpy nor --no-ddtestpy is used."""
         # Create a simple test file
@@ -120,7 +120,7 @@ class TestFeaturesWithMocking:
         assert result.ret == 0
         result.assert_outcomes(passed=1)
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_retry_functionality_with_pytester(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
         """Test that failing tests are retried when auto retry is enabled."""
         # Create a test file with a failing test
@@ -168,7 +168,7 @@ class TestFeaturesWithMocking:
         assert "test_always_fails FAILED" in output
         assert "test_passes PASSED" in output
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_early_flake_detection_with_pytester(self, pytester: Pytester) -> None:
         """Test that EarlyFlakeDetection retries new failing tests."""
         # Create a test file with a new failing test
@@ -223,7 +223,7 @@ class TestFeaturesWithMocking:
         assert "test_new_flaky FAILED" in output
         assert "test_known_test PASSED" in output
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_intelligent_test_runner_with_pytester(self, pytester: Pytester) -> None:
         """Test that IntelligentTestRunner skips tests marked as skippable."""
         # Create a test file with multiple tests
@@ -273,7 +273,7 @@ class TestFeaturesWithMocking:
 class TestPytestPluginIntegration:
     """Integration tests for the pytest plugin using pytester for better performance and reliability."""
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_basic_test_execution(self, pytester: Pytester) -> None:
         """Test that a basic test runs with the ddtestpy plugin."""
         # Create test file using pytester
@@ -301,7 +301,7 @@ class TestPytestPluginIntegration:
         assert result.ret == 0
         result.assert_outcomes(passed=2)
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_failing_test_execution(self, pytester: Pytester) -> None:
         """Test that failing tests are properly handled."""
         # Create test file using pytester
@@ -328,7 +328,7 @@ class TestPytestPluginIntegration:
         assert result.ret == 1  # pytest exits with 1 when tests fail
         result.assert_outcomes(passed=1, failed=1)
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_plugin_loads_correctly(self, pytester: Pytester) -> None:
         """Test that the ddtestpy plugin loads without errors."""
         # Create test file using pytester
@@ -355,7 +355,7 @@ class TestPytestPluginIntegration:
         output = result.stdout.str()
         assert "Error setting up Test Optimization plugin" not in output
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_test_session_name_extraction(self, pytester: Pytester) -> None:
         """Test that the pytest session command is properly extracted."""
         # Create test file using pytester
@@ -378,7 +378,7 @@ class TestPytestPluginIntegration:
         assert result.ret == 0
         result.assert_outcomes(passed=1)
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_retry_environment_variables_respected(self, pytester: Pytester, monkeypatch: MonkeyPatch) -> None:
         """Test that retry environment variables are properly read by the plugin."""
         # Create test file using pytester
@@ -417,7 +417,7 @@ class TestPytestPluginIntegration:
 class TestRetryHandler:
     """Test auto retry functionality using mocking for unit testing."""
 
-    @pytest.mark.slow  # type: ignore[misc]
+    @pytest.mark.slow
     def test_retry_handler_configuration(self) -> None:
         """Test that AutoTestRetriesHandler is configured correctly with mocked settings."""
         # Use unified mock setup with auto retries enabled
