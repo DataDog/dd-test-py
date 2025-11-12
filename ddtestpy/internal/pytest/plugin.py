@@ -697,7 +697,7 @@ def _get_user_property(report: pytest.TestReport, user_property: str) -> t.Optio
 
 
 def _get_test_parameters_json(item: pytest.Item) -> t.Optional[str]:
-    callspec: t.Optional[t.Any] = getattr(item, "callspec", None)
+    callspec: t.Optional[pytest.python.CallSpec2] = getattr(item, "callspec", None)
 
     if callspec is None:
         return None
