@@ -52,7 +52,7 @@ class BaseWriter(ABC):
         return events
 
     def start(self) -> None:
-        self.task = threading.Thread(target=self._periodic_task)
+        self.task = threading.Thread(target=self._periodic_task, daemon=True)
         self.task.start()
 
     def finish(self) -> None:
