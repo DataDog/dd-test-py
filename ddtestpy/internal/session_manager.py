@@ -106,6 +106,7 @@ class SessionManager:
                 TestTag.TEST_COMMAND: self.session.test_command,
                 TestTag.TEST_FRAMEWORK: self.session.test_framework,
                 TestTag.TEST_FRAMEWORK_VERSION: self.session.test_framework_version,
+                TestTag.TEST_SESSION_NAME: self._get_test_session_name(),
                 TestTag.COMPONENT: self.session.test_framework,
                 TestTag.ENV: self.env,
             },
@@ -226,6 +227,15 @@ class SessionManager:
 
         codeowners = self.codeowners.of(repo_relative_path)
         test.set_codeowners(codeowners)
+
+    def _get_test_session_name(self) -> str:
+        if session_name := os.environ.get("DD_TEST_SESSION_NAME"):
+            return session_name
+
+        if job_name := self.env_tags.get(CITag.JOB_NAME):
+            return f"{job_name}-{self.session.test_command}"
+
+        return self.session.test_command
 
     def upload_git_data(self) -> None:
         git = Git()

@@ -307,6 +307,7 @@ class TestTag:
     TEST_COMMAND = "test.command"
     TEST_FRAMEWORK = "test.framework"
     TEST_FRAMEWORK_VERSION = "test.framework_version"
+    TEST_SESSION_NAME = "test_session.name"
 
     ENV = "env"
 
