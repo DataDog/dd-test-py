@@ -179,18 +179,24 @@ class TestSessionNameTest:
         monkeypatch.setattr(os, "environ", env)
         session_manager = session_manager_mock().with_env_tags({CITag.JOB_NAME: "the_job"}).build_real_with_mocks(env)
 
-        assert session_manager._get_test_session_name() == "the_name"
+        expected_name = "the_name"
+        assert session_manager._get_test_session_name() == expected_name
+        assert session_manager.writer.metadata["*"]["test_session.name"] == expected_name
 
     def test_session_name_from_job_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
         env = {"DD_API_KEY": "somekey"}
         monkeypatch.setattr(os, "environ", env)
         session_manager = session_manager_mock().with_env_tags({CITag.JOB_NAME: "the_job"}).build_real_with_mocks(env)
 
-        assert session_manager._get_test_session_name() == "the_job-pytest"
+        expected_name = "the_job-pytest"
+        assert session_manager._get_test_session_name() == expected_name
+        assert session_manager.writer.metadata["*"]["test_session.name"] == expected_name
 
     def test_session_name_from_test_command(self, monkeypatch: pytest.MonkeyPatch) -> None:
         env = {"DD_API_KEY": "somekey"}
         monkeypatch.setattr(os, "environ", env)
         session_manager = session_manager_mock().with_env_tags({}).build_real_with_mocks(env)
 
-        assert session_manager._get_test_session_name() == "pytest"
+        expected_name = "pytest"
+        assert session_manager._get_test_session_name() == expected_name
+        assert session_manager.writer.metadata["*"]["test_session.name"] == expected_name
