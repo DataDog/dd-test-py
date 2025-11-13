@@ -1,5 +1,8 @@
-"""Regression tests for SessionManager.is_skippable_test() method changes."""
+import os
 
+import pytest
+
+from ddtestpy.internal.ci import CITag
 from ddtestpy.internal.test_data import ModuleRef
 from ddtestpy.internal.test_data import SuiteRef
 from ddtestpy.internal.test_data import TestRef
@@ -168,3 +171,26 @@ class TestSessionManagerIsSkippableTest:
         assert session_manager.is_skippable_test(test_ref1) is True
         assert session_manager.is_skippable_test(test_ref2) is True
         assert session_manager.is_skippable_test(test_ref3) is True
+
+
+class TestSessionNameTest:
+    def test_session_name_explicitly_from_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        env = {"DD_TEST_SESSION_NAME": "the_name", "DD_API_KEY": "somekey"}
+        monkeypatch.setattr(os, "environ", env)
+        session_manager = session_manager_mock().with_env_tags({CITag.JOB_NAME: "the_job"}).build_real_with_mocks(env)
+
+        assert session_manager._get_test_session_name() == "the_name"
+
+    def test_session_name_from_job_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        env = {"DD_API_KEY": "somekey"}
+        monkeypatch.setattr(os, "environ", env)
+        session_manager = session_manager_mock().with_env_tags({CITag.JOB_NAME: "the_job"}).build_real_with_mocks(env)
+
+        assert session_manager._get_test_session_name() == "the_job-pytest"
+
+    def test_session_name_from_test_command(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        env = {"DD_API_KEY": "somekey"}
+        monkeypatch.setattr(os, "environ", env)
+        session_manager = session_manager_mock().with_env_tags({}).build_real_with_mocks(env)
+
+        assert session_manager._get_test_session_name() == "pytest"

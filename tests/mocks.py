@@ -98,6 +98,7 @@ class SessionManagerMockBuilder:
         self._known_commits: t.List[str] = []
         self._workspace_path = "/fake/workspace"
         self._retry_handlers: t.List[Mock] = []
+        self._env_tags: t.Dict[str, str] = {}
 
     def with_settings(self, settings: Settings) -> "SessionManagerMockBuilder":
         """Set custom settings."""
@@ -138,6 +139,11 @@ class SessionManagerMockBuilder:
         self._workspace_path = path
         return self
 
+    def with_env_tags(self, tags: t.Dict[str, str]) -> "SessionManagerMockBuilder":
+        """Set tags extracted from environment."""
+        self._env_tags = tags
+        return self
+
     def build_mock(self) -> Mock:
         """Build a Mock SessionManager object."""
         mock_manager = Mock(spec=SessionManager)
@@ -176,7 +182,7 @@ class SessionManagerMockBuilder:
             mock_client.get_skippable_tests.return_value = (self._skippable_items, None)
             mock_api_client.return_value = mock_client
 
-            with patch("ddtestpy.internal.session_manager.get_env_tags", return_value={}), patch(
+            with patch("ddtestpy.internal.session_manager.get_env_tags", return_value=self._env_tags), patch(
                 "ddtestpy.internal.session_manager.get_platform_tags", return_value={}
             ), patch("ddtestpy.internal.session_manager.Git", return_value=get_mock_git_instance()), patch.dict(
                 os.environ, test_env
