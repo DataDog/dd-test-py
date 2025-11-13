@@ -1,18 +1,20 @@
 import atexit
 import logging
 import os
+from pathlib import Path
 import re
 import typing as t
 
 from ddtestpy.internal.api_client import APIClient
 from ddtestpy.internal.api_client import TestProperties
+from ddtestpy.internal.ci import CITag
+from ddtestpy.internal.codeowners import Codeowners
 from ddtestpy.internal.constants import DEFAULT_ENV_NAME
 from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
 from ddtestpy.internal.constants import DEFAULT_SITE
 from ddtestpy.internal.env_tags import get_env_tags
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
-from ddtestpy.internal.git import get_workspace_path
 from ddtestpy.internal.platform import get_platform_tags
 from ddtestpy.internal.retry_handlers import AttemptToFixHandler
 from ddtestpy.internal.retry_handlers import AutoTestRetriesHandler
@@ -37,8 +39,12 @@ log = logging.getLogger(__name__)
 class SessionManager:
     def __init__(self, session: TestSession) -> None:
         self.env_tags = get_env_tags()
+        if workspace_path := self.env_tags.get(CITag.WORKSPACE_PATH):
+            self.workspace_path = Path(workspace_path)
+        else:
+            self.workspace_path = Path.cwd()
+
         self.platform_tags = get_platform_tags()
-        self.workspace_path = get_workspace_path()
         self.collected_tests: t.Set[TestRef] = set()
         self.skippable_items: t.Set[t.Union[SuiteRef, TestRef]] = set()
         self.itr_correlation_id: t.Optional[str] = None
@@ -108,6 +114,15 @@ class SessionManager:
         if self.itr_correlation_id:
             itr_event = "test" if self.itr_skipping_level == ITRSkippingLevel.TEST else "test_suite_end"
             self.writer.add_metadata(itr_event, {"itr_correlation_id": self.itr_correlation_id})
+
+        self.codeowners: t.Optional[Codeowners] = None
+
+        try:
+            self.codeowners = Codeowners(cwd=str(self.workspace_path))
+        except ValueError:
+            log.warning("CODEOWNERS file is not available")
+        except Exception:
+            log.warning("Failed to load CODEOWNERS", exc_info=True)
 
     def finish_collection(self) -> None:
         self.setup_retry_handlers()
@@ -188,10 +203,29 @@ class SessionManager:
                     is_attempt_to_fix=test_properties.attempt_to_fix,
                 )
                 on_new_test(test)
+                self._set_codeowners(test)
             except Exception:
                 log.exception("Error during discovery of test %s", test)
 
         return test_module, test_suite, test
+
+    def _set_codeowners(self, test: Test) -> None:
+        if not self.codeowners:
+            return
+
+        source_file = test.get_source_file()
+        if not source_file:
+            log.debug("Could not get source file for test %s", test)
+            return
+
+        try:
+            repo_relative_path = str(Path(source_file).relative_to(self.workspace_path))
+        except ValueError:
+            log.debug("Could not get repo relative path for %r", source_file)
+            repo_relative_path = source_file
+
+        codeowners = self.codeowners.of(repo_relative_path)
+        test.set_codeowners(codeowners)
 
     def upload_git_data(self) -> None:
         git = Git()

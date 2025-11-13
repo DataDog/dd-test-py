@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+import json
 import os
 from pathlib import Path
 import time
@@ -188,11 +189,17 @@ class Test(TestItem["TestSuite", "TestRun"]):
             self.tags[TestTag.IS_ATTEMPT_TO_FIX] = TAG_TRUE
 
     def set_location(self, path: t.Union[os.PathLike[t.Any], str], start_line: int) -> None:
-        self.tags["test.source.file"] = str(path)
-        self.metrics["test.source.start"] = start_line
+        self.tags[TestTag.SOURCE_FILE] = str(path)
+        self.metrics[TestTag.SOURCE_START] = start_line
+
+    def get_source_file(self) -> t.Optional[str]:
+        return self.tags.get(TestTag.SOURCE_FILE)
 
     def set_parameters(self, parameters: str) -> None:
         self.tags[TestTag.PARAMETERS] = parameters
+
+    def set_codeowners(self, owners: t.List[str]) -> None:
+        self.tags[TestTag.CODEOWNERS] = json.dumps(owners)
 
     def is_new(self) -> bool:
         return self.tags.get(TestTag.IS_NEW) == TAG_TRUE
@@ -327,5 +334,10 @@ class TestTag:
     ITR_TESTS_SKIPPED = "test.itr.tests_skipping.tests_skipped"
     ITR_TESTS_SKIPPING_TYPE = "test.itr.tests_skipping.type"
     ITR_TESTS_SKIPPING_COUNT = "test.itr.tests_skipping.count"
+
+    SOURCE_FILE = "test.source.file"
+    SOURCE_START = "test.source.start"
+
+    CODEOWNERS = "test.codeowners"
 
     __test__ = False
