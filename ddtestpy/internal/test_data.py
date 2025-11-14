@@ -133,6 +133,9 @@ class TestItem(t.Generic[TParentClass, TChildClass]):
     def set_tags(self, tags: t.Dict[str, str]) -> None:
         self.tags.update(tags)
 
+    def set_metrics(self, metrics: t.Dict[str, float]) -> None:
+        self.metrics.update(metrics)
+
 
 class TestRun(TestItem["Test", t.NoReturn]):
     __test__ = False
@@ -151,6 +154,8 @@ class TestRun(TestItem["Test", t.NoReturn]):
     def set_context(self, context: TestContext) -> None:
         self.span_id = context.span_id
         self.trace_id = context.trace_id
+        self.set_tags(context.get_tags())
+        self.set_metrics(context.get_metrics())
 
 
 class Test(TestItem["TestSuite", "TestRun"]):

@@ -7,8 +7,9 @@ import logging
 import typing as t
 
 from ddtestpy.internal.utils import DDTESTOPT_ROOT_SPAN_RESOURCE
+from ddtestpy.internal.utils import DDTraceTestContext
+from ddtestpy.internal.utils import PlainTestContext
 from ddtestpy.internal.utils import TestContext
-from ddtestpy.internal.utils import _gen_item_id
 from ddtestpy.internal.writer import TestOptWriter
 
 
@@ -82,7 +83,7 @@ def trace_context(ddtrace_enabled: bool) -> t.ContextManager[TestContext]:
 
 
 @contextlib.contextmanager
-def _ddtrace_context() -> t.Generator[TestContext, None, None]:
+def _ddtrace_context() -> t.Generator[DDTraceTestContext, None, None]:
     import ddtrace
 
     # TODO: check if this breaks async tests.
@@ -91,9 +92,9 @@ def _ddtrace_context() -> t.Generator[TestContext, None, None]:
     ddtrace.tracer.context_provider.activate(None)  # type: ignore[attr-defined]
 
     with ddtrace.tracer.trace(DDTESTOPT_ROOT_SPAN_RESOURCE) as root_span:  # type: ignore[attr-defined]
-        yield TestContext(trace_id=root_span.trace_id % (1 << 64), span_id=root_span.span_id % (1 << 64))
+        yield DDTraceTestContext(root_span)
 
 
 @contextlib.contextmanager
-def _plain_context() -> t.Generator[TestContext, None, None]:
-    yield TestContext(trace_id=_gen_item_id(), span_id=_gen_item_id())
+def _plain_context() -> t.Generator[PlainTestContext, None, None]:
+    yield PlainTestContext()
