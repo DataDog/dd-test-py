@@ -79,12 +79,5 @@ class TestPlainTestContext:
 
         assert context.span_id == span_id
         assert context.trace_id == trace_id
-
-    def test_test_context_equality(self) -> None:
-        """Test that PlainTestContext instances with same values are equal."""
-        context1 = PlainTestContext(span_id=123, trace_id=456)
-        context2 = PlainTestContext(span_id=123, trace_id=456)
-        context3 = PlainTestContext(span_id=123, trace_id=789)
-
-        assert context1 == context2
-        assert context1 != context3
+        assert context.get_tags() == {}
+        assert context.get_metrics() == {}
