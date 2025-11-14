@@ -17,18 +17,31 @@ DEFAULT_TIMEOUT_SECONDS = 15.0
 log = logging.getLogger(__name__)
 
 
+@dataclass
+class FileAttachment:
+    name: str
+    filename: t.Optional[str]
+    content_type: str
+    data: bytes
+
+
 class BackendConnector(threading.local):
     def __init__(
         self,
         host: str,
         port: int = 443,
+        http_class: t.type[http.client.HTTPSConnection] = http.client.HTTPSConnection,
         default_headers: t.Optional[t.Dict[str, str]] = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        accept_gzip: bool = True,
+        backend_supports_gzip_requests: bool = True,
+        accept_gzip_responses: bool = True,
+        base_path: str = "",
     ):
-        self.conn = http.client.HTTPSConnection(host=host, port=port, timeout=timeout_seconds)
+        self.conn = http_class(host=host, port=port, timeout=timeout_seconds)
         self.default_headers = default_headers or {}
-        if accept_gzip:
+        self.base_path = base_path
+        self.backend_supports_gzip_requests = backend_supports_gzip_requests
+        if accept_gzip_responses:
             self.default_headers["Accept-Encoding"] = "gzip"
 
     def close(self) -> None:
@@ -45,13 +58,13 @@ class BackendConnector(threading.local):
     ) -> t.Tuple[http.client.HTTPResponse, bytes]:
         full_headers = self.default_headers | (headers or {})
 
-        if send_gzip:
+        if send_gzip and self.backend_supports_gzip_requests:
             data = gzip.compress(data, compresslevel=6)
             full_headers["Content-Encoding"] = "gzip"
 
         start_time = time.time()
 
-        self.conn.request(method, path, body=data, headers=full_headers)
+        self.conn.request(method, self.base_path + path, body=data, headers=full_headers)
 
         response = self.conn.getresponse()
         if response.headers.get("Content-Encoding") == "gzip":
@@ -104,10 +117,14 @@ class BackendConnector(threading.local):
 
         return self.request("POST", path=path, data=body.getvalue(), headers=headers, send_gzip=send_gzip)
 
-
-@dataclass
-class FileAttachment:
-    name: str
-    filename: t.Optional[str]
-    content_type: str
-    data: bytes
+    @classmethod
+    def make_evp_proxy_connector(cls, host: str, port: int = 8126) -> BackendConnector:
+        return cls(
+            host=host,
+            port=port,
+            http_class=http.client.HTTPConnection,
+            default_headers={"X-Datadog-EVP-Subdomain": "api"},
+            backend_supports_gzip_requests=False,
+            accept_gzip_responses=False,
+            base_path="/evp_proxy/v4",
+        )

@@ -40,9 +40,8 @@ class APIClient:
         self.itr_skipping_level = itr_skipping_level
         self.configurations = configurations
 
-        self.base_url = f"https://api.{self.site}"
-
-        self.connector = BackendConnector(host=f"api.{self.site}", default_headers={"dd-api-key": self.api_key})
+        # self.connector = BackendConnector(host=f"api.{self.site}", default_headers={"dd-api-key": self.api_key})
+        self.connector = BackendConnector.make_evp_proxy_connector("localhost")  # ꙮꙮꙮ
 
     def close(self) -> None:
         self.connector.close()
