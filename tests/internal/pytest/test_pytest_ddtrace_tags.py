@@ -18,6 +18,8 @@ class TestDDTraceTags:
             def test_set_ddtrace_tags():
                 from ddtrace import tracer
                 tracer.current_span().set_tag("my_custom_tag", "foo")
+                tracer.current_span().set_tag("my_other_tag", "bar")
+                tracer.current_span().set_metric("my_custom_metric", 42)
         """
         )
 
@@ -32,3 +34,5 @@ class TestDDTraceTags:
 
         test_event = event_capture.event_by_test_name("test_set_ddtrace_tags")
         assert test_event["content"]["meta"].get("my_custom_tag") == "foo"
+        assert test_event["content"]["meta"].get("my_other_tag") == "bar"
+        assert test_event["content"]["metrics"].get("my_custom_metric") == 42
