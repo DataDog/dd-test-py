@@ -44,7 +44,6 @@ def _filter_sensitive_info(url: t.Optional[str]) -> t.Optional[str]:
 class TestContext(t.Protocol):
     span_id: int
     trace_id: int
-    __test__ = False
 
     def get_tags(self) -> t.Dict[str, str]: ...
 
