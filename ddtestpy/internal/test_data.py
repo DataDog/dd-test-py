@@ -151,6 +151,7 @@ class TestRun(TestItem["Test", t.NoReturn]):
     def set_context(self, context: TestContext) -> None:
         self.span_id = context.span_id
         self.trace_id = context.trace_id
+        self.set_tags(context.get_tags())
 
 
 class Test(TestItem["TestSuite", "TestRun"]):

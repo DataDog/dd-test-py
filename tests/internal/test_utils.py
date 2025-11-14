@@ -1,6 +1,6 @@
 """Tests for ddtestpy.internal.utils module."""
 
-from ddtestpy.internal.utils import TestContext
+from ddtestpy.internal.utils import PlainTestContext
 from ddtestpy.internal.utils import _gen_item_id
 from ddtestpy.internal.utils import asbool
 
@@ -68,23 +68,23 @@ class TestAsbool:
         assert asbool("hello") is False
 
 
-class TestTestContext:
-    """Tests for TestContext dataclass."""
+class TestPlainTestContext:
+    """Tests for PlainTestContext dataclass."""
 
     def test_test_context_creation(self) -> None:
-        """Test that TestContext can be created with span_id and trace_id."""
+        """Test that PlainTestContext can be created with span_id and trace_id."""
         span_id = 12345
         trace_id = 67890
-        context = TestContext(span_id=span_id, trace_id=trace_id)
+        context = PlainTestContext(span_id=span_id, trace_id=trace_id)
 
         assert context.span_id == span_id
         assert context.trace_id == trace_id
 
     def test_test_context_equality(self) -> None:
-        """Test that TestContext instances with same values are equal."""
-        context1 = TestContext(span_id=123, trace_id=456)
-        context2 = TestContext(span_id=123, trace_id=456)
-        context3 = TestContext(span_id=123, trace_id=789)
+        """Test that PlainTestContext instances with same values are equal."""
+        context1 = PlainTestContext(span_id=123, trace_id=456)
+        context2 = PlainTestContext(span_id=123, trace_id=456)
+        context3 = PlainTestContext(span_id=123, trace_id=789)
 
         assert context1 == context2
         assert context1 != context3
