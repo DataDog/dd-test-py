@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from dataclasses import dataclass
 import gzip
 import http.client
 import io
 import json
 import logging
+import os
 import threading
 import time
 import typing as t
 import uuid
+
+from ddtestpy.internal.constants import DEFAULT_SITE
+from ddtestpy.internal.utils import asbool
 
 
 DEFAULT_TIMEOUT_SECONDS = 15.0
@@ -25,12 +30,63 @@ class FileAttachment:
     data: bytes
 
 
+class BackendConnectorSetup:
+    @abstractmethod
+    def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector: ...
+
+    @staticmethod
+    def detect_setup() -> BackendConnectorSetup:
+        site = os.environ.get("DD_SITE") or DEFAULT_SITE
+
+        if asbool(os.environ.get("DD_CIVISIBILITY_AGENTLESS_ENABLED")):
+            api_key = os.environ.get("DD_API_KEY")
+            if not api_key:
+                raise RuntimeError("DD_API_KEY environment variable is not set")
+            log.debug("Connecting to backend in agentless mode")
+            return BackendConnectorAgentlessSetup(host=site, port=443, api_key=api_key)
+
+        log.debug("Connecting to backend through agent in EVP proxy mode")
+        return BackendConnectorEVPProxySetup(host="localhost", port=8126)
+
+
+class BackendConnectorAgentlessSetup(BackendConnectorSetup):
+    def __init__(self, host: str, port: int, api_key: str) -> None:
+        self.host = host
+        self.port = port
+        self.api_key = api_key
+
+    def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
+        return BackendConnector(
+            host=f"{subdomain}.{self.host}",
+            port=self.port,
+            http_class=http.client.HTTPSConnection,
+            default_headers={"dd-api-key": self.api_key},
+        )
+
+
+class BackendConnectorEVPProxySetup(BackendConnectorSetup):
+    def __init__(self, host: str, port: int) -> None:
+        self.host = host
+        self.port = port
+
+    def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
+        return BackendConnector(
+            host=self.host,
+            port=self.port,
+            http_class=http.client.HTTPConnection,
+            default_headers={"X-Datadog-EVP-Subdomain": subdomain},
+            backend_supports_gzip_requests=True,
+            accept_gzip_responses=True,
+            base_path="/evp_proxy/v4",
+        )
+
+
 class BackendConnector(threading.local):
     def __init__(
         self,
         host: str,
         port: int = 443,
-        http_class: t.type[http.client.HTTPSConnection] = http.client.HTTPSConnection,
+        http_class: t.Type[http.client.HTTPConnection] = http.client.HTTPSConnection,
         default_headers: t.Optional[t.Dict[str, str]] = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         backend_supports_gzip_requests: bool = True,
@@ -116,15 +172,3 @@ class BackendConnector(threading.local):
         body.write(b"--%s--\r\n" % boundary_bytes)
 
         return self.request("POST", path=path, data=body.getvalue(), headers=headers, send_gzip=send_gzip)
-
-    @classmethod
-    def make_evp_proxy_connector(cls, host: str, port: int = 8126) -> BackendConnector:
-        return cls(
-            host=host,
-            port=port,
-            http_class=http.client.HTTPConnection,
-            default_headers={"X-Datadog-EVP-Subdomain": "api"},
-            backend_supports_gzip_requests=False,
-            accept_gzip_responses=False,
-            base_path="/evp_proxy/v4",
-        )

@@ -11,10 +11,10 @@ from ddtestpy.internal.ci import CITag
 from ddtestpy.internal.codeowners import Codeowners
 from ddtestpy.internal.constants import DEFAULT_ENV_NAME
 from ddtestpy.internal.constants import DEFAULT_SERVICE_NAME
-from ddtestpy.internal.constants import DEFAULT_SITE
 from ddtestpy.internal.env_tags import get_env_tags
 from ddtestpy.internal.git import Git
 from ddtestpy.internal.git import GitTag
+from ddtestpy.internal.http import BackendConnectorSetup
 from ddtestpy.internal.platform import get_platform_tags
 from ddtestpy.internal.retry_handlers import AttemptToFixHandler
 from ddtestpy.internal.retry_handlers import AutoTestRetriesHandler
@@ -61,20 +61,15 @@ class SessionManager:
             self.service = _get_service_name_from_git_repo(self.env_tags) or DEFAULT_SERVICE_NAME
 
         self.env = os.environ.get("DD_ENV") or DEFAULT_ENV_NAME
-        self.site = os.environ.get("DD_SITE") or DEFAULT_SITE
-        self.api_key = os.environ.get("DD_API_KEY")
-
-        if not self.api_key:
-            raise RuntimeError("DD_API_KEY environment variable is not set")
+        self.connector_setup = BackendConnectorSetup.detect_setup()
 
         self.api_client = APIClient(
-            site=self.site,
-            api_key=self.api_key,
             service=self.service,
             env=self.env,
             env_tags=self.env_tags,
             itr_skipping_level=self.itr_skipping_level,
             configurations=self.platform_tags,
+            connector_setup=self.connector_setup,
         )
         self.settings = self.api_client.get_settings()
         self.known_tests = self.api_client.get_known_tests() if self.settings.known_tests_enabled else set()
@@ -93,8 +88,8 @@ class SessionManager:
         # Retry handlers must be set up after collection phase for EFD faulty session logic to work.
         self.retry_handlers: t.List[RetryHandler] = []
 
-        self.writer = TestOptWriter(site=self.site, api_key=self.api_key)
-        self.coverage_writer = TestCoverageWriter(site=self.site, api_key=self.api_key)
+        self.writer = TestOptWriter(connector_setup=self.connector_setup)
+        self.coverage_writer = TestCoverageWriter(connector_setup=self.connector_setup)
         self.session = session
         self.session.set_service(self.service)
 

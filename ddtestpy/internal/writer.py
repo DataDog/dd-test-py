@@ -8,7 +8,7 @@ import uuid
 import msgpack  # type: ignore
 
 import ddtestpy
-from ddtestpy.internal.http import BackendConnector
+from ddtestpy.internal.http import BackendConnectorSetup
 from ddtestpy.internal.http import FileAttachment
 from ddtestpy.internal.test_data import TestItem
 from ddtestpy.internal.test_data import TestModule
@@ -31,10 +31,7 @@ EventSerializer = t.Callable[[TSerializable], Event]
 
 
 class BaseWriter(ABC):
-    def __init__(self, site: str, api_key: str) -> None:
-        self.site = site
-        self.api_key = api_key
-
+    def __init__(self) -> None:
         self.lock = threading.RLock()
         self.should_finish = threading.Event()
         self.flush_interval_seconds = 60
@@ -86,8 +83,8 @@ class BaseWriter(ABC):
 class TestOptWriter(BaseWriter):
     __test__ = False
 
-    def __init__(self, site: str, api_key: str) -> None:
-        super().__init__(site=site, api_key=api_key)
+    def __init__(self, connector_setup: BackendConnectorSetup) -> None:
+        super().__init__()
 
         self.metadata: t.Dict[str, t.Dict[str, str]] = {
             "*": {
@@ -108,10 +105,7 @@ class TestOptWriter(BaseWriter):
             },
         }
 
-        self.connector = BackendConnector(
-            host=f"citestcycle-intake.{self.site}",
-            default_headers={"dd-api-key": self.api_key},
-        )
+        self.connector = connector_setup.get_connector_for_subdomain("citestcycle-intake")
 
         self.serializers: t.Dict[t.Type[TestItem[t.Any, t.Any]], EventSerializer[t.Any]] = {
             TestRun: serialize_test_run,
@@ -142,13 +136,10 @@ class TestOptWriter(BaseWriter):
 class TestCoverageWriter(BaseWriter):
     __test__ = False
 
-    def __init__(self, site: str, api_key: str) -> None:
-        super().__init__(site=site, api_key=api_key)
+    def __init__(self, connector_setup: BackendConnectorSetup) -> None:
+        super().__init__()
 
-        self.connector = BackendConnector(
-            host=f"citestcov-intake.{self.site}",
-            default_headers={"dd-api-key": self.api_key},
-        )
+        self.connector = connector_setup.get_connector_for_subdomain("citestcov-intake")
 
     def put_coverage(self, test_run: TestRun, coverage_bitmaps: t.Iterable[t.Tuple[str, bytes]]) -> None:
         files = [{"filename": pathname, "bitmap": bitmap} for pathname, bitmap in coverage_bitmaps]
