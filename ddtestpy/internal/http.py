@@ -11,9 +11,12 @@ import os
 import threading
 import time
 import typing as t
-import urllib.parse
+from urllib.parse import ParseResult
+from urllib.parse import urlparse
 import uuid
 
+from ddtestpy.internal.constants import DEFAULT_AGENT_HOSTNAME
+from ddtestpy.internal.constants import DEFAULT_AGENT_PORT
 from ddtestpy.internal.constants import DEFAULT_SITE
 from ddtestpy.internal.errors import SetupError
 from ddtestpy.internal.utils import asbool
@@ -25,11 +28,24 @@ log = logging.getLogger(__name__)
 
 
 class BackendConnectorSetup:
+    """
+    Logic for detecting the backend connection mode (agentless or EVP) and creating new connectors.
+    """
+
     @abstractmethod
-    def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector: ...
+    def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
+        """
+        Return a backend connector for the given subdomain (e.g., api, citestcov-intake, citestcycle-intake).
+
+        This method must be implemented for each backend connection mode subclass.
+        """
+        pass
 
     @classmethod
     def detect_setup(cls) -> BackendConnectorSetup:
+        """
+        Detect which backend connection mode to use and return a configured instance of the corresponding subclass.
+        """
         if asbool(os.environ.get("DD_CIVISIBILITY_AGENTLESS_ENABLED")):
             log.info("Connecting to backend in agentless mode")
             return cls._detect_agentless_setup()
@@ -40,6 +56,9 @@ class BackendConnectorSetup:
 
     @classmethod
     def _detect_agentless_setup(cls) -> BackendConnectorSetup:
+        """
+        Detect settings for agentless backend connection mode.
+        """
         site = os.environ.get("DD_SITE") or DEFAULT_SITE
         api_key = os.environ.get("DD_API_KEY")
 
@@ -50,40 +69,42 @@ class BackendConnectorSetup:
 
     @classmethod
     def _detect_evp_proxy_setup(cls) -> BackendConnectorSetup:
+        """
+        Detect settings for EVP proxy mode backend connection mode.
+        """
         agent_url = os.environ.get("DD_TRACE_AGENT_URL")
         if not agent_url:
-            agent_host = os.environ.get("DD_TRACE_AGENT_HOSTNAME") or os.environ.get("DD_AGENT_HOST") or "localhost"
-            agent_port = os.environ.get("DD_TRACE_AGENT_PORT") or os.environ.get("DD_AGENT_PORT") or "8126"
+            agent_host = (
+                os.environ.get("DD_TRACE_AGENT_HOSTNAME") or os.environ.get("DD_AGENT_HOST") or DEFAULT_AGENT_HOSTNAME
+            )
+            agent_port = (
+                os.environ.get("DD_TRACE_AGENT_PORT") or os.environ.get("DD_AGENT_PORT") or str(DEFAULT_AGENT_PORT)
+            )
             agent_url = f"http://{agent_host}:{agent_port}"
 
+        agent_url = agent_url.rstrip("/")  # Avoid an extra / when concatenating with the base path
+
+        # Get info from agent to check if the agent is there, and which EVP proxy version it supports.
         try:
-            url = urllib.parse.urlparse(agent_url)
-            conn = http.client.HTTPConnection(host=url.hostname, port=url.port)
-            conn.request("GET", "/info")
-            response = conn.getresponse()
-            response_body = response.read()
-            response.close()
+            connector = BackendConnector(agent_url)
+            response, response_data = connector.get_json("/info")
+            connector.close()
         except Exception as e:
             raise SetupError(f"Error connecting to Datadog agent at {agent_url}: {e}")
 
         if response.status != 200:
             raise SetupError(
                 f"Error connecting to Datadog agent at {agent_url}: status {response.status}, "
-                f"response {response_body!r}"
+                f"response {response_data!r}"
             )
 
-        response_data = json.loads(response_body)
         endpoints = response_data.get("endpoints", [])
 
         if "/evp_proxy/v4/" in endpoints:
-            return BackendConnectorEVPProxySetup(
-                host=url.hostname, port=url.port, base_path="/evp_proxy/v4", use_gzip=True
-            )
+            return BackendConnectorEVPProxySetup(url=f"{agent_url}/evp_proxy/v4", use_gzip=True)
 
         if "/evp_proxy/v2/" in endpoints:
-            return BackendConnectorEVPProxySetup(
-                host=url.hostname, port=url.port, base_path="/evp_proxy/v2", use_gzip=False
-            )
+            return BackendConnectorEVPProxySetup(url=f"{agent_url}/evp_proxy/v2", use_gzip=False)
 
         raise SetupError(f"Datadog agent at {agent_url} does not support EVP proxy mode")
 
@@ -96,47 +117,38 @@ class BackendConnectorAgentlessSetup(BackendConnectorSetup):
 
     def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
         return BackendConnector(
-            host=f"{subdomain}.{self.site}",
-            port=self.port,
-            http_class=http.client.HTTPSConnection,
+            url=f"https://{subdomain}.{self.site}:{self.port}",
             default_headers={"dd-api-key": self.api_key},
         )
 
 
 class BackendConnectorEVPProxySetup(BackendConnectorSetup):
-    def __init__(self, host: str, port: int, base_path: str, use_gzip: bool) -> None:
-        self.host = host
-        self.port = port
-        self.base_path = base_path
+    def __init__(self, url: str, use_gzip: bool) -> None:
+        self.url = url
         self.use_gzip = use_gzip
 
     def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
         return BackendConnector(
-            host=self.host,
-            port=self.port,
-            http_class=http.client.HTTPConnection,
+            url=self.url,
             default_headers={"X-Datadog-EVP-Subdomain": subdomain},
             backend_supports_gzip_requests=self.use_gzip,
             accept_gzip_responses=self.use_gzip,
-            base_path=self.base_path,
         )
 
 
 class BackendConnector(threading.local):
     def __init__(
         self,
-        host: str,
-        port: int = 443,
-        http_class: t.Type[http.client.HTTPConnection] = http.client.HTTPSConnection,
+        url: str,
         default_headers: t.Optional[t.Dict[str, str]] = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         backend_supports_gzip_requests: bool = True,
         accept_gzip_responses: bool = True,
-        base_path: str = "",
     ):
-        self.conn = http_class(host=host, port=port, timeout=timeout_seconds)
+        parsed_url = urlparse(url)
+        self.conn = self._make_connection(parsed_url, timeout_seconds)
         self.default_headers = default_headers or {}
-        self.base_path = base_path
+        self.base_path = parsed_url.path.rstrip("/")
         self.backend_supports_gzip_requests = backend_supports_gzip_requests
         if accept_gzip_responses:
             self.default_headers["Accept-Encoding"] = "gzip"
@@ -144,18 +156,37 @@ class BackendConnector(threading.local):
     def close(self) -> None:
         self.conn.close()
 
+    def _make_connection(self, parsed_url: ParseResult, timeout_seconds: float) -> http.client.HTTPConnection:
+        if parsed_url.scheme == "http":
+            if not parsed_url.hostname:
+                raise SetupError(f"No hostname provided in {parsed_url.geturl()}")
+
+            return http.client.HTTPConnection(
+                host=parsed_url.hostname, port=parsed_url.port or 80, timeout=timeout_seconds
+            )
+
+        if parsed_url.scheme == "https":
+            if not parsed_url.hostname:
+                raise SetupError(f"No hostname provided in {parsed_url.geturl()}")
+
+            return http.client.HTTPSConnection(
+                host=parsed_url.hostname, port=parsed_url.port or 443, timeout=timeout_seconds
+            )
+
+        raise SetupError(f"Unknown scheme {parsed_url.scheme} in {parsed_url.geturl()}")
+
     # TODO: handle retries
     def request(
         self,
         method: str,
         path: str,
-        data: bytes,
+        data: t.Optional[bytes] = None,
         headers: t.Optional[t.Dict[str, str]] = None,
         send_gzip: bool = False,
     ) -> t.Tuple[http.client.HTTPResponse, bytes]:
         full_headers = self.default_headers | (headers or {})
 
-        if send_gzip and self.backend_supports_gzip_requests:
+        if send_gzip and self.backend_supports_gzip_requests and data is not None:
             data = gzip.compress(data, compresslevel=6)
             full_headers["Content-Encoding"] = "gzip"
 
@@ -176,6 +207,11 @@ class BackendConnector(threading.local):
         # log.debug("Response status %s, data %s", response.status, response_data)
 
         return response, response_data
+
+    def get_json(self, path: str, headers: t.Optional[t.Dict[str, str]] = None, send_gzip: bool = False) -> t.Any:
+        headers = {"Content-Type": "application/json"} | (headers or {})
+        response, response_data = self.request("GET", path=path, headers=headers, send_gzip=send_gzip)
+        return response, json.loads(response_data)
 
     def post_json(
         self, path: str, data: t.Any, headers: t.Optional[t.Dict[str, str]] = None, send_gzip: bool = False
