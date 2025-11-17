@@ -84,12 +84,12 @@ class BackendConnectorSetup:
 
         if "/evp_proxy/v4/" in endpoints:
             return BackendConnectorEVPProxySetup(
-                host=url.hostname, port=url.port, base_path="/evp_proxy/v4/", use_gzip=True
+                host=url.hostname, port=url.port, base_path="/evp_proxy/v4", use_gzip=True
             )
 
         if "/evp_proxy/v2/" in endpoints:
             return BackendConnectorEVPProxySetup(
-                host=url.hostname, port=url.port, base_path="/evp_proxy/v2/", use_gzip=False
+                host=url.hostname, port=url.port, base_path="/evp_proxy/v2", use_gzip=False
             )
 
         raise RuntimeError(f"Datadog agent at {agent_url} does not support EVP proxy mode")
