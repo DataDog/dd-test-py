@@ -111,12 +111,11 @@ class BackendConnectorSetup:
 class BackendConnectorAgentlessSetup(BackendConnectorSetup):
     def __init__(self, site: str, api_key: str) -> None:
         self.site = site
-        self.port = 443
         self.api_key = api_key
 
     def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
         return BackendConnector(
-            url=f"https://{subdomain}.{self.site}:{self.port}",
+            url=f"https://{subdomain}.{self.site}",
             default_headers={"dd-api-key": self.api_key},
             use_gzip=True,
         )

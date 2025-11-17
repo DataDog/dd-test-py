@@ -115,7 +115,7 @@ class TestTestCoverageWriter:
 
         # Check connector initialization
         mock_backend_connector.assert_called_once_with(
-            url="https://citestcov-intake.datadoghq.com:443", default_headers={"dd-api-key": "test_key"}, use_gzip=True
+            url="https://citestcov-intake.datadoghq.com", default_headers={"dd-api-key": "test_key"}, use_gzip=True
         )
 
     @patch("ddtestpy.internal.http.BackendConnector")
