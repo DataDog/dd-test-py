@@ -15,20 +15,13 @@ import urllib.parse
 import uuid
 
 from ddtestpy.internal.constants import DEFAULT_SITE
+from ddtestpy.internal.errors import SetupError
 from ddtestpy.internal.utils import asbool
 
 
 DEFAULT_TIMEOUT_SECONDS = 15.0
 
 log = logging.getLogger(__name__)
-
-
-@dataclass
-class FileAttachment:
-    name: str
-    filename: t.Optional[str]
-    content_type: str
-    data: bytes
 
 
 class BackendConnectorSetup:
@@ -38,11 +31,11 @@ class BackendConnectorSetup:
     @classmethod
     def detect_setup(cls) -> BackendConnectorSetup:
         if asbool(os.environ.get("DD_CIVISIBILITY_AGENTLESS_ENABLED")):
-            log.debug("Connecting to backend in agentless mode")
+            log.info("Connecting to backend in agentless mode")
             return cls._detect_agentless_setup()
 
         else:
-            log.debug("Connecting to backend through agent in EVP proxy mode")
+            log.info("Connecting to backend through agent in EVP proxy mode")
             return cls._detect_evp_proxy_setup()
 
     @classmethod
@@ -51,7 +44,7 @@ class BackendConnectorSetup:
         api_key = os.environ.get("DD_API_KEY")
 
         if not api_key:
-            raise RuntimeError("DD_API_KEY environment variable is not set")
+            raise SetupError("DD_API_KEY environment variable is not set")
 
         return BackendConnectorAgentlessSetup(site=site, api_key=api_key)
 
@@ -71,10 +64,10 @@ class BackendConnectorSetup:
             response_body = response.read()
             response.close()
         except Exception as e:
-            raise RuntimeError(f"Error connecting to Datadog agent at {agent_url}: {e}")
+            raise SetupError(f"Error connecting to Datadog agent at {agent_url}: {e}")
 
         if response.status != 200:
-            raise RuntimeError(
+            raise SetupError(
                 f"Error connecting to Datadog agent at {agent_url}: status {response.status}, "
                 f"response {response_body!r}"
             )
@@ -92,7 +85,7 @@ class BackendConnectorSetup:
                 host=url.hostname, port=url.port, base_path="/evp_proxy/v2", use_gzip=False
             )
 
-        raise RuntimeError(f"Datadog agent at {agent_url} does not support EVP proxy mode")
+        raise SetupError(f"Datadog agent at {agent_url} does not support EVP proxy mode")
 
 
 class BackendConnectorAgentlessSetup(BackendConnectorSetup):
@@ -220,3 +213,11 @@ class BackendConnector(threading.local):
         body.write(b"--%s--\r\n" % boundary_bytes)
 
         return self.request("POST", path=path, data=body.getvalue(), headers=headers, send_gzip=send_gzip)
+
+
+@dataclass
+class FileAttachment:
+    name: str
+    filename: t.Optional[str]
+    content_type: str
+    data: bytes
