@@ -43,7 +43,7 @@ class TestEvent:
 class TestTestOptWriter:
     """Tests for TestOptWriter class."""
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     def test_testopt_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestOptWriter initialization."""
         mock_connector = Mock()
@@ -67,7 +67,7 @@ class TestTestOptWriter:
         assert TestModule in writer.serializers
         assert TestSession in writer.serializers
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     @patch("msgpack.packb")
     def test_send_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending events to backend."""
@@ -103,7 +103,7 @@ class TestTestOptWriter:
 class TestTestCoverageWriter:
     """Tests for TestCoverageWriter class."""
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     def test_coverage_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestCoverageWriter initialization."""
         mock_connector = Mock()
@@ -115,10 +115,10 @@ class TestTestCoverageWriter:
 
         # Check connector initialization
         mock_backend_connector.assert_called_once_with(
-            host="citestcov-intake.datadoghq.com", default_headers={"dd-api-key": "test_key"}
+            url="https://citestcov-intake.datadoghq.com:443", default_headers={"dd-api-key": "test_key"}, use_gzip=True
         )
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     def test_put_coverage(self, mock_backend_connector: Mock) -> None:
         """Test putting coverage data."""
         writer = TestCoverageWriter(BackendConnectorAgentlessSetup(site="test", api_key="key"))
@@ -144,7 +144,7 @@ class TestTestCoverageWriter:
         assert event["span_id"] == 789
         assert len(event["files"]) == 2
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     @patch("msgpack.packb")
     def test_send_coverage_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending coverage events."""

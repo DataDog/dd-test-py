@@ -175,7 +175,7 @@ class TestSessionManagerIsSkippableTest:
 
 class TestSessionNameTest:
     def test_session_name_explicitly_from_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        env = {"DD_TEST_SESSION_NAME": "the_name", "DD_API_KEY": "somekey"}
+        env = {"DD_TEST_SESSION_NAME": "the_name", "DD_API_KEY": "somekey", "DD_CIVISIBILITY_AGENTLESS_ENABLED": "true"}
         monkeypatch.setattr(os, "environ", env)
         session_manager = session_manager_mock().with_env_tags({CITag.JOB_NAME: "the_job"}).build_real_with_mocks(env)
 
@@ -184,7 +184,7 @@ class TestSessionNameTest:
         assert session_manager.writer.metadata["*"]["test_session.name"] == expected_name
 
     def test_session_name_from_job_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        env = {"DD_API_KEY": "somekey"}
+        env = {"DD_API_KEY": "somekey", "DD_CIVISIBILITY_AGENTLESS_ENABLED": "true"}
         monkeypatch.setattr(os, "environ", env)
         session_manager = session_manager_mock().with_env_tags({CITag.JOB_NAME: "the_job"}).build_real_with_mocks(env)
 
@@ -193,7 +193,7 @@ class TestSessionNameTest:
         assert session_manager.writer.metadata["*"]["test_session.name"] == expected_name
 
     def test_session_name_from_test_command(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        env = {"DD_API_KEY": "somekey"}
+        env = {"DD_API_KEY": "somekey", "DD_CIVISIBILITY_AGENTLESS_ENABLED": "true"}
         monkeypatch.setattr(os, "environ", env)
         session_manager = session_manager_mock().with_env_tags({}).build_real_with_mocks(env)
 

@@ -428,6 +428,7 @@ class TestRetryHandler:
             os.environ,  # Mock environment variables
             {
                 "DD_API_KEY": "test-key",
+                "DD_CIVISIBILITY_AGENTLESS_ENABLED": "true",
                 "DD_CIVISIBILITY_FLAKY_RETRY_ENABLED": "true",
                 "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "3",
                 "DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT": "10",
@@ -468,6 +469,7 @@ class TestRetryHandler:
             os.environ,
             {
                 "DD_API_KEY": "foobar",
+                "DD_CIVISIBILITY_AGENTLESS_ENABLED": "true",
                 "DD_CIVISIBILITY_FLAKY_RETRY_COUNT": "2",
                 "DD_CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT": "5",
             },
