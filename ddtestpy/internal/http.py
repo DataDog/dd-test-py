@@ -88,6 +88,7 @@ class BackendConnectorSetup:
         try:
             connector = BackendConnector(agent_url)
             response, response_data = connector.get_json("/info")
+            endpoints = response_data.get("endpoints", [])
             connector.close()
         except Exception as e:
             raise SetupError(f"Error connecting to Datadog agent at {agent_url}: {e}")
@@ -97,8 +98,6 @@ class BackendConnectorSetup:
                 f"Error connecting to Datadog agent at {agent_url}: status {response.status}, "
                 f"response {response_data!r}"
             )
-
-        endpoints = response_data.get("endpoints", [])
 
         if "/evp_proxy/v4/" in endpoints:
             return BackendConnectorEVPProxySetup(url=f"{agent_url}/evp_proxy/v4", use_gzip=True)
@@ -171,6 +170,8 @@ class BackendConnector(threading.local):
             return http.client.HTTPSConnection(
                 host=parsed_url.hostname, port=parsed_url.port or 443, timeout=timeout_seconds
             )
+
+        # TODO: Unix domain socket support.
 
         raise SetupError(f"Unknown scheme {parsed_url.scheme} in {parsed_url.geturl()}")
 
