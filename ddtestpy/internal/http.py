@@ -119,6 +119,7 @@ class BackendConnectorAgentlessSetup(BackendConnectorSetup):
         return BackendConnector(
             url=f"https://{subdomain}.{self.site}:{self.port}",
             default_headers={"dd-api-key": self.api_key},
+            use_gzip=True,
         )
 
 
@@ -131,8 +132,7 @@ class BackendConnectorEVPProxySetup(BackendConnectorSetup):
         return BackendConnector(
             url=self.url,
             default_headers={"X-Datadog-EVP-Subdomain": subdomain},
-            backend_supports_gzip_requests=self.use_gzip,
-            accept_gzip_responses=self.use_gzip,
+            use_gzip=self.use_gzip,
         )
 
 
@@ -142,15 +142,14 @@ class BackendConnector(threading.local):
         url: str,
         default_headers: t.Optional[t.Dict[str, str]] = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        backend_supports_gzip_requests: bool = True,
-        accept_gzip_responses: bool = True,
+        use_gzip: bool = False,
     ):
         parsed_url = urlparse(url)
         self.conn = self._make_connection(parsed_url, timeout_seconds)
         self.default_headers = default_headers or {}
         self.base_path = parsed_url.path.rstrip("/")
-        self.backend_supports_gzip_requests = backend_supports_gzip_requests
-        if accept_gzip_responses:
+        self.use_gzip = use_gzip
+        if self.use_gzip:
             self.default_headers["Accept-Encoding"] = "gzip"
 
     def close(self) -> None:
@@ -186,7 +185,7 @@ class BackendConnector(threading.local):
     ) -> t.Tuple[http.client.HTTPResponse, bytes]:
         full_headers = self.default_headers | (headers or {})
 
-        if send_gzip and self.backend_supports_gzip_requests and data is not None:
+        if send_gzip and self.use_gzip and data is not None:
             data = gzip.compress(data, compresslevel=6)
             full_headers["Content-Encoding"] = "gzip"
 
