@@ -61,6 +61,7 @@ class SessionManager:
             self.service = _get_service_name_from_git_repo(self.env_tags) or DEFAULT_SERVICE_NAME
 
         self.env = os.environ.get("DD_ENV") or DEFAULT_ENV_NAME
+
         self.connector_setup = BackendConnectorSetup.detect_setup()
 
         self.api_client = APIClient(

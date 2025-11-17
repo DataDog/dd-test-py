@@ -18,7 +18,7 @@ class TestBackendConnector:
     @patch("http.client.HTTPSConnection")
     def test_init_default_parameters(self, mock_https_connection: Mock) -> None:
         """Test BackendConnector initialization with default parameters."""
-        connector = BackendConnector(host="api.example.com")
+        connector = BackendConnector(url="https://api.example.com", use_gzip=True)
 
         mock_https_connection.assert_called_once_with(host="api.example.com", port=443, timeout=DEFAULT_TIMEOUT_SECONDS)
         assert connector.default_headers == {"Accept-Encoding": "gzip"}
@@ -41,7 +41,7 @@ class TestBackendConnector:
         mock_https_connection.return_value = mock_conn
 
         # Test post_files with multiple files
-        connector = BackendConnector(host="api.example.com")
+        connector = BackendConnector(url="https://api.example.com")
         files = [
             FileAttachment("file1", "doc1.txt", "text/plain", b"content1"),
             FileAttachment("file2", "doc2.json", "application/json", b"content2"),
