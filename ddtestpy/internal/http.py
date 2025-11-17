@@ -11,6 +11,7 @@ import os
 import threading
 import time
 import typing as t
+import urllib.parse
 import uuid
 
 from ddtestpy.internal.constants import DEFAULT_SITE
@@ -34,30 +35,75 @@ class BackendConnectorSetup:
     @abstractmethod
     def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector: ...
 
-    @staticmethod
-    def detect_setup() -> BackendConnectorSetup:
-        site = os.environ.get("DD_SITE") or DEFAULT_SITE
-
+    @classmethod
+    def detect_setup(cls) -> BackendConnectorSetup:
         if asbool(os.environ.get("DD_CIVISIBILITY_AGENTLESS_ENABLED")):
-            api_key = os.environ.get("DD_API_KEY")
-            if not api_key:
-                raise RuntimeError("DD_API_KEY environment variable is not set")
             log.debug("Connecting to backend in agentless mode")
-            return BackendConnectorAgentlessSetup(host=site, port=443, api_key=api_key)
+            return cls._detect_agentless_setup()
 
-        log.debug("Connecting to backend through agent in EVP proxy mode")
-        return BackendConnectorEVPProxySetup(host="localhost", port=8126)
+        else:
+            log.debug("Connecting to backend through agent in EVP proxy mode")
+            return cls._detect_evp_proxy_setup()
+
+    @classmethod
+    def _detect_agentless_setup(cls) -> BackendConnectorSetup:
+        site = os.environ.get("DD_SITE") or DEFAULT_SITE
+        api_key = os.environ.get("DD_API_KEY")
+
+        if not api_key:
+            raise RuntimeError("DD_API_KEY environment variable is not set")
+
+        return BackendConnectorAgentlessSetup(site=site, api_key=api_key)
+
+    @classmethod
+    def _detect_evp_proxy_setup(cls) -> BackendConnectorSetup:
+        agent_url = os.environ.get("DD_TRACE_AGENT_URL")
+        if not agent_url:
+            agent_host = os.environ.get("DD_TRACE_AGENT_HOSTNAME") or os.environ.get("DD_AGENT_HOST") or "localhost"
+            agent_port = os.environ.get("DD_TRACE_AGENT_PORT") or os.environ.get("DD_AGENT_PORT") or "8126"
+            agent_url = f"http://{agent_host}:{agent_port}"
+
+        try:
+            url = urllib.parse.urlparse(agent_url)
+            conn = http.client.HTTPConnection(host=url.hostname, port=url.port)
+            conn.request("GET", "/info")
+            response = conn.getresponse()
+            response_body = response.read()
+            response.close()
+        except Exception as e:
+            raise RuntimeError(f"Error connecting to Datadog agent at {agent_url}: {e}")
+
+        if response.status != 200:
+            raise RuntimeError(
+                f"Error connecting to Datadog agent at {agent_url}: status {response.status}, "
+                f"response {response_body!r}"
+            )
+
+        response_data = json.loads(response_body)
+        endpoints = response_data.get("endpoints", [])
+
+        if "/evp_proxy/v4/" in endpoints:
+            return BackendConnectorEVPProxySetup(
+                host=url.hostname, port=url.port, base_path="/evp_proxy/v4/", use_gzip=True
+            )
+
+        if "/evp_proxy/v2/" in endpoints:
+            return BackendConnectorEVPProxySetup(
+                host=url.hostname, port=url.port, base_path="/evp_proxy/v2/", use_gzip=False
+            )
+
+        raise RuntimeError(f"Datadog agent at {agent_url} does not support EVP proxy mode")
 
 
 class BackendConnectorAgentlessSetup(BackendConnectorSetup):
-    def __init__(self, host: str, port: int, api_key: str) -> None:
-        self.host = host
-        self.port = port
+    def __init__(self, site: str, api_key: str) -> None:
+        self.site = site
+        self.port = 443
         self.api_key = api_key
 
     def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
         return BackendConnector(
-            host=f"{subdomain}.{self.host}",
+            host=f"{subdomain}.{self.site}",
             port=self.port,
             http_class=http.client.HTTPSConnection,
             default_headers={"dd-api-key": self.api_key},
@@ -65,9 +111,11 @@ class BackendConnectorAgentlessSetup(BackendConnectorSetup):
 
 
 class BackendConnectorEVPProxySetup(BackendConnectorSetup):
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(self, host: str, port: int, base_path: str, use_gzip: bool) -> None:
         self.host = host
         self.port = port
+        self.base_path = base_path
+        self.use_gzip = use_gzip
 
     def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
         return BackendConnector(
@@ -75,9 +123,9 @@ class BackendConnectorEVPProxySetup(BackendConnectorSetup):
             port=self.port,
             http_class=http.client.HTTPConnection,
             default_headers={"X-Datadog-EVP-Subdomain": subdomain},
-            backend_supports_gzip_requests=True,
-            accept_gzip_responses=True,
-            base_path="/evp_proxy/v4",
+            backend_supports_gzip_requests=self.use_gzip,
+            accept_gzip_responses=self.use_gzip,
+            base_path=self.base_path,
         )
 
 
