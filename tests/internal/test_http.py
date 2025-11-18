@@ -1,11 +1,20 @@
 """Tests for ddtestpy.internal.http module."""
 
+import http.client
+import os
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import pytest
+
+from ddtestpy.internal.errors import SetupError
 from ddtestpy.internal.http import DEFAULT_TIMEOUT_SECONDS
 from ddtestpy.internal.http import BackendConnector
+from ddtestpy.internal.http import BackendConnectorAgentlessSetup
+from ddtestpy.internal.http import BackendConnectorEVPProxySetup
+from ddtestpy.internal.http import BackendConnectorSetup
 from ddtestpy.internal.http import FileAttachment
+from tests.mocks import mock_backend_connector
 
 
 class TestBackendConnector:
@@ -59,3 +68,69 @@ class TestBackendConnector:
         assert b"content1" in body
         assert b"content2" in body
         assert body.count(b"--boundary123") == 3  # 2 file separators + 1 end
+
+
+class TestBackendConnectorSetup:
+    def test_detect_agentless_setup_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {"DD_CIVISIBILITY_AGENTLESS_ENABLED": "true", "DD_API_KEY": "the-key"})
+
+        connector_setup = BackendConnectorSetup.detect_setup()
+        assert isinstance(connector_setup, BackendConnectorAgentlessSetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, http.client.HTTPSConnection)
+        assert connector.conn.host == "api.datadoghq.com"
+        assert connector.conn.port == 443
+        assert connector.use_gzip is True
+        assert connector.default_headers["dd-api-key"] == "the-key"
+
+    def test_detect_agentless_setup_ok_with_site(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            os,
+            "environ",
+            {"DD_CIVISIBILITY_AGENTLESS_ENABLED": "true", "DD_API_KEY": "the-key", "DD_SITE": "datadoghq.eu"},
+        )
+
+        connector_setup = BackendConnectorSetup.detect_setup()
+        assert isinstance(connector_setup, BackendConnectorAgentlessSetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, http.client.HTTPSConnection)
+        assert connector.conn.host == "api.datadoghq.eu"
+        assert connector.conn.port == 443
+        assert connector.use_gzip is True
+        assert connector.default_headers["dd-api-key"] == "the-key"
+
+    def test_detect_agentless_setup_no_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            os,
+            "environ",
+            {"DD_CIVISIBILITY_AGENTLESS_ENABLED": "true"},
+        )
+
+        with pytest.raises(SetupError) as error:
+            BackendConnectorSetup.detect_setup()
+
+        assert str(error.value) == "DD_API_KEY environment variable is not set"
+
+    def test_detect_evp_proxy_mode_v4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {})
+
+        backend_connector_mock = (
+            mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v4/"]}).build()
+        )
+        with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
+            connector_setup = BackendConnectorSetup.detect_setup()
+
+        assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, http.client.HTTPConnection)
+        assert connector.conn.host == "localhost"
+        assert connector.conn.port == 8126
+        assert connector.use_gzip is True
+        assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
+
+    def test_detect_evp_proxy_mode_v2(self) -> None: ...
+
+    def test_detect_evp_proxy_mode_no_agent(self) -> None: ...

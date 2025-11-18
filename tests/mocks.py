@@ -423,12 +423,18 @@ class BackendConnectorMockBuilder:
 
     def __init__(self) -> None:
         self._post_json_responses: t.Dict[str, t.Any] = {}
+        self._get_json_responses: t.Dict[str, t.Any] = {}
         self._request_responses: t.Dict[str, t.Any] = {}
         self._post_files_responses: t.Dict[str, t.Any] = {}
 
     def with_post_json_response(self, endpoint: str, response_data: t.Any) -> "BackendConnectorMockBuilder":
         """Mock a specific POST JSON endpoint response."""
         self._post_json_responses[endpoint] = response_data
+        return self
+
+    def with_get_json_response(self, endpoint: str, response_data: t.Any) -> "BackendConnectorMockBuilder":
+        """Mock a specific POST JSON endpoint response."""
+        self._get_json_responses[endpoint] = response_data
         return self
 
     def with_request_response(self, method: str, path: str, response_data: t.Any) -> "BackendConnectorMockBuilder":
@@ -443,19 +449,25 @@ class BackendConnectorMockBuilder:
         # Mock methods to prevent real HTTP calls
         def mock_post_json(endpoint: str, data: t.Any) -> t.Tuple[Mock, t.Any]:
             if endpoint in self._post_json_responses:
-                return Mock(), self._post_json_responses[endpoint]
-            return Mock(), {}
+                return Mock(status=200), self._post_json_responses[endpoint]
+            return Mock(status=404), {}
+
+        def mock_get_json(endpoint: str) -> t.Tuple[Mock, t.Any]:
+            if endpoint in self._get_json_responses:
+                return Mock(status=200), self._get_json_responses[endpoint]
+            return Mock(status=404), {}
 
         def mock_request(method: str, path: str, **kwargs: t.Any) -> t.Tuple[Mock, t.Any]:
             key = f"{method}:{path}"
             if key in self._request_responses:
-                return Mock(), self._request_responses[key]
-            return Mock(), {}
+                return Mock(status=200), self._request_responses[key]
+            return Mock(status=404), {}
 
         def mock_post_files(path: str, files: t.Any, **kwargs: t.Any) -> t.Tuple[Mock, t.Dict[str, t.Any]]:
-            return Mock(), {}
+            return Mock(status=200), {}
 
         mock_connector.post_json.side_effect = mock_post_json
+        mock_connector.get_json.side_effect = mock_get_json
         mock_connector.request.side_effect = mock_request
         mock_connector.post_files.side_effect = mock_post_files
 
