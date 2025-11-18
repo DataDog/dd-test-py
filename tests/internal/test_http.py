@@ -31,6 +31,16 @@ class TestBackendConnector:
 
         mock_https_connection.assert_called_once_with(host="api.example.com", port=443, timeout=DEFAULT_TIMEOUT_SECONDS)
         assert connector.default_headers == {"Accept-Encoding": "gzip"}
+        assert connector.base_path == ""
+
+    @patch("http.client.HTTPSConnection")
+    def test_init_custom_parameters(self, mock_https_connection: Mock) -> None:
+        """Test BackendConnector initialization with default parameters."""
+        connector = BackendConnector(url="https://api.example.com/some-path", use_gzip=False)
+
+        mock_https_connection.assert_called_once_with(host="api.example.com", port=443, timeout=DEFAULT_TIMEOUT_SECONDS)
+        assert connector.default_headers == {}
+        assert connector.base_path == "/some-path"
 
     @patch("http.client.HTTPSConnection")
     @patch("uuid.uuid4")
@@ -163,3 +173,60 @@ class TestBackendConnectorSetup:
         with patch("ddtestpy.internal.http.BackendConnector.get_json", side_effect=ConnectionRefusedError("no bueno")):
             with pytest.raises(SetupError, match="Error connecting to Datadog agent.*no bueno"):
                 BackendConnectorSetup.detect_setup()
+
+    def test_detect_evp_proxy_mode_v4_custom_dd_trace_agent_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {"DD_TRACE_AGENT_URL": "http://somehost:1234"})
+
+        backend_connector_mock = (
+            mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v4/"]}).build()
+        )
+        with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
+            connector_setup = BackendConnectorSetup.detect_setup()
+
+        assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, http.client.HTTPConnection)
+        assert connector.conn.host == "somehost"
+        assert connector.conn.port == 1234
+        assert connector.base_path == "/evp_proxy/v4"
+        assert connector.use_gzip is True
+        assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
+
+    def test_detect_evp_proxy_mode_v4_custom_dd_trace_agent_hostname(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {"DD_TRACE_AGENT_HOSTNAME": "somehost", "DD_TRACE_AGENT_PORT": "5678"})
+
+        backend_connector_mock = (
+            mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v4/"]}).build()
+        )
+        with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
+            connector_setup = BackendConnectorSetup.detect_setup()
+
+        assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, http.client.HTTPConnection)
+        assert connector.conn.host == "somehost"
+        assert connector.conn.port == 5678
+        assert connector.base_path == "/evp_proxy/v4"
+        assert connector.use_gzip is True
+        assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
+
+    def test_detect_evp_proxy_mode_v4_custom_dd_agent_host(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {"DD_AGENT_HOST": "somehost", "DD_AGENT_PORT": "5678"})
+
+        backend_connector_mock = (
+            mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v4/"]}).build()
+        )
+        with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
+            connector_setup = BackendConnectorSetup.detect_setup()
+
+        assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, http.client.HTTPConnection)
+        assert connector.conn.host == "somehost"
+        assert connector.conn.port == 5678
+        assert connector.base_path == "/evp_proxy/v4"
+        assert connector.use_gzip is True
+        assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
