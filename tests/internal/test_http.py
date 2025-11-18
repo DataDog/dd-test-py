@@ -108,10 +108,8 @@ class TestBackendConnectorSetup:
             {"DD_CIVISIBILITY_AGENTLESS_ENABLED": "true"},
         )
 
-        with pytest.raises(SetupError) as error:
+        with pytest.raises(SetupError, match="DD_API_KEY environment variable is not set"):
             BackendConnectorSetup.detect_setup()
-
-        assert str(error.value) == "DD_API_KEY environment variable is not set"
 
     def test_detect_evp_proxy_mode_v4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(os, "environ", {})
@@ -128,9 +126,40 @@ class TestBackendConnectorSetup:
         assert isinstance(connector.conn, http.client.HTTPConnection)
         assert connector.conn.host == "localhost"
         assert connector.conn.port == 8126
+        assert connector.base_path == "/evp_proxy/v4"
         assert connector.use_gzip is True
         assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
 
-    def test_detect_evp_proxy_mode_v2(self) -> None: ...
+    def test_detect_evp_proxy_mode_v2(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {})
 
-    def test_detect_evp_proxy_mode_no_agent(self) -> None: ...
+        backend_connector_mock = (
+            mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v2/"]}).build()
+        )
+        with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
+            connector_setup = BackendConnectorSetup.detect_setup()
+
+        assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, http.client.HTTPConnection)
+        assert connector.conn.host == "localhost"
+        assert connector.conn.port == 8126
+        assert connector.base_path == "/evp_proxy/v2"
+        assert connector.use_gzip is False
+        assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
+
+    def test_detect_evp_proxy_mode_no_evp_support(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {})
+
+        backend_connector_mock = mock_backend_connector().with_get_json_response("/info", {"endpoints": []}).build()
+        with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
+            with pytest.raises(SetupError, match="Datadog agent .* does not support EVP proxy mode"):
+                BackendConnectorSetup.detect_setup()
+
+    def test_detect_evp_proxy_mode_no_agent(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {})
+
+        with patch("ddtestpy.internal.http.BackendConnector.get_json", side_effect=ConnectionRefusedError("no bueno")):
+            with pytest.raises(SetupError, match="Error connecting to Datadog agent.*no bueno"):
+                BackendConnectorSetup.detect_setup()
