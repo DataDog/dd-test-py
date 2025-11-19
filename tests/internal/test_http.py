@@ -36,12 +36,23 @@ class TestBackendConnector:
 
     @patch("http.client.HTTPSConnection")
     def test_init_custom_parameters(self, mock_https_connection: Mock) -> None:
-        """Test BackendConnector initialization with default parameters."""
+        """Test BackendConnector initialization with custom parameters."""
         connector = BackendConnector(url="https://api.example.com/some-path", use_gzip=False)
 
         mock_https_connection.assert_called_once_with(host="api.example.com", port=443, timeout=DEFAULT_TIMEOUT_SECONDS)
         assert connector.default_headers == {}
         assert connector.base_path == "/some-path"
+
+    @patch("ddtestpy.internal.http.UnixDomainSocketHTTPConnection")
+    def test_init_unix_domain_socket(self, mock_unix_connection: Mock) -> None:
+        """Test BackendConnector initialization with Unix domain socket URL."""
+        connector = BackendConnector(url="unix:///some/path/name", base_path="/evp_proxy/over9000", use_gzip=False)
+
+        mock_unix_connection.assert_called_once_with(
+            host="localhost", port=80, timeout=DEFAULT_TIMEOUT_SECONDS, path="/some/path/name"
+        )
+        assert connector.default_headers == {}
+        assert connector.base_path == "/evp_proxy/over9000"
 
     @patch("http.client.HTTPSConnection")
     @patch("uuid.uuid4")
