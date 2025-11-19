@@ -3,6 +3,7 @@
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from ddtestpy.internal.http import BackendConnectorAgentlessSetup
 from ddtestpy.internal.test_data import TestModule
 from ddtestpy.internal.test_data import TestRun
 from ddtestpy.internal.test_data import TestSession
@@ -42,16 +43,14 @@ class TestEvent:
 class TestTestOptWriter:
     """Tests for TestOptWriter class."""
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     def test_testopt_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestOptWriter initialization."""
         mock_connector = Mock()
         mock_backend_connector.return_value = mock_connector
 
-        writer = TestOptWriter(site="datadoghq.com", api_key="test_key")
+        writer = TestOptWriter(BackendConnectorAgentlessSetup(site="datadoghq.com", api_key="test_key"))
 
-        assert writer.site == "datadoghq.com"
-        assert writer.api_key == "test_key"
         assert writer.connector == mock_connector
 
         # Check metadata structure
@@ -68,7 +67,7 @@ class TestTestOptWriter:
         assert TestModule in writer.serializers
         assert TestSession in writer.serializers
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     @patch("msgpack.packb")
     def test_send_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending events to backend."""
@@ -78,7 +77,7 @@ class TestTestOptWriter:
         mock_connector.request.return_value = (Mock(), {})
         mock_packb.return_value = b"packed_data"
 
-        writer = TestOptWriter(site="test", api_key="key")
+        writer = TestOptWriter(BackendConnectorAgentlessSetup(site="test", api_key="key"))
         events = [Event(type="test1"), Event(type="test2")]
 
         writer._send_events(events)
@@ -104,27 +103,25 @@ class TestTestOptWriter:
 class TestTestCoverageWriter:
     """Tests for TestCoverageWriter class."""
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     def test_coverage_writer_initialization(self, mock_backend_connector: Mock) -> None:
         """Test TestCoverageWriter initialization."""
         mock_connector = Mock()
         mock_backend_connector.return_value = mock_connector
 
-        writer = TestCoverageWriter(site="datadoghq.com", api_key="test_key")
+        writer = TestCoverageWriter(BackendConnectorAgentlessSetup(site="datadoghq.com", api_key="test_key"))
 
-        assert writer.site == "datadoghq.com"
-        assert writer.api_key == "test_key"
         assert writer.connector == mock_connector
 
         # Check connector initialization
         mock_backend_connector.assert_called_once_with(
-            host="citestcov-intake.datadoghq.com", default_headers={"dd-api-key": "test_key"}
+            url="https://citestcov-intake.datadoghq.com", default_headers={"dd-api-key": "test_key"}, use_gzip=True
         )
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     def test_put_coverage(self, mock_backend_connector: Mock) -> None:
         """Test putting coverage data."""
-        writer = TestCoverageWriter(site="test", api_key="key")
+        writer = TestCoverageWriter(BackendConnectorAgentlessSetup(site="test", api_key="key"))
 
         # Mock test run
         test_run = Mock()
@@ -147,7 +144,7 @@ class TestTestCoverageWriter:
         assert event["span_id"] == 789
         assert len(event["files"]) == 2
 
-    @patch("ddtestpy.internal.writer.BackendConnector")
+    @patch("ddtestpy.internal.http.BackendConnector")
     @patch("msgpack.packb")
     def test_send_coverage_events(self, mock_packb: Mock, mock_backend_connector: Mock) -> None:
         """Test sending coverage events."""
@@ -157,7 +154,7 @@ class TestTestCoverageWriter:
         mock_connector.post_files.return_value = (Mock(), {})
         mock_packb.return_value = b"packed_coverage_data"
 
-        writer = TestCoverageWriter(site="test", api_key="key")
+        writer = TestCoverageWriter(BackendConnectorAgentlessSetup(site="test", api_key="key"))
         events = [Event(type="coverage1"), Event(type="coverage2")]
 
         writer._send_events(events)

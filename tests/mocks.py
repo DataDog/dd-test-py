@@ -22,6 +22,7 @@ from ddtestpy.internal.api_client import EarlyFlakeDetectionSettings
 from ddtestpy.internal.api_client import Settings
 from ddtestpy.internal.api_client import TestManagementSettings
 from ddtestpy.internal.api_client import TestProperties
+from ddtestpy.internal.http import BackendConnectorSetup
 from ddtestpy.internal.session_manager import SessionManager
 from ddtestpy.internal.test_data import ModuleRef
 from ddtestpy.internal.test_data import SuiteRef
@@ -72,7 +73,12 @@ class MockDefaults:
     @staticmethod
     def test_environment() -> t.Dict[str, str]:
         """Create default test environment variables."""
-        return {"DD_API_KEY": "test-api-key", "DD_SERVICE": "test-service", "DD_ENV": "test-env"}
+        return {
+            "DD_API_KEY": "test-api-key",
+            "DD_CIVISIBILITY_AGENTLESS_ENABLED": "true",
+            "DD_SERVICE": "test-service",
+            "DD_ENV": "test-env",
+        }
 
     @staticmethod
     def test_session(name: str = "test") -> TestSession:
@@ -417,12 +423,18 @@ class BackendConnectorMockBuilder:
 
     def __init__(self) -> None:
         self._post_json_responses: t.Dict[str, t.Any] = {}
+        self._get_json_responses: t.Dict[str, t.Any] = {}
         self._request_responses: t.Dict[str, t.Any] = {}
         self._post_files_responses: t.Dict[str, t.Any] = {}
 
     def with_post_json_response(self, endpoint: str, response_data: t.Any) -> "BackendConnectorMockBuilder":
         """Mock a specific POST JSON endpoint response."""
         self._post_json_responses[endpoint] = response_data
+        return self
+
+    def with_get_json_response(self, endpoint: str, response_data: t.Any) -> "BackendConnectorMockBuilder":
+        """Mock a specific POST JSON endpoint response."""
+        self._get_json_responses[endpoint] = response_data
         return self
 
     def with_request_response(self, method: str, path: str, response_data: t.Any) -> "BackendConnectorMockBuilder":
@@ -432,26 +444,30 @@ class BackendConnectorMockBuilder:
 
     def build(self) -> Mock:
         """Build the BackendConnector mock."""
-        from ddtestpy.internal.http import BackendConnector
-
-        mock_connector = Mock(spec=BackendConnector)
+        mock_connector = Mock()
 
         # Mock methods to prevent real HTTP calls
         def mock_post_json(endpoint: str, data: t.Any) -> t.Tuple[Mock, t.Any]:
             if endpoint in self._post_json_responses:
-                return Mock(), self._post_json_responses[endpoint]
-            return Mock(), {}
+                return Mock(status=200), self._post_json_responses[endpoint]
+            return Mock(status=404), {}
+
+        def mock_get_json(endpoint: str) -> t.Tuple[Mock, t.Any]:
+            if endpoint in self._get_json_responses:
+                return Mock(status=200), self._get_json_responses[endpoint]
+            return Mock(status=404), {}
 
         def mock_request(method: str, path: str, **kwargs: t.Any) -> t.Tuple[Mock, t.Any]:
             key = f"{method}:{path}"
             if key in self._request_responses:
-                return Mock(), self._request_responses[key]
-            return Mock(), {}
+                return Mock(status=200), self._request_responses[key]
+            return Mock(status=404), {}
 
         def mock_post_files(path: str, files: t.Any, **kwargs: t.Any) -> t.Tuple[Mock, t.Dict[str, t.Any]]:
-            return Mock(), {}
+            return Mock(status=200), {}
 
         mock_connector.post_json.side_effect = mock_post_json
+        mock_connector.get_json.side_effect = mock_get_json
         mock_connector.request.side_effect = mock_request
         mock_connector.post_files.side_effect = mock_post_files
 
@@ -537,14 +553,21 @@ def mock_backend_connector() -> "BackendConnectorMockBuilder":
     return BackendConnectorMockBuilder()
 
 
-def setup_standard_mocks() -> t.ContextManager[t.Any]:
+class BackendConnectorMockSetup:
+    def get_connector_for_subdomain(self, subdomain: str) -> Mock:
+        return mock_backend_connector().build()
+
+
+@contextlib.contextmanager
+def setup_standard_mocks() -> t.Generator[None, None, None]:
     """Mock calls used by the session manager to get git and platform tags."""
-    return patch.multiple(
+    with patch.multiple(
         "ddtestpy.internal.session_manager",
         get_env_tags=Mock(return_value={}),
         get_platform_tags=Mock(return_value={}),
         Git=Mock(return_value=get_mock_git_instance()),
-    )
+    ), patch.object(BackendConnectorSetup, "detect_setup", return_value=BackendConnectorMockSetup()):
+        yield
 
 
 def network_mocks() -> t.ContextManager[t.Any]:
@@ -562,6 +585,10 @@ def network_mocks() -> t.ContextManager[t.Any]:
                 get_platform_tags=Mock(return_value={}),
                 Git=Mock(return_value=get_mock_git_instance()),
             )
+        )
+
+        stack.enter_context(
+            patch.object(BackendConnectorSetup, "detect_setup", return_value=BackendConnectorMockSetup())
         )
 
         # Mock the HTTP connector to prevent any real HTTP calls

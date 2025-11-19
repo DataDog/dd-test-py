@@ -17,6 +17,7 @@ from ddtestpy.internal.coverage_api import coverage_collection
 from ddtestpy.internal.coverage_api import install_coverage
 from ddtestpy.internal.ddtrace import install_global_trace_filter
 from ddtestpy.internal.ddtrace import trace_context
+from ddtestpy.internal.errors import SetupError
 from ddtestpy.internal.git import get_workspace_path
 from ddtestpy.internal.logging import catch_and_log_exceptions
 from ddtestpy.internal.logging import setup_logging
@@ -628,7 +629,13 @@ def pytest_load_initial_conftests(
         test_framework="pytest",
         test_framework_version=pytest.__version__,
     )
-    session_manager = SessionManager(session=session)
+
+    try:
+        session_manager = SessionManager(session=session)
+    except SetupError as e:
+        log.error("%s", e)
+        yield
+        return
 
     early_config.stash[SESSION_MANAGER_STASH_KEY] = session_manager
 

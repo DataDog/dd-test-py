@@ -73,6 +73,7 @@ python = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.int_test.env-vars]
 DD_API_KEY = "foobar"
+DD_CIVISIBILITY_AGENTLESS_ENABLED = "true"
 
 [tool.hatch.envs.int_test.scripts]
 test = "pytest {args:test_fixtures}"

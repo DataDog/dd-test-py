@@ -10,7 +10,7 @@ import uuid
 
 from ddtestpy.internal.constants import EMPTY_NAME
 from ddtestpy.internal.git import GitTag
-from ddtestpy.internal.http import BackendConnector
+from ddtestpy.internal.http import BackendConnectorSetup
 from ddtestpy.internal.http import FileAttachment
 from ddtestpy.internal.test_data import ITRSkippingLevel
 from ddtestpy.internal.test_data import ModuleRef
@@ -24,25 +24,19 @@ log = logging.getLogger(__name__)
 class APIClient:
     def __init__(
         self,
-        site: str,
-        api_key: str,
         service: str,
         env: str,
         env_tags: t.Dict[str, str],
         itr_skipping_level: ITRSkippingLevel,
         configurations: t.Dict[str, str],
+        connector_setup: BackendConnectorSetup,
     ) -> None:
-        self.site = site
-        self.api_key = api_key
         self.service = service
         self.env = env
         self.env_tags = env_tags
         self.itr_skipping_level = itr_skipping_level
         self.configurations = configurations
-
-        self.base_url = f"https://api.{self.site}"
-
-        self.connector = BackendConnector(host=f"api.{self.site}", default_headers={"dd-api-key": self.api_key})
+        self.connector = connector_setup.get_connector_for_subdomain("api")
 
     def close(self) -> None:
         self.connector.close()
