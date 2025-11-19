@@ -184,8 +184,6 @@ class BackendConnector(threading.local):
                 path=parsed_url.path,
             )
 
-        # TODO: Unix domain socket support.
-
         raise SetupError(f"Unknown scheme {parsed_url.scheme} in {parsed_url.geturl()}")
 
     # TODO: handle retries
