@@ -85,7 +85,7 @@ class BackendConnectorSetup:
                 agent_url = f"http://{host}:{port}"
 
             elif os.path.exists(DEFAULT_AGENT_SOCKET_FILE):
-                agent_url = f"unix:///{DEFAULT_AGENT_SOCKET_FILE}"
+                agent_url = f"unix://{DEFAULT_AGENT_SOCKET_FILE}"
 
             else:
                 agent_url = f"http://{DEFAULT_AGENT_HOSTNAME}:{DEFAULT_AGENT_PORT}"
