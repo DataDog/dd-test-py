@@ -18,6 +18,7 @@ import uuid
 
 from ddtestpy.internal.constants import DEFAULT_AGENT_HOSTNAME
 from ddtestpy.internal.constants import DEFAULT_AGENT_PORT
+from ddtestpy.internal.constants import DEFAULT_AGENT_SOCKET_FILE
 from ddtestpy.internal.constants import DEFAULT_SITE
 from ddtestpy.internal.errors import SetupError
 from ddtestpy.internal.utils import asbool
@@ -75,13 +76,19 @@ class BackendConnectorSetup:
         """
         agent_url = os.environ.get("DD_TRACE_AGENT_URL")
         if not agent_url:
-            agent_host = (
-                os.environ.get("DD_TRACE_AGENT_HOSTNAME") or os.environ.get("DD_AGENT_HOST") or DEFAULT_AGENT_HOSTNAME
-            )
-            agent_port = (
-                os.environ.get("DD_TRACE_AGENT_PORT") or os.environ.get("DD_AGENT_PORT") or str(DEFAULT_AGENT_PORT)
-            )
-            agent_url = f"http://{agent_host}:{agent_port}"
+            user_provided_host = os.environ.get("DD_TRACE_AGENT_HOSTNAME") or os.environ.get("DD_AGENT_HOST")
+            user_provided_port = os.environ.get("DD_TRACE_AGENT_PORT") or os.environ.get("DD_AGENT_PORT")
+
+            if user_provided_host or user_provided_port:
+                host = user_provided_host or DEFAULT_AGENT_HOSTNAME
+                port = user_provided_port or DEFAULT_AGENT_PORT
+                agent_url = f"http://{host}:{port}"
+
+            elif os.path.exists(DEFAULT_AGENT_SOCKET_FILE):
+                agent_url = f"unix:///{DEFAULT_AGENT_SOCKET_FILE}"
+
+            else:
+                agent_url = f"http://{DEFAULT_AGENT_HOSTNAME}:{DEFAULT_AGENT_PORT}"
 
         # Get info from agent to check if the agent is there, and which EVP proxy version it supports.
         try:

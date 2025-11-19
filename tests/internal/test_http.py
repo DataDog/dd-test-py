@@ -10,6 +10,7 @@ import pytest
 from ddtestpy.internal.errors import SetupError
 from ddtestpy.internal.http import DEFAULT_TIMEOUT_SECONDS
 from ddtestpy.internal.http import BackendConnector
+from ddtestpy.internal.http import UnixDomainSocketHTTPConnection
 from ddtestpy.internal.http import BackendConnectorAgentlessSetup
 from ddtestpy.internal.http import BackendConnectorEVPProxySetup
 from ddtestpy.internal.http import BackendConnectorSetup
@@ -121,38 +122,62 @@ class TestBackendConnectorSetup:
         with pytest.raises(SetupError, match="DD_API_KEY environment variable is not set"):
             BackendConnectorSetup.detect_setup()
 
-    def test_detect_evp_proxy_mode_v4(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_detect_evp_proxy_mode_v4_via_unix_domain_socket(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(os, "environ", {})
 
         backend_connector_mock = (
             mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v4/"]}).build()
         )
         with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
-            connector_setup = BackendConnectorSetup.detect_setup()
+            with patch("os.path.exists", return_value=True):  # Ensure Unix domain socket WILL be detected
+                connector_setup = BackendConnectorSetup.detect_setup()
+
+        assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
+
+        connector = connector_setup.get_connector_for_subdomain("api")
+        assert isinstance(connector.conn, UnixDomainSocketHTTPConnection)
+        assert connector.conn.host == "localhost"
+        assert connector.conn.port == 80
+        assert connector.base_path == "/evp_proxy/v4"
+        assert connector.use_gzip is True
+        assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
+
+    def test_detect_evp_proxy_mode_v4_via_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(os, "environ", {})
+
+        backend_connector_mock = (
+            mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v4/"]}).build()
+        )
+        with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
+            with patch("os.path.exists", return_value=False):  # Ensure Unix domain socket WILL NOT be detected
+                connector_setup = BackendConnectorSetup.detect_setup()
 
         assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
 
         connector = connector_setup.get_connector_for_subdomain("api")
         assert isinstance(connector.conn, http.client.HTTPConnection)
+        assert not isinstance(connector.conn, UnixDomainSocketHTTPConnection)
         assert connector.conn.host == "localhost"
         assert connector.conn.port == 8126
         assert connector.base_path == "/evp_proxy/v4"
         assert connector.use_gzip is True
         assert connector.default_headers["X-Datadog-EVP-Subdomain"] == "api"
 
-    def test_detect_evp_proxy_mode_v2(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_detect_evp_proxy_mode_v2_via_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(os, "environ", {})
 
         backend_connector_mock = (
             mock_backend_connector().with_get_json_response("/info", {"endpoints": ["/evp_proxy/v2/"]}).build()
         )
         with patch("ddtestpy.internal.http.BackendConnector", return_value=backend_connector_mock):
-            connector_setup = BackendConnectorSetup.detect_setup()
+            with patch("os.path.exists", return_value=False):  # Ensure Unix domain socket WILL NOT be detected
+                connector_setup = BackendConnectorSetup.detect_setup()
 
         assert isinstance(connector_setup, BackendConnectorEVPProxySetup)
 
         connector = connector_setup.get_connector_for_subdomain("api")
         assert isinstance(connector.conn, http.client.HTTPConnection)
+        assert not isinstance(connector.conn, UnixDomainSocketHTTPConnection)
         assert connector.conn.host == "localhost"
         assert connector.conn.port == 8126
         assert connector.base_path == "/evp_proxy/v2"
