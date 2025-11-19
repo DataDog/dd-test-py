@@ -141,13 +141,13 @@ class BackendConnector(threading.local):
         url: str,
         default_headers: t.Optional[t.Dict[str, str]] = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
-        base_path: str = "",
+        base_path: t.Optional[str] = None,
         use_gzip: bool = False,
     ):
         parsed_url = urlparse(url)
         self.conn = self._make_connection(parsed_url, timeout_seconds)
         self.default_headers = default_headers or {}
-        self.base_path = base_path
+        self.base_path = base_path if base_path is not None else parsed_url.path.rstrip("/")
         self.use_gzip = use_gzip
         if self.use_gzip:
             self.default_headers["Accept-Encoding"] = "gzip"
