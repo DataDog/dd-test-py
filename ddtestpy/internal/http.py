@@ -8,6 +8,7 @@ import io
 import json
 import logging
 import os
+import socket
 import threading
 import time
 import typing as t
@@ -17,6 +18,7 @@ import uuid
 
 from ddtestpy.internal.constants import DEFAULT_AGENT_HOSTNAME
 from ddtestpy.internal.constants import DEFAULT_AGENT_PORT
+from ddtestpy.internal.constants import DEFAULT_AGENT_SOCKET_FILE
 from ddtestpy.internal.constants import DEFAULT_SITE
 from ddtestpy.internal.errors import SetupError
 from ddtestpy.internal.utils import asbool
@@ -74,15 +76,19 @@ class BackendConnectorSetup:
         """
         agent_url = os.environ.get("DD_TRACE_AGENT_URL")
         if not agent_url:
-            agent_host = (
-                os.environ.get("DD_TRACE_AGENT_HOSTNAME") or os.environ.get("DD_AGENT_HOST") or DEFAULT_AGENT_HOSTNAME
-            )
-            agent_port = (
-                os.environ.get("DD_TRACE_AGENT_PORT") or os.environ.get("DD_AGENT_PORT") or str(DEFAULT_AGENT_PORT)
-            )
-            agent_url = f"http://{agent_host}:{agent_port}"
+            user_provided_host = os.environ.get("DD_TRACE_AGENT_HOSTNAME") or os.environ.get("DD_AGENT_HOST")
+            user_provided_port = os.environ.get("DD_TRACE_AGENT_PORT") or os.environ.get("DD_AGENT_PORT")
 
-        agent_url = agent_url.rstrip("/")  # Avoid an extra / when concatenating with the base path
+            if user_provided_host or user_provided_port:
+                host = user_provided_host or DEFAULT_AGENT_HOSTNAME
+                port = user_provided_port or DEFAULT_AGENT_PORT
+                agent_url = f"http://{host}:{port}"
+
+            elif os.path.exists(DEFAULT_AGENT_SOCKET_FILE):
+                agent_url = f"unix://{DEFAULT_AGENT_SOCKET_FILE}"
+
+            else:
+                agent_url = f"http://{DEFAULT_AGENT_HOSTNAME}:{DEFAULT_AGENT_PORT}"
 
         # Get info from agent to check if the agent is there, and which EVP proxy version it supports.
         try:
@@ -100,10 +106,10 @@ class BackendConnectorSetup:
             )
 
         if "/evp_proxy/v4/" in endpoints:
-            return BackendConnectorEVPProxySetup(url=f"{agent_url}/evp_proxy/v4", use_gzip=True)
+            return BackendConnectorEVPProxySetup(url=agent_url, base_path="/evp_proxy/v4", use_gzip=True)
 
         if "/evp_proxy/v2/" in endpoints:
-            return BackendConnectorEVPProxySetup(url=f"{agent_url}/evp_proxy/v2", use_gzip=False)
+            return BackendConnectorEVPProxySetup(url=agent_url, base_path="/evp_proxy/v2", use_gzip=False)
 
         raise SetupError(f"Datadog agent at {agent_url} does not support EVP proxy mode")
 
@@ -122,13 +128,15 @@ class BackendConnectorAgentlessSetup(BackendConnectorSetup):
 
 
 class BackendConnectorEVPProxySetup(BackendConnectorSetup):
-    def __init__(self, url: str, use_gzip: bool) -> None:
+    def __init__(self, url: str, base_path: str, use_gzip: bool) -> None:
         self.url = url
+        self.base_path = base_path
         self.use_gzip = use_gzip
 
     def get_connector_for_subdomain(self, subdomain: str) -> BackendConnector:
         return BackendConnector(
             url=self.url,
+            base_path=self.base_path,
             default_headers={"X-Datadog-EVP-Subdomain": subdomain},
             use_gzip=self.use_gzip,
         )
@@ -140,12 +148,13 @@ class BackendConnector(threading.local):
         url: str,
         default_headers: t.Optional[t.Dict[str, str]] = None,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        base_path: t.Optional[str] = None,
         use_gzip: bool = False,
     ):
         parsed_url = urlparse(url)
         self.conn = self._make_connection(parsed_url, timeout_seconds)
         self.default_headers = default_headers or {}
-        self.base_path = parsed_url.path.rstrip("/")
+        self.base_path = base_path if base_path is not None else parsed_url.path.rstrip("/")
         self.use_gzip = use_gzip
         if self.use_gzip:
             self.default_headers["Accept-Encoding"] = "gzip"
@@ -170,7 +179,17 @@ class BackendConnector(threading.local):
                 host=parsed_url.hostname, port=parsed_url.port or 443, timeout=timeout_seconds
             )
 
-        # TODO: Unix domain socket support.
+        if parsed_url.scheme == "unix":
+            # These URLs usually have an empty hostname component, e.g., unix:///var/run/datadog/apm.socket, that is,
+            # unix:// + empty hostname + /var/run/datadog/apm.socket (pathname of the socket). We need to ensure some
+            # hostname is used so the `Host` header will be passed correctly in requests to the agent, so we use the
+            # default hostname (localhost) if none is provided.
+            return UnixDomainSocketHTTPConnection(
+                host=parsed_url.hostname or DEFAULT_AGENT_HOSTNAME,
+                port=parsed_url.port or 80,
+                timeout=timeout_seconds,
+                path=parsed_url.path,
+            )
 
         raise SetupError(f"Unknown scheme {parsed_url.scheme} in {parsed_url.geturl()}")
 
@@ -256,3 +275,18 @@ class FileAttachment:
     filename: t.Optional[str]
     content_type: str
     data: bytes
+
+
+class UnixDomainSocketHTTPConnection(http.client.HTTPConnection):
+    """An HTTP connection established over a Unix Domain Socket."""
+
+    # It's important to keep the hostname and port arguments here; while there are not used by the connection
+    # mechanism, they are actually used as HTTP headers such as `Host`.
+    def __init__(self, path: str, *args: t.Any, **kwargs: t.Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.path = path
+
+    def connect(self) -> None:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(self.path)
+        self.sock = sock
