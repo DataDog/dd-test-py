@@ -19,8 +19,11 @@ jobs:
         python-version: "3.13"
         
     - name: Install Hatch
-      run: pip install "click<=8.2.1" "hatch==1.14.1"
+      run: pip install "hatch==1.16.5"
       
+    - name: Check pinned dependencies
+      run: python .github/scripts/check-pinned-deps.py
+
     - name: Run QA checks
       run: hatch run qa:qa
 
@@ -37,9 +40,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        pytest-version: ["7.2.0", "8.1.2", "8.4.*"]
+        pytest-version: ["7.2.0", "8.1.2", "8.4.1"]
         exclude:
-          # Python 3.12 and 3.13 only support pytest 8.1.2 and 8.4.*
+          # Python 3.12 and 3.13 only support pytest 8.1.2 and 8.4.1
           - python-version: "3.12"
             pytest-version: "7.2.0"
           - python-version: "3.13"
@@ -54,7 +57,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install Hatch
-      run: pip install "click<=8.2.1" "hatch==1.14.1"
+      run: |
+        if [ "${{ matrix.python-version }}" = "3.9" ]; then
+          pip install "hatch==1.15.1" "virtualenv==20.29.3"
+        else
+          pip install "hatch==1.16.5"
+        fi
 
     - name: Run tests
       env:
@@ -78,7 +86,7 @@ jobs:
         python-version: "3.13"
         
     - name: Install Hatch
-      run: pip install "click<=8.2.1" "hatch==1.14.1"
+      run: pip install "hatch==1.16.5"
 
     - name: Run coverage tests
       id: coverage
