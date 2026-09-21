@@ -7,7 +7,7 @@ name = "ddtestpy"
 dynamic = ["version"]
 dependencies = [
     "bytecode>=0.15.0",
-    "msgpack>=1.0.0",
+    "msgpack>=1.2.2",
 ]
 license = "Apache-2.0"
 
